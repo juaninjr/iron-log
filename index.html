@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
     --ink:#17181c;
@@ -367,6 +368,43 @@
   const STORAGE_KEY = "ironlog:entries";
   let entries = [];
 
+  // ---------- Database config (Supabase) ----------
+  // Fill these in after creating a Supabase project and running supabase/schema.sql.
+  // See README.md for setup steps. Until both are set, the app falls back to
+  // browser localStorage so it keeps working.
+  const SUPABASE_URL = "YOUR_SUPABASE_URL";
+  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+  const useSupabase = Boolean(
+    SUPABASE_URL && !SUPABASE_URL.startsWith("YOUR_") &&
+    SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.startsWith("YOUR_")
+  );
+  const supabaseClient = useSupabase
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  function rowToEntry(row){
+    return {
+      id: row.id,
+      date: row.date,
+      exercise: row.exercise,
+      weight: row.weight,
+      reps: row.reps,
+      loggedAt: Number(row.logged_at),
+    };
+  }
+
+  function entryToRow(e){
+    return {
+      id: e.id,
+      date: e.date,
+      exercise: e.exercise,
+      weight: e.weight,
+      reps: e.reps,
+      logged_at: e.loggedAt,
+    };
+  }
+
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $all = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
@@ -382,8 +420,23 @@
     return `${d}/${m}/${y}`;
   }
 
-  // ---------- Storage (browser localStorage) ----------
+  // ---------- Storage (Supabase, falls back to localStorage) ----------
   async function loadEntries(){
+    if(useSupabase){
+      try{
+        const { data, error } = await supabaseClient
+          .from("workout_entries")
+          .select("*")
+          .order("logged_at", { ascending: true });
+        if(error) throw error;
+        entries = data.map(rowToEntry);
+      }catch(e){
+        console.error("Supabase load error", e);
+        alert("Could not load workouts from the database.");
+        entries = [];
+      }
+      return;
+    }
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
       entries = raw ? JSON.parse(raw) : [];
@@ -392,7 +445,22 @@
     }
   }
 
-  async function saveEntries(){
+  // Upserts `rows` (defaults to the full `entries` array) into the database.
+  async function saveEntries(rows){
+    if(useSupabase){
+      try{
+        const payload = (rows || entries).map(entryToRow);
+        if(payload.length === 0) return;
+        const { error } = await supabaseClient
+          .from("workout_entries")
+          .upsert(payload, { onConflict: "id" });
+        if(error) throw error;
+      }catch(e){
+        console.error("Supabase save error", e);
+        alert("Could not save to the database — your last change may not persist.");
+      }
+      return;
+    }
     try{
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
     }catch(e){
@@ -479,7 +547,7 @@
   }
 
   // ---------- Logging ----------
-  function logWorkout(){
+  async function logWorkout(){
     const date = $("#workoutDate").value;
     if(!date){
       alert("Pick a date first.");
@@ -522,7 +590,7 @@
     }
 
     entries = entries.concat(newEntries);
-    saveEntries();
+    await saveEntries(newEntries);
     buildExerciseBlocks();
     $("#workoutDate").value = date;
     render();
@@ -707,17 +775,17 @@
         const incoming = JSON.parse(reader.result);
         if(!Array.isArray(incoming)) throw new Error("Not an array");
         const existingIds = new Set(entries.map(e => e.id));
-        let added = 0;
+        const toAdd = [];
         incoming.forEach(e => {
           if(e && e.id && !existingIds.has(e.id)){
-            entries.push(e);
+            toAdd.push(e);
             existingIds.add(e.id);
-            added++;
           }
         });
-        await saveEntries();
+        entries = entries.concat(toAdd);
+        await saveEntries(toAdd);
         render();
-        alert(`Imported ${added} new set${added === 1 ? "" : "s"}.`);
+        alert(`Imported ${toAdd.length} new set${toAdd.length === 1 ? "" : "s"}.`);
       }catch(err){
         alert("Could not read that file — make sure it's an Iron Log backup JSON.");
       }
@@ -725,15 +793,28 @@
     reader.readAsText(file);
   }
 
-  function clearAllData(){
+  async function clearAllData(){
     if(!confirm("Delete every logged set? This can't be undone. Export a backup first if you're not sure.")){
       return;
     }
     if(!confirm("Really clear everything? Last chance.")){
       return;
     }
+    if(useSupabase){
+      try{
+        const { error } = await supabaseClient.from("workout_entries").delete().neq("id", "__none__");
+        if(error) throw error;
+      }catch(e){
+        console.error("Supabase clear error", e);
+        alert("Could not clear the database.");
+        return;
+      }
+      entries = [];
+      render();
+      return;
+    }
     entries = [];
-    saveEntries();
+    await saveEntries();
     render();
   }
 
