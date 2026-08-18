@@ -25,7 +25,7 @@ npx serve .
 ## Push to GitHub
 
 ```bash
-git remote add origin https://github.com/<your-username>/iron-log.git
+git remote add origin https://github.com/<juaninjr>/iron-log.git
 git branch -M main
 git push -u origin main
 ```
@@ -39,8 +39,12 @@ don't reuse this Supabase project for anything sensitive.
 1. Create a free project at [supabase.com](https://supabase.com/dashboard).
 2. Open **SQL Editor** in the project, paste the contents of
    [`supabase/schema.sql`](supabase/schema.sql), and run it. This creates the
-   `workout_entries` table and a permissive access policy (see the comments
-   in that file for why).
+   `workout_entries` and `exercises` tables and a permissive access policy on
+   each (see the comments in that file for why). The `exercises` table
+   self-seeds with the default roster the first time the page loads.
+   **If you already ran this file before the `exercises` table existed**,
+   re-run it — the new statements are additive (`create table if not
+   exists`), so it's safe to run again.
 3. Open **Project Settings > API** and copy the **Project URL** and the
    **anon public** key.
 4. In `index.html`, find these lines near the top of the `<script>` block and

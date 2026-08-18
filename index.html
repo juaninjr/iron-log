@@ -413,6 +413,62 @@
   @media (max-width:640px){
     .chart-svg{height:240px;}
   }
+
+  /* Suggested */
+  .suggest-card{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px;
+  }
+  .suggest-muscle{font-family:'Gluten',sans-serif;font-weight:800;font-size:1.7rem;color:var(--plate);}
+  .suggest-sub{font-family:'Gluten',sans-serif;font-weight:500;color:var(--muted);font-size:0.8rem;margin-bottom:12px;}
+  .suggest-chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .suggest-chip{
+    background:var(--plate);
+    color:#fff;
+    border:none;
+    border-radius:20px;
+    padding:8px 14px;
+    font-family:'Gluten',sans-serif;
+    font-weight:700;
+    font-size:0.8rem;
+    cursor:pointer;
+  }
+  .suggest-chip:hover{background:var(--plate-dark);}
+
+  @keyframes flash-block{
+    0%,100%{background:var(--paper);}
+    50%{background:#ffe3da;}
+  }
+  .exercise-block.flash{animation:flash-block 0.4s ease 2;}
+
+  /* Exercises: add + manage */
+  .add-ex-form{display:flex;flex-direction:column;gap:12px;max-width:360px;}
+  .add-ex-checks{display:flex;gap:16px;}
+  .add-ex-checks label{
+    display:flex;align-items:center;gap:6px;
+    font-family:'Gluten',sans-serif;font-weight:600;
+    text-transform:none;letter-spacing:0;font-size:0.78rem;color:var(--ink);
+  }
+  .add-ex-checks input{width:auto;}
+
+  .ex-group-title{
+    font-family:'Gluten',sans-serif;font-weight:800;font-size:1rem;
+    color:var(--steel);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.04em;
+  }
+  .ex-group-title:first-child{margin-top:0;}
+  .ex-manage-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--paper);
+  }
+  .ex-manage-name{font-family:'Gluten',sans-serif;font-weight:600;font-size:0.88rem;}
+  .ex-backbone-toggle{
+    display:flex;align-items:center;gap:6px;white-space:nowrap;
+    font-family:'Gluten',sans-serif;font-weight:600;font-size:0.7rem;
+    text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);cursor:pointer;
+  }
+  .ex-backbone-toggle input{width:auto;}
 </style>
 </head>
 <body>
@@ -429,6 +485,8 @@
     <button type="button" class="tab-btn active" data-view="log">Log</button>
     <button type="button" class="tab-btn" data-view="progress">Progress</button>
     <button type="button" class="tab-btn" data-view="calendar">Calendar</button>
+    <button type="button" class="tab-btn" data-view="suggested">Suggested</button>
+    <button type="button" class="tab-btn" data-view="exercises">Exercises</button>
   </nav>
 
   <div class="view" id="viewLog">
@@ -519,30 +577,104 @@
 
   </div>
 
+  <div class="view" id="viewSuggested" hidden>
+
+    <section>
+      <h2>Suggested for you</h2>
+      <div id="suggestedPrimary"></div>
+    </section>
+
+    <section>
+      <h2>Muscle group balance</h2>
+      <div class="scroll-table">
+        <table>
+          <thead>
+            <tr><th>Muscle</th><th>Last trained</th><th>Backbone exercises</th></tr>
+          </thead>
+          <tbody id="muscleBalanceBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="view" id="viewExercises" hidden>
+
+    <section>
+      <h2>Add exercise</h2>
+      <div class="add-ex-form">
+        <div>
+          <label for="newExName">Name</label>
+          <input type="text" id="newExName" placeholder="e.g. Seated Rows">
+        </div>
+        <div>
+          <label for="newExMuscle">Muscle group</label>
+          <select id="newExMuscle">
+            <option value="chest">Chest</option>
+            <option value="back">Back</option>
+            <option value="shoulders">Shoulders</option>
+            <option value="arms">Arms</option>
+            <option value="core">Core</option>
+            <option value="legs">Legs</option>
+          </select>
+        </div>
+        <div class="add-ex-checks">
+          <label><input type="checkbox" id="newExPerHand"> Per hand</label>
+          <label><input type="checkbox" id="newExWeighted" checked> Track weight</label>
+        </div>
+        <button type="button" class="primary-btn" id="addExerciseBtn">Add exercise</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>All exercises <span class="count" id="exercisesCount"></span></h2>
+      <p class="empty-note" style="padding:0 0 12px;">Backbone exercises are the pool the Suggested tab draws from.</p>
+      <div id="exerciseManageList"></div>
+    </section>
+
+  </div>
+
 </div>
 
 <script>
 (function(){
   "use strict";
 
-  const EXERCISES = [
-    { name: "Long Biceps",       perHand: true,  min: 4,  max: 20,  step: 2 },
-    { name: "Short Biceps",      perHand: false, min: 5,  max: 20,  step: 1 },
-    { name: "Bench Dumbbell",    perHand: true,  min: 40, max: 100, step: 2 },
-    { name: "Bench",             perHand: false, min: 40, max: 100, step: 5 },
-    { name: "Militar",           perHand: false, min: 15, max: 30,  step: 1 },
-    { name: "Lat Raises",        perHand: true,  min: 4,  max: 20,  step: 2 },
-    { name: "Rear Delt Flies",   perHand: true,  min: 4,  max: 20,  step: 2 },
-    { name: "Triceps Pulldown",  perHand: false, min: 1,  max: 10,  step: 1 },
-    { name: "Triceps Horizontal",perHand: false, min: 5,  max: 40,  step: 5 },
-    { name: "Bulgarian",         perHand: false, min: 0,  max: 100, step: 5 },
-    { name: "Squats Máquina",    perHand: false, min: 0,  max: 200, step: 5 },
-    { name: "Core Workout",      perHand: false, min: 0,  max: 100, step: 1 },
-    { name: "Pushups",           repsOnly: true },
+  const MUSCLES = ["chest","back","shoulders","arms","core","legs"];
+  const MUSCLE_LABELS = { chest:"Chest", back:"Back", shoulders:"Shoulders", arms:"Arms", core:"Core", legs:"Legs" };
+
+  // The original fixed roster — seeded into the database on first run and
+  // used as the fallback if the database is unreachable. These are the
+  // "backbone" exercises: the pool Suggested draws from. Exercises added
+  // later through the Exercises tab start as non-backbone.
+  const DEFAULT_EXERCISES = [
+    { name: "Long Biceps",       perHand: true,  min: 4,  max: 20,  step: 2, muscle: "arms",      backbone: true },
+    { name: "Short Biceps",      perHand: false, min: 5,  max: 20,  step: 1, muscle: "arms",      backbone: true },
+    { name: "Bench Dumbbell",    perHand: true,  min: 40, max: 100, step: 2, muscle: "chest",     backbone: true },
+    { name: "Bench",             perHand: false, min: 40, max: 100, step: 5, muscle: "chest",     backbone: true },
+    { name: "Militar",           perHand: false, min: 15, max: 30,  step: 1, muscle: "shoulders", backbone: true },
+    { name: "Lat Raises",        perHand: true,  min: 4,  max: 20,  step: 2, muscle: "shoulders", backbone: true },
+    { name: "Rear Delt Flies",   perHand: true,  min: 4,  max: 20,  step: 2, muscle: "shoulders", backbone: true },
+    { name: "Triceps Pulldown",  perHand: false, min: 1,  max: 10,  step: 1, muscle: "arms",      backbone: true },
+    { name: "Triceps Horizontal",perHand: false, min: 5,  max: 40,  step: 5, muscle: "arms",      backbone: true },
+    { name: "Bulgarian",         perHand: false, min: 0,  max: 100, step: 5, muscle: "legs",      backbone: true },
+    { name: "Squats Máquina",    perHand: false, min: 0,  max: 200, step: 5, muscle: "legs",      backbone: true },
+    { name: "Core Workout",      perHand: false, min: 0,  max: 100, step: 1, muscle: "core",      backbone: true },
+    { name: "Pushups",           repsOnly: true, muscle: "chest", backbone: true },
   ];
 
-  // Fixed per-exercise colors — validated categorical palette, assigned in a
-  // stable order so an exercise's color never changes when filters change.
+  // Populated at load time from the database (or localStorage fallback).
+  let EXERCISES = [];
+
+  function exerciseSort(a, b){
+    const ma = MUSCLES.indexOf(a.muscle), mb = MUSCLES.indexOf(b.muscle);
+    if(ma !== mb) return ma - mb;
+    return a.name.localeCompare(b.name);
+  }
+
+  // Fixed colors for the original roster — validated categorical palette,
+  // assigned in a stable order so an exercise's color never changes when
+  // filters change. Exercises added later get a deterministic hash color.
   const EXERCISE_COLORS = {
     "Long Biceps":        "#2a78d6",
     "Short Biceps":       "#1baf7a",
@@ -559,15 +691,23 @@
     "Pushups":            "#8a2f4a",
   };
 
+  function colorForExercise(name){
+    if(EXERCISE_COLORS[name]) return EXERCISE_COLORS[name];
+    let hash = 0;
+    for(let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    return `hsl(${hash % 360} 65% 42%)`;
+  }
+
   const STORAGE_KEY = "ironlog:entries";
+  const EXERCISES_STORAGE_KEY = "ironlog:exercises";
   let entries = [];
   let editingId = null;
   let currentView = "log";
   let calMonth = new Date();
   calMonth.setDate(1);
 
-  const weightFilterSelected = new Set(EXERCISES.filter(ex => !ex.repsOnly).map(ex => ex.name));
-  const repsFilterSelected = new Set(EXERCISES.filter(ex => ex.repsOnly).map(ex => ex.name));
+  const weightFilterSelected = new Set();
+  const repsFilterSelected = new Set();
 
   // ---------- Database config (Supabase) ----------
   // Fill these in after creating a Supabase project and running supabase/schema.sql.
@@ -603,6 +743,32 @@
       weight: e.weight,
       reps: e.reps,
       logged_at: e.loggedAt,
+    };
+  }
+
+  function rowToExercise(row){
+    return {
+      name: row.name,
+      muscle: row.muscle,
+      perHand: row.per_hand,
+      repsOnly: row.reps_only,
+      min: row.min,
+      max: row.max,
+      step: row.step,
+      backbone: row.backbone,
+    };
+  }
+
+  function exerciseToRow(ex){
+    return {
+      name: ex.name,
+      muscle: ex.muscle,
+      per_hand: Boolean(ex.perHand),
+      reps_only: Boolean(ex.repsOnly),
+      min: ex.min ?? null,
+      max: ex.max ?? null,
+      step: ex.step ?? null,
+      backbone: Boolean(ex.backbone),
     };
   }
 
@@ -674,6 +840,67 @@
     }
   }
 
+  // Loads the exercise roster, seeding the database/localStorage with
+  // DEFAULT_EXERCISES the first time there's nothing stored yet.
+  async function loadExercises(){
+    if(useSupabase){
+      try{
+        const { data, error } = await supabaseClient.from("exercises").select("*");
+        if(error) throw error;
+        if(data.length === 0){
+          const seedRows = DEFAULT_EXERCISES.map(exerciseToRow);
+          const { error: seedError } = await supabaseClient.from("exercises").insert(seedRows);
+          if(seedError) throw seedError;
+          EXERCISES = DEFAULT_EXERCISES.map(ex => ({ ...ex }));
+        } else {
+          EXERCISES = data.map(rowToExercise);
+        }
+      }catch(e){
+        console.error("Supabase exercises load error", e);
+        alert("Could not load exercises from the database.");
+        EXERCISES = DEFAULT_EXERCISES.map(ex => ({ ...ex }));
+      }
+    } else {
+      try{
+        const raw = localStorage.getItem(EXERCISES_STORAGE_KEY);
+        if(raw){
+          EXERCISES = JSON.parse(raw);
+        } else {
+          EXERCISES = DEFAULT_EXERCISES.map(ex => ({ ...ex }));
+          localStorage.setItem(EXERCISES_STORAGE_KEY, JSON.stringify(EXERCISES));
+        }
+      }catch(e){
+        EXERCISES = DEFAULT_EXERCISES.map(ex => ({ ...ex }));
+      }
+    }
+    EXERCISES.sort(exerciseSort);
+  }
+
+  // Upserts a single exercise (new or edited) into the database.
+  async function saveExercise(ex){
+    if(useSupabase){
+      try{
+        const { error } = await supabaseClient
+          .from("exercises")
+          .upsert([exerciseToRow(ex)], { onConflict: "name" });
+        if(error) throw error;
+        return true;
+      }catch(e){
+        console.error("Supabase exercise save error", e);
+        alert("Could not save the exercise to the database.");
+        return false;
+      }
+    }
+    try{
+      localStorage.setItem(EXERCISES_STORAGE_KEY, JSON.stringify(EXERCISES));
+      return true;
+    }catch(e){
+      console.error("Storage error", e);
+      alert("Could not save the exercise.");
+      return false;
+    }
+  }
+
   // ---------- Build the log form ----------
   function buildExerciseBlocks(){
     const container = $("#exerciseBlocks");
@@ -709,10 +936,12 @@
     row.className = "set-row" + (ex.repsOnly ? " reps-only" : "");
 
     if(!ex.repsOnly){
+      const min = ex.min ?? 0;
+      const step = ex.step ?? 1;
       const weightWrap = document.createElement("div");
       weightWrap.innerHTML = `
         <label class="field-label">Weight (kg)</label>
-        <input type="number" class="weight-input" min="${ex.min}" step="${ex.step}" placeholder="${ex.min}">
+        <input type="number" class="weight-input" min="${min}" step="${step}" placeholder="${min}">
       `;
       row.appendChild(weightWrap);
     }
@@ -937,6 +1166,7 @@
 
     if(currentView === "progress") renderCharts();
     if(currentView === "calendar") renderCalendar();
+    if(currentView === "suggested") renderSuggested();
   }
 
   async function saveEditedEntry(id, tr){
@@ -970,7 +1200,13 @@
   }
 
   // ---------- Views (Log / Progress / Calendar) ----------
-  const VIEW_IDS = { log: "viewLog", progress: "viewProgress", calendar: "viewCalendar" };
+  const VIEW_IDS = {
+    log: "viewLog",
+    progress: "viewProgress",
+    calendar: "viewCalendar",
+    suggested: "viewSuggested",
+    exercises: "viewExercises",
+  };
 
   function setView(view){
     currentView = view;
@@ -984,6 +1220,8 @@
     });
     if(view === "progress") renderCharts();
     if(view === "calendar") renderCalendar();
+    if(view === "suggested") renderSuggested();
+    if(view === "exercises") renderExerciseManage();
   }
 
   // ---------- Progress charts ----------
@@ -1005,7 +1243,7 @@
         if(!(e.date in byDate) || val > byDate[e.date]) byDate[e.date] = val;
       });
       const points = Object.keys(byDate).sort().map(date => ({ date, value: byDate[date] }));
-      return { ex, color: EXERCISE_COLORS[ex.name], points };
+      return { ex, color: colorForExercise(ex.name), points };
     });
   }
 
@@ -1236,6 +1474,180 @@
     }
   }
 
+  // ---------- Suggested ----------
+  // Most recent date any exercise in each muscle group was logged.
+  function muscleLastTrained(){
+    const last = {};
+    MUSCLES.forEach(m => { last[m] = null; });
+    entries.forEach(e => {
+      const ex = EXERCISES.find(x => x.name === e.exercise);
+      if(!ex) return;
+      if(!last[ex.muscle] || e.date > last[ex.muscle]) last[ex.muscle] = e.date;
+    });
+    return last;
+  }
+
+  function lastTrainedForExercise(name){
+    let last = null;
+    entries.forEach(e => {
+      if(e.exercise === name && (!last || e.date > last)) last = e.date;
+    });
+    return last;
+  }
+
+  function jumpToExercise(name){
+    setView("log");
+    requestAnimationFrame(() => {
+      const block = document.querySelector(`.exercise-block[data-exercise="${cssEscape(name)}"]`);
+      if(!block) return;
+      block.scrollIntoView({ behavior: "smooth", block: "center" });
+      block.classList.add("flash");
+      setTimeout(() => block.classList.remove("flash"), 1200);
+    });
+  }
+
+  function renderSuggested(){
+    const last = muscleLastTrained();
+    const backboneByMuscle = {};
+    MUSCLES.forEach(m => { backboneByMuscle[m] = EXERCISES.filter(ex => ex.muscle === m && ex.backbone); });
+
+    // Never-trained muscles rank first, then oldest last-trained date first.
+    const ranked = MUSCLES.slice().sort((a, b) => {
+      const da = last[a], db = last[b];
+      if(da === db) return 0;
+      if(!da) return -1;
+      if(!db) return 1;
+      return da < db ? -1 : 1;
+    });
+
+    const target = ranked.find(m => backboneByMuscle[m].length > 0);
+    const primary = $("#suggestedPrimary");
+
+    if(!target){
+      primary.innerHTML = `<p class="empty-note">No backbone exercises yet — mark some in the Exercises tab.</p>`;
+    } else {
+      const exList = backboneByMuscle[target].slice().sort((a, b) => {
+        const da = lastTrainedForExercise(a.name), db = lastTrainedForExercise(b.name);
+        if(da === db) return 0;
+        if(!da) return -1;
+        if(!db) return 1;
+        return da < db ? -1 : 1;
+      });
+      const lastStr = last[target] ? fmtDate(last[target]) : "never";
+
+      primary.innerHTML = `
+        <div class="suggest-card">
+          <div class="suggest-muscle">${MUSCLE_LABELS[target]}</div>
+          <div class="suggest-sub">Last trained ${lastStr}</div>
+          <div class="suggest-chips" id="suggestChips"></div>
+        </div>
+      `;
+      const chipsWrap = $("#suggestChips");
+      exList.forEach(ex => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "suggest-chip";
+        chip.textContent = ex.name;
+        chip.addEventListener("click", () => jumpToExercise(ex.name));
+        chipsWrap.appendChild(chip);
+      });
+    }
+
+    const body = $("#muscleBalanceBody");
+    body.innerHTML = "";
+    ranked.forEach(m => {
+      const tr = document.createElement("tr");
+      if(m === target) tr.classList.add("highlight");
+      const names = backboneByMuscle[m].map(ex => ex.name).join(", ") || "—";
+      tr.innerHTML = `
+        <td>${MUSCLE_LABELS[m]}</td>
+        <td>${last[m] ? fmtDate(last[m]) : "Never"}</td>
+        <td>${names}</td>
+      `;
+      body.appendChild(tr);
+    });
+  }
+
+  // ---------- Exercises (add + manage backbone roster) ----------
+  function renderExerciseManage(){
+    const container = $("#exerciseManageList");
+    container.innerHTML = "";
+
+    MUSCLES.forEach(m => {
+      const group = EXERCISES.filter(ex => ex.muscle === m);
+      if(group.length === 0) return;
+
+      const h = document.createElement("h3");
+      h.className = "ex-group-title";
+      h.textContent = MUSCLE_LABELS[m];
+      container.appendChild(h);
+
+      group.forEach(ex => {
+        const row = document.createElement("div");
+        row.className = "ex-manage-row";
+        row.innerHTML = `
+          <span class="ex-manage-name">${ex.name}${ex.perHand ? ' <span class="ex-tag">Per hand</span>' : ''}${ex.repsOnly ? ' <span class="ex-tag">Reps only</span>' : ''}</span>
+          <label class="ex-backbone-toggle">
+            <input type="checkbox" ${ex.backbone ? "checked" : ""}>
+            Backbone
+          </label>
+        `;
+        $("input", row).addEventListener("change", (evt) => toggleBackbone(ex.name, evt.target.checked));
+        container.appendChild(row);
+      });
+    });
+
+    $("#exercisesCount").textContent = `${EXERCISES.length} exercises`;
+  }
+
+  async function toggleBackbone(name, value){
+    const ex = EXERCISES.find(x => x.name === name);
+    if(!ex) return;
+    ex.backbone = value;
+    await saveExercise(ex);
+    if(currentView === "suggested") renderSuggested();
+  }
+
+  async function addExercise(){
+    const nameInput = $("#newExName");
+    const name = nameInput.value.trim();
+    if(!name){
+      alert("Enter an exercise name.");
+      return;
+    }
+    if(EXERCISES.some(x => x.name.toLowerCase() === name.toLowerCase())){
+      alert("An exercise with that name already exists.");
+      return;
+    }
+
+    const weighted = $("#newExWeighted").checked;
+    const newEx = {
+      name,
+      muscle: $("#newExMuscle").value,
+      perHand: $("#newExPerHand").checked,
+      repsOnly: !weighted,
+      min: weighted ? 0 : null,
+      max: null,
+      step: weighted ? 1 : null,
+      backbone: false,
+    };
+
+    const ok = await saveExercise(newEx);
+    if(!ok) return;
+
+    EXERCISES.push(newEx);
+    EXERCISES.sort(exerciseSort);
+    (newEx.repsOnly ? repsFilterSelected : weightFilterSelected).add(newEx.name);
+
+    nameInput.value = "";
+    $("#newExPerHand").checked = false;
+    $("#newExWeighted").checked = true;
+
+    buildExerciseBlocks();
+    renderExerciseManage();
+    if(currentView === "suggested") renderSuggested();
+  }
+
   // ---------- PDF export ----------
   function downloadPDF(){
     if(entries.length === 0){
@@ -1356,9 +1768,8 @@
   }
 
   // ---------- Wire up ----------
-  function init(){
+  async function init(){
     $("#workoutDate").value = todayISO();
-    buildExerciseBlocks();
 
     $("#logWorkoutBtn").addEventListener("click", logWorkout);
     $("#pdfBtn").addEventListener("click", downloadPDF);
@@ -1383,6 +1794,7 @@
       calMonth.setMonth(calMonth.getMonth() + 1);
       renderCalendar();
     });
+    $("#addExerciseBtn").addEventListener("click", addExercise);
     let resizeRaf = null;
     window.addEventListener("resize", () => {
       if(currentView !== "progress") return;
@@ -1390,7 +1802,14 @@
       resizeRaf = requestAnimationFrame(renderCharts);
     });
 
-    loadEntries().then(render);
+    await loadExercises();
+    EXERCISES.forEach(ex => {
+      (ex.repsOnly ? repsFilterSelected : weightFilterSelected).add(ex.name);
+    });
+    buildExerciseBlocks();
+
+    await loadEntries();
+    render();
   }
 
   document.addEventListener("DOMContentLoaded", init);
