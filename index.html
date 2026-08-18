@@ -4,26 +4,54 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Iron Log</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
+  @font-face{
+    font-family:'Gluten';
+    src:url('fonts/Gluten-Regular.woff2') format('woff2');
+    font-weight:400; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:'Gluten';
+    src:url('fonts/Gluten-Medium.woff2') format('woff2');
+    font-weight:500; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:'Gluten';
+    src:url('fonts/Gluten-SemiBold.woff2') format('woff2');
+    font-weight:600; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:'Gluten';
+    src:url('fonts/Gluten-Bold.woff2') format('woff2');
+    font-weight:700; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:'Gluten';
+    src:url('fonts/Gluten-ExtraBold.woff2') format('woff2');
+    font-weight:800; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:'Gluten';
+    src:url('fonts/Gluten-Black.woff2') format('woff2');
+    font-weight:900; font-style:normal; font-display:swap;
+  }
+
   :root{
-    --ink:#17181c;
-    --paper:#f5f3ef;
+    --ink:#241512;
+    --paper:#fff5ee;
     --paper-raised:#ffffff;
-    --plate:#c23b30;
-    --plate-dark:#9c2e25;
-    --steel:#35507a;
-    --steel-light:#5b7aa8;
-    --line:#dcd7cd;
-    --line-strong:#b9b2a4;
-    --muted:#6b675f;
+    --plate:#ef2f22;
+    --plate-dark:#c81e14;
+    --steel:#ff8a1e;
+    --steel-light:#ffb066;
+    --line:#f2ddd0;
+    --line-strong:#e3b79c;
+    --muted:#8a6f62;
     --radius:10px;
-    --shadow:0 1px 2px rgba(23,24,28,0.06), 0 4px 12px rgba(23,24,28,0.05);
+    --shadow:0 1px 2px rgba(36,21,18,0.08), 0 4px 12px rgba(36,21,18,0.06);
   }
 
   *{box-sizing:border-box;}
@@ -32,14 +60,14 @@
     margin:0;
     background:var(--paper);
     color:var(--ink);
-    font-family:'Inter',system-ui,sans-serif;
+    font-family:'Gluten',system-ui,sans-serif;
     line-height:1.45;
     padding:24px 20px 80px;
   }
 
   .wrap{max-width:1080px;margin:0 auto;}
 
-  h1,h2,h3{font-family:'Bebas Neue',sans-serif;letter-spacing:0.02em;margin:0;}
+  h1,h2,h3{font-family:'Gluten',sans-serif;font-weight:800;letter-spacing:0.01em;margin:0;}
 
   a{color:var(--steel);}
 
@@ -53,7 +81,7 @@
     margin-bottom:22px;
   }
   header.top h1{font-size:clamp(2.2rem,6vw,3.2rem);color:var(--ink);}
-  header.top .sub{font-family:'IBM Plex Mono',monospace;font-size:0.78rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;}
+  header.top .sub{font-family:'Gluten',sans-serif;font-weight:600;font-size:0.78rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;}
 
   .stats{
     display:grid;
@@ -69,7 +97,8 @@
     box-shadow:var(--shadow);
   }
   .stat .label{
-    font-family:'IBM Plex Mono',monospace;
+    font-family:'Gluten',sans-serif;
+    font-weight:600;
     font-size:0.68rem;
     text-transform:uppercase;
     letter-spacing:0.08em;
@@ -77,7 +106,9 @@
     margin-bottom:6px;
   }
   .stat .value{
-    font-family:'Bebas Neue',sans-serif;
+    font-family:'Gluten',sans-serif;
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
     font-size:1.9rem;
     color:var(--plate);
   }
@@ -101,7 +132,8 @@
     justify-content:space-between;
   }
   section > h2 .count{
-    font-family:'IBM Plex Mono',monospace;
+    font-family:'Gluten',sans-serif;
+    font-weight:500;
     font-size:0.7rem;
     color:var(--muted);
     text-transform:none;
@@ -109,19 +141,20 @@
   }
 
   label{
-    font-family:'IBM Plex Mono',monospace;
+    font-family:'Gluten',sans-serif;
+    font-weight:600;
     font-size:0.72rem;
     text-transform:uppercase;
     letter-spacing:0.06em;
     color:var(--muted);
     display:block;
-    margin-bottom:4px;
+    margin-bottom:3px;
   }
 
   input[type="date"], input[type="number"], select{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.95rem;
-    padding:8px 10px;
+    font-family:'Gluten',sans-serif;
+    font-size:0.85rem;
+    padding:6px 8px;
     border:1px solid var(--line-strong);
     border-radius:6px;
     background:var(--paper);
@@ -133,13 +166,13 @@
     outline-offset:2px;
   }
 
-  .date-row{max-width:220px;margin-bottom:20px;}
+  .date-row{max-width:220px;margin-bottom:16px;}
 
   .exercise-block{
     border:1px solid var(--line);
     border-radius:8px;
-    padding:14px 14px 12px;
-    margin-bottom:12px;
+    padding:8px 10px 6px;
+    margin-bottom:6px;
     background:var(--paper);
   }
   .exercise-block .ex-head{
@@ -147,42 +180,44 @@
     align-items:center;
     justify-content:space-between;
     gap:10px;
-    margin-bottom:10px;
+    margin-bottom:5px;
   }
   .exercise-block .ex-name{
-    font-family:'Bebas Neue',sans-serif;
-    font-size:1.25rem;
+    font-family:'Gluten',sans-serif;
+    font-weight:700;
+    font-size:0.98rem;
     letter-spacing:0.01em;
   }
   .exercise-block .ex-tag{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.65rem;
+    font-family:'Gluten',sans-serif;
+    font-weight:600;
+    font-size:0.58rem;
     text-transform:uppercase;
-    letter-spacing:0.06em;
+    letter-spacing:0.05em;
     color:var(--steel);
     border:1px solid var(--steel-light);
     border-radius:20px;
-    padding:2px 8px;
-    margin-left:8px;
+    padding:1px 6px;
+    margin-left:6px;
   }
 
   .set-row{
     display:grid;
     grid-template-columns:1fr 1fr auto;
-    gap:8px;
+    gap:6px;
     align-items:end;
-    margin-bottom:8px;
+    margin-bottom:5px;
   }
   .set-row.reps-only{grid-template-columns:1fr auto;}
-  .set-row .field-label{font-size:0.62rem;}
+  .set-row .field-label{font-size:0.56rem;margin-bottom:2px;}
 
   .icon-btn{
     background:transparent;
     border:1px solid var(--line-strong);
     border-radius:6px;
     color:var(--muted);
-    width:36px;height:36px;
-    font-size:1rem;
+    width:30px;height:30px;
+    font-size:0.9rem;
     cursor:pointer;
     line-height:1;
   }
@@ -193,13 +228,14 @@
     border:1px dashed var(--steel-light);
     color:var(--steel);
     border-radius:6px;
-    padding:6px 12px;
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.75rem;
+    padding:3px 10px;
+    font-family:'Gluten',sans-serif;
+    font-weight:600;
+    font-size:0.68rem;
     text-transform:uppercase;
-    letter-spacing:0.05em;
+    letter-spacing:0.04em;
     cursor:pointer;
-    margin-top:2px;
+    margin-top:1px;
   }
   .add-set-btn:hover{background:var(--steel);color:#fff;border-style:solid;}
 
@@ -209,9 +245,10 @@
     border:none;
     border-radius:8px;
     padding:12px 22px;
-    font-family:'Bebas Neue',sans-serif;
+    font-family:'Gluten',sans-serif;
+    font-weight:800;
     font-size:1.15rem;
-    letter-spacing:0.03em;
+    letter-spacing:0.02em;
     cursor:pointer;
     width:100%;
     margin-top:6px;
@@ -231,7 +268,8 @@
     color:var(--ink);
     border-radius:6px;
     padding:8px 14px;
-    font-family:'IBM Plex Mono',monospace;
+    font-family:'Gluten',sans-serif;
+    font-weight:600;
     font-size:0.75rem;
     text-transform:uppercase;
     letter-spacing:0.04em;
@@ -243,11 +281,12 @@
   table{
     width:100%;
     border-collapse:collapse;
-    font-family:'IBM Plex Mono',monospace;
+    font-family:'Gluten',sans-serif;
     font-size:0.82rem;
   }
   thead th{
     text-align:left;
+    font-weight:600;
     font-size:0.68rem;
     text-transform:uppercase;
     letter-spacing:0.06em;
@@ -261,12 +300,13 @@
   tbody td{
     padding:8px 10px;
     border-bottom:1px solid var(--line);
+    font-variant-numeric:tabular-nums;
   }
   tbody tr:hover{background:var(--paper);}
-  tbody tr.highlight{background:#fbeceb;}
-  tbody tr.highlight:hover{background:#f7dcda;}
+  tbody tr.highlight{background:#ffe3da;}
+  tbody tr.highlight:hover{background:#ffd0c2;}
   .scroll-table{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;}
-  .empty-note{color:var(--muted);font-style:italic;padding:14px;font-family:'Inter',sans-serif;font-size:0.85rem;}
+  .empty-note{color:var(--muted);font-weight:500;padding:14px;font-family:'Gluten',sans-serif;font-size:0.85rem;}
   .per-hand-note{color:var(--muted);font-size:0.72rem;}
 
   input[type="file"]{display:none;}
@@ -279,9 +319,99 @@
     .stats{grid-template-columns:1fr 1fr;gap:8px;}
     .stat{padding:10px 12px;}
     .stat .value{font-size:1.5rem;}
+    section{padding:14px;}
+    .exercise-block{padding:6px 8px 5px;margin-bottom:5px;}
+    .exercise-block .ex-name{font-size:0.9rem;}
+    .set-row{gap:5px;margin-bottom:4px;}
+    input[type="number"], select{padding:5px 6px;font-size:0.8rem;}
+    .icon-btn{width:26px;height:26px;font-size:0.8rem;}
   }
   @media (prefers-reduced-motion: reduce){
     *{transition:none !important;}
+  }
+
+  /* Tabs */
+  .tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+  .tab-btn{
+    background:var(--paper-raised);
+    border:1px solid var(--line-strong);
+    color:var(--muted);
+    border-radius:8px;
+    padding:8px 16px;
+    font-family:'Gluten',sans-serif;
+    font-weight:700;
+    font-size:0.78rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    cursor:pointer;
+    box-shadow:var(--shadow);
+  }
+  .tab-btn:hover{color:var(--steel);border-color:var(--steel);}
+  .tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  .view[hidden]{display:none;}
+
+  /* Chart filters / legend */
+  .chart-filters{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:14px;}
+  .chart-check{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:'Gluten',sans-serif;font-size:0.72rem;
+    color:var(--ink);cursor:pointer;text-transform:none;letter-spacing:0;
+  }
+  .chart-check input{width:auto;margin:0;}
+  .chart-swatch{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none;}
+
+  .chart-wrap{position:relative;}
+  .chart-svg{width:100%;height:320px;display:block;}
+  .chart-grid{stroke:var(--line);stroke-width:1;}
+  .chart-axis-label{font-family:'Gluten',sans-serif;font-size:9px;fill:var(--muted);}
+  .chart-empty{font-family:'Gluten',sans-serif;font-size:13px;fill:var(--muted);}
+  .chart-crosshair{stroke:var(--line-strong);stroke-width:1;stroke-dasharray:3 3;}
+
+  .chart-tooltip{
+    position:absolute;top:8px;left:8px;
+    background:var(--ink);color:#fff;
+    border-radius:6px;padding:8px 10px;
+    font-family:'Gluten',sans-serif;font-size:0.72rem;
+    pointer-events:none;box-shadow:var(--shadow);
+    min-width:150px;z-index:2;
+  }
+  .chart-tooltip .tt-date{font-weight:600;margin-bottom:4px;opacity:0.8;}
+  .chart-tooltip .tt-row{display:flex;align-items:center;gap:6px;padding:2px 0;white-space:nowrap;}
+  .chart-tooltip .tt-swatch{width:8px;height:8px;border-radius:50%;flex:none;}
+  .chart-tooltip .tt-val{margin-left:auto;font-weight:600;}
+
+  /* Calendar */
+  .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .cal-title{font-family:'Gluten',sans-serif;font-weight:800;font-size:1.4rem;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-dow{
+    font-family:'Gluten',sans-serif;font-weight:600;font-size:0.65rem;text-transform:uppercase;
+    color:var(--muted);text-align:center;padding-bottom:4px;
+  }
+  .cal-cell{
+    aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    border-radius:6px;border:1px solid var(--line);
+    font-family:'Gluten',sans-serif;font-weight:600;font-size:0.8rem;color:var(--ink);
+    background:var(--paper);
+    font-variant-numeric:tabular-nums;
+  }
+  .cal-cell.empty{border:none;background:transparent;}
+  .cal-cell.trained{background:var(--plate);color:#fff;border-color:var(--plate-dark);font-weight:600;}
+  .cal-cell.today{outline:2px solid var(--steel);outline-offset:-2px;}
+
+  /* Full log row editing */
+  .row-actions{display:flex;gap:6px;white-space:nowrap;}
+  .row-actions .icon-btn{width:30px;height:30px;font-size:0.85rem;}
+  tr.editing td{background:#fff0e2;}
+  .edit-input{
+    font-family:'Gluten',sans-serif;font-size:0.8rem;
+    padding:5px 6px;border:1px solid var(--line-strong);border-radius:5px;
+    background:var(--paper-raised);color:var(--ink);width:100%;
+  }
+
+  @media (max-width:640px){
+    .chart-svg{height:240px;}
   }
 </style>
 </head>
@@ -295,53 +425,99 @@
     </div>
   </header>
 
-  <div class="stats">
-    <div class="stat"><div class="label">Sets logged</div><div class="value" id="statSets">0</div></div>
-    <div class="stat"><div class="label">Days trained</div><div class="value" id="statDays">0</div></div>
-    <div class="stat steel"><div class="label">Last session</div><div class="value" id="statLast" style="font-size:1.3rem;">—</div></div>
-    <div class="stat"><div class="label">Total pushups</div><div class="value" id="statPushups">0</div></div>
+  <nav class="tabs" id="mainTabs">
+    <button type="button" class="tab-btn active" data-view="log">Log</button>
+    <button type="button" class="tab-btn" data-view="progress">Progress</button>
+    <button type="button" class="tab-btn" data-view="calendar">Calendar</button>
+  </nav>
+
+  <div class="view" id="viewLog">
+
+    <div class="stats">
+      <div class="stat"><div class="label">Sets logged</div><div class="value" id="statSets">0</div></div>
+      <div class="stat"><div class="label">Days trained</div><div class="value" id="statDays">0</div></div>
+      <div class="stat steel"><div class="label">Last session</div><div class="value" id="statLast" style="font-size:1.3rem;">—</div></div>
+      <div class="stat"><div class="label">Total pushups</div><div class="value" id="statPushups">0</div></div>
+    </div>
+
+    <section>
+      <h2>Log a workout</h2>
+      <div class="date-row">
+        <label for="workoutDate">Date</label>
+        <input type="date" id="workoutDate">
+      </div>
+      <div id="exerciseBlocks"></div>
+      <button class="primary-btn" id="logWorkoutBtn">Log workout</button>
+    </section>
+
+    <section>
+      <h2>Latest by exercise</h2>
+      <div class="scroll-table">
+        <table>
+          <thead>
+            <tr><th>Exercise</th><th>Last date</th><th>Weight</th><th>Reps</th></tr>
+          </thead>
+          <tbody id="latestBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Full log <span class="count" id="fullLogCount"></span></h2>
+      <div class="toolbar">
+        <button class="tool-btn" id="pdfBtn">Download PDF</button>
+        <button class="tool-btn" id="exportBtn">Export backup</button>
+        <button class="tool-btn" id="importBtn">Import backup</button>
+        <input type="file" id="importFile" accept="application/json">
+        <button class="tool-btn danger" id="clearBtn">Clear all data</button>
+      </div>
+      <div class="scroll-table">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Exercise</th><th>Set</th><th>Weight</th><th>Reps</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="fullLogBody"></tbody>
+        </table>
+      </div>
+    </section>
+
   </div>
 
-  <section>
-    <h2>Log a workout</h2>
-    <div class="date-row">
-      <label for="workoutDate">Date</label>
-      <input type="date" id="workoutDate">
-    </div>
-    <div id="exerciseBlocks"></div>
-    <button class="primary-btn" id="logWorkoutBtn">Log workout</button>
-  </section>
+  <div class="view" id="viewProgress" hidden>
 
-  <section>
-    <h2>Latest by exercise</h2>
-    <div class="scroll-table">
-      <table>
-        <thead>
-          <tr><th>Exercise</th><th>Last date</th><th>Weight</th><th>Reps</th></tr>
-        </thead>
-        <tbody id="latestBody"></tbody>
-      </table>
-    </div>
-  </section>
+    <section>
+      <h2>Weight progress <span class="count">kg per exercise, by date</span></h2>
+      <div class="chart-filters" id="weightFilters"></div>
+      <div class="chart-wrap">
+        <svg class="chart-svg" id="weightChart"></svg>
+        <div class="chart-tooltip" id="weightTooltip" hidden></div>
+      </div>
+    </section>
 
-  <section>
-    <h2>Full log <span class="count" id="fullLogCount"></span></h2>
-    <div class="toolbar">
-      <button class="tool-btn" id="pdfBtn">Download PDF</button>
-      <button class="tool-btn" id="exportBtn">Export backup</button>
-      <button class="tool-btn" id="importBtn">Import backup</button>
-      <input type="file" id="importFile" accept="application/json">
-      <button class="tool-btn danger" id="clearBtn">Clear all data</button>
-    </div>
-    <div class="scroll-table">
-      <table>
-        <thead>
-          <tr><th>Date</th><th>Exercise</th><th>Set</th><th>Weight</th><th>Reps</th></tr>
-        </thead>
-        <tbody id="fullLogBody"></tbody>
-      </table>
-    </div>
-  </section>
+    <section>
+      <h2>Reps progress <span class="count">reps per exercise, by date</span></h2>
+      <div class="chart-filters" id="repsFilters"></div>
+      <div class="chart-wrap">
+        <svg class="chart-svg" id="repsChart"></svg>
+        <div class="chart-tooltip" id="repsTooltip" hidden></div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="view" id="viewCalendar" hidden>
+
+    <section>
+      <h2>Training calendar</h2>
+      <div class="cal-header">
+        <button type="button" class="icon-btn" id="calPrev" title="Previous month">‹</button>
+        <div class="cal-title" id="calTitle"></div>
+        <button type="button" class="icon-btn" id="calNext" title="Next month">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </section>
+
+  </div>
 
 </div>
 
@@ -365,8 +541,33 @@
     { name: "Pushups",           repsOnly: true },
   ];
 
+  // Fixed per-exercise colors — validated categorical palette, assigned in a
+  // stable order so an exercise's color never changes when filters change.
+  const EXERCISE_COLORS = {
+    "Long Biceps":        "#2a78d6",
+    "Short Biceps":       "#1baf7a",
+    "Bench Dumbbell":     "#eda100",
+    "Bench":              "#008300",
+    "Militar":            "#4a3aa7",
+    "Lat Raises":         "#e34948",
+    "Rear Delt Flies":    "#e87ba4",
+    "Triceps Pulldown":   "#eb6834",
+    "Triceps Horizontal": "#0f9b8e",
+    "Bulgarian":          "#a8631f",
+    "Squats Máquina":     "#b23fa0",
+    "Core Workout":       "#7a8a1a",
+    "Pushups":            "#8a2f4a",
+  };
+
   const STORAGE_KEY = "ironlog:entries";
   let entries = [];
+  let editingId = null;
+  let currentView = "log";
+  let calMonth = new Date();
+  calMonth.setDate(1);
+
+  const weightFilterSelected = new Set(EXERCISES.filter(ex => !ex.repsOnly).map(ex => ex.name));
+  const repsFilterSelected = new Set(EXERCISES.filter(ex => ex.repsOnly).map(ex => ex.name));
 
   // ---------- Database config (Supabase) ----------
   // Fill these in after creating a Supabase project and running supabase/schema.sql.
@@ -446,26 +647,30 @@
   }
 
   // Upserts `rows` (defaults to the full `entries` array) into the database.
+  // Returns true on success, false on failure (after alerting the user).
   async function saveEntries(rows){
     if(useSupabase){
       try{
         const payload = (rows || entries).map(entryToRow);
-        if(payload.length === 0) return;
+        if(payload.length === 0) return true;
         const { error } = await supabaseClient
           .from("workout_entries")
           .upsert(payload, { onConflict: "id" });
         if(error) throw error;
+        return true;
       }catch(e){
         console.error("Supabase save error", e);
         alert("Could not save to the database — your last change may not persist.");
+        return false;
       }
-      return;
     }
     try{
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      return true;
     }catch(e){
       console.error("Storage error", e);
       alert("Could not save — your last change may not persist.");
+      return false;
     }
   }
 
@@ -681,21 +886,353 @@
     $("#fullLogCount").textContent = log.length ? `${log.length} sets` : "";
 
     if(log.length === 0){
-      fullBody.innerHTML = `<tr><td colspan="5" class="empty-note">No sets logged yet. Log your first workout above.</td></tr>`;
+      fullBody.innerHTML = `<tr><td colspan="6" class="empty-note">No sets logged yet. Log your first workout above.</td></tr>`;
     } else {
       const mostRecentDate = stats.lastDate;
       log.forEach(e => {
         const tr = document.createElement("tr");
         if(e.date === mostRecentDate) tr.classList.add("highlight");
-        tr.innerHTML = `
-          <td>${fmtDate(e.date)}</td>
-          <td>${e.exercise}</td>
-          <td>S${setNums[e.id]}</td>
-          <td>${e.weight !== null ? e.weight + " kg" : "—"}</td>
-          <td>${e.reps !== null ? e.reps : "—"}</td>
-        `;
+
+        if(e.id === editingId){
+          tr.classList.add("editing");
+          const ex = EXERCISES.find(x => x.name === e.exercise);
+          const exOptions = EXERCISES.map(x =>
+            `<option value="${x.name}" ${x.name === e.exercise ? "selected" : ""}>${x.name}</option>`
+          ).join("");
+          tr.innerHTML = `
+            <td><input type="date" class="edit-input edit-date" value="${e.date}"></td>
+            <td><select class="edit-input edit-exercise">${exOptions}</select></td>
+            <td>S${setNums[e.id]}</td>
+            <td><input type="number" step="any" class="edit-input edit-weight" value="${e.weight !== null ? e.weight : ""}" ${ex && ex.repsOnly ? "disabled" : ""}></td>
+            <td><input type="number" step="any" class="edit-input edit-reps" value="${e.reps !== null ? e.reps : ""}"></td>
+            <td class="row-actions">
+              <button type="button" class="icon-btn save-edit-btn" title="Save">✓</button>
+              <button type="button" class="icon-btn cancel-edit-btn" title="Cancel">×</button>
+            </td>
+          `;
+          const exSelect = $(".edit-exercise", tr);
+          const weightInput = $(".edit-weight", tr);
+          exSelect.addEventListener("change", () => {
+            const newEx = EXERCISES.find(x => x.name === exSelect.value);
+            weightInput.disabled = Boolean(newEx && newEx.repsOnly);
+            if(weightInput.disabled) weightInput.value = "";
+          });
+          $(".save-edit-btn", tr).addEventListener("click", () => saveEditedEntry(e.id, tr));
+          $(".cancel-edit-btn", tr).addEventListener("click", () => { editingId = null; render(); });
+        } else {
+          tr.innerHTML = `
+            <td>${fmtDate(e.date)}</td>
+            <td>${e.exercise}</td>
+            <td>S${setNums[e.id]}</td>
+            <td>${e.weight !== null ? e.weight + " kg" : "—"}</td>
+            <td>${e.reps !== null ? e.reps : "—"}</td>
+            <td class="row-actions"><button type="button" class="icon-btn edit-entry-btn" title="Edit">✎</button></td>
+          `;
+          $(".edit-entry-btn", tr).addEventListener("click", () => { editingId = e.id; render(); });
+        }
+
         fullBody.appendChild(tr);
       });
+    }
+
+    if(currentView === "progress") renderCharts();
+    if(currentView === "calendar") renderCalendar();
+  }
+
+  async function saveEditedEntry(id, tr){
+    const entry = entries.find(e => e.id === id);
+    if(!entry) return;
+
+    const date = $(".edit-date", tr).value;
+    if(!date){
+      alert("Pick a date.");
+      return;
+    }
+    const exercise = $(".edit-exercise", tr).value;
+    const ex = EXERCISES.find(x => x.name === exercise);
+    const repsRaw = $(".edit-reps", tr).value;
+    const reps = repsRaw !== "" ? parseFloat(repsRaw) : null;
+    if(reps === null || isNaN(reps)){
+      alert("Enter reps.");
+      return;
+    }
+    const weightRaw = $(".edit-weight", tr).value;
+    const weight = (ex && !ex.repsOnly && weightRaw !== "") ? parseFloat(weightRaw) : null;
+
+    entry.date = date;
+    entry.exercise = exercise;
+    entry.weight = weight;
+    entry.reps = reps;
+
+    await saveEntries([entry]);
+    editingId = null;
+    render();
+  }
+
+  // ---------- Views (Log / Progress / Calendar) ----------
+  const VIEW_IDS = { log: "viewLog", progress: "viewProgress", calendar: "viewCalendar" };
+
+  function setView(view){
+    currentView = view;
+    Object.keys(VIEW_IDS).forEach(v => {
+      const el = $("#" + VIEW_IDS[v]);
+      if(v === view) el.removeAttribute("hidden");
+      else el.setAttribute("hidden", "");
+    });
+    $all(".tab-btn", $("#mainTabs")).forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.view === view);
+    });
+    if(view === "progress") renderCharts();
+    if(view === "calendar") renderCalendar();
+  }
+
+  // ---------- Progress charts ----------
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  function fmtDateShort(d){
+    return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+  }
+
+  // Best (max) value per date for each exercise: weight for weighted lifts,
+  // reps for reps-only ones — keeps every series on one consistent unit.
+  function chartSeriesFor(exList){
+    return exList.map(ex => {
+      const byDate = {};
+      entries.forEach(e => {
+        if(e.exercise !== ex.name) return;
+        const val = ex.repsOnly ? e.reps : e.weight;
+        if(val === null || val === undefined) return;
+        if(!(e.date in byDate) || val > byDate[e.date]) byDate[e.date] = val;
+      });
+      const points = Object.keys(byDate).sort().map(date => ({ date, value: byDate[date] }));
+      return { ex, color: EXERCISE_COLORS[ex.name], points };
+    });
+  }
+
+  function buildChartFilters(container, seriesList, selected){
+    container.innerHTML = "";
+    seriesList.forEach(({ ex, color }) => {
+      const label = document.createElement("label");
+      label.className = "chart-check";
+      label.innerHTML = `
+        <input type="checkbox" ${selected.has(ex.name) ? "checked" : ""}>
+        <span class="chart-swatch" style="background:${color}"></span>${ex.name}
+      `;
+      label.querySelector("input").addEventListener("change", (evt) => {
+        if(evt.target.checked) selected.add(ex.name);
+        else selected.delete(ex.name);
+        renderCharts();
+      });
+      container.appendChild(label);
+    });
+  }
+
+  function drawLineChart(svg, tooltip, seriesAll, selected, opts){
+    const visible = seriesAll.filter(s => selected.has(s.ex.name) && s.points.length > 0);
+    const W = svg.clientWidth || 640;
+    const H = svg.clientHeight || 320;
+    const M = { top: 16, right: 16, bottom: 26, left: 40 };
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.innerHTML = "";
+
+    if(visible.length === 0){
+      const text = document.createElementNS(SVG_NS, "text");
+      text.setAttribute("x", W / 2);
+      text.setAttribute("y", H / 2);
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("class", "chart-empty");
+      text.textContent = "No data for the selected exercises yet.";
+      svg.appendChild(text);
+      tooltip.hidden = true;
+      return;
+    }
+
+    const allPoints = visible.flatMap(s => s.points);
+    const xs = allPoints.map(p => new Date(p.date).getTime());
+    const ys = allPoints.map(p => p.value);
+    let minX = Math.min(...xs), maxX = Math.max(...xs);
+    if(minX === maxX){ minX -= 86400000; maxX += 86400000; }
+    let minY = Math.min(0, ...ys), maxY = Math.max(...ys);
+    if(minY === maxY) maxY = minY + 1;
+    maxY += (maxY - minY) * 0.1;
+
+    const plotW = W - M.left - M.right;
+    const plotH = H - M.top - M.bottom;
+    const xScale = t => M.left + ((t - minX) / (maxX - minX)) * plotW;
+    const yScale = v => H - M.bottom - ((v - minY) / (maxY - minY)) * plotH;
+
+    const yTicks = 4;
+    for(let i = 0; i <= yTicks; i++){
+      const v = minY + (maxY - minY) * (i / yTicks);
+      const y = yScale(v);
+      const line = document.createElementNS(SVG_NS, "line");
+      line.setAttribute("x1", M.left); line.setAttribute("x2", W - M.right);
+      line.setAttribute("y1", y); line.setAttribute("y2", y);
+      line.setAttribute("class", "chart-grid");
+      svg.appendChild(line);
+
+      const label = document.createElementNS(SVG_NS, "text");
+      label.setAttribute("x", M.left - 6);
+      label.setAttribute("y", y + 3);
+      label.setAttribute("text-anchor", "end");
+      label.setAttribute("class", "chart-axis-label");
+      label.textContent = Math.round(v * 10) / 10;
+      svg.appendChild(label);
+    }
+
+    const xTickCount = W < 480 ? 3 : 5;
+    for(let i = 0; i < xTickCount; i++){
+      const t = minX + (maxX - minX) * (i / (xTickCount - 1));
+      const x = xScale(t);
+      const label = document.createElementNS(SVG_NS, "text");
+      label.setAttribute("x", x);
+      label.setAttribute("y", H - M.bottom + 16);
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("class", "chart-axis-label");
+      label.textContent = fmtDateShort(new Date(t));
+      svg.appendChild(label);
+    }
+
+    visible.forEach(s => {
+      const d = s.points.map((p, i) => {
+        const x = xScale(new Date(p.date).getTime());
+        const y = yScale(p.value);
+        return (i === 0 ? "M" : "L") + x.toFixed(1) + "," + y.toFixed(1);
+      }).join(" ");
+      const path = document.createElementNS(SVG_NS, "path");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", s.color);
+      path.setAttribute("stroke-width", "2");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      svg.appendChild(path);
+
+      s.points.forEach(p => {
+        const circle = document.createElementNS(SVG_NS, "circle");
+        circle.setAttribute("cx", xScale(new Date(p.date).getTime()));
+        circle.setAttribute("cy", yScale(p.value));
+        circle.setAttribute("r", 4);
+        circle.setAttribute("fill", s.color);
+        circle.setAttribute("stroke", "#ffffff");
+        circle.setAttribute("stroke-width", "2");
+        svg.appendChild(circle);
+      });
+    });
+
+    const crosshair = document.createElementNS(SVG_NS, "line");
+    crosshair.setAttribute("y1", M.top);
+    crosshair.setAttribute("y2", H - M.bottom);
+    crosshair.setAttribute("class", "chart-crosshair");
+    crosshair.style.display = "none";
+    svg.appendChild(crosshair);
+
+    const overlay = document.createElementNS(SVG_NS, "rect");
+    overlay.setAttribute("x", M.left);
+    overlay.setAttribute("y", M.top);
+    overlay.setAttribute("width", Math.max(plotW, 0));
+    overlay.setAttribute("height", Math.max(plotH, 0));
+    overlay.setAttribute("fill", "transparent");
+    svg.appendChild(overlay);
+
+    const mergedDates = [...new Set(allPoints.map(p => p.date))].sort();
+
+    function showTooltip(evt){
+      const rect = svg.getBoundingClientRect();
+      const mx = (evt.clientX - rect.left) * (W / rect.width);
+      const t = minX + ((mx - M.left) / plotW) * (maxX - minX);
+
+      let nearest = mergedDates[0], nearestDiff = Infinity;
+      mergedDates.forEach(ds => {
+        const diff = Math.abs(new Date(ds).getTime() - t);
+        if(diff < nearestDiff){ nearestDiff = diff; nearest = ds; }
+      });
+
+      const x = xScale(new Date(nearest).getTime());
+      crosshair.setAttribute("x1", x);
+      crosshair.setAttribute("x2", x);
+      crosshair.style.display = "";
+
+      const rows = visible
+        .map(s => {
+          const p = s.points.find(pt => pt.date === nearest);
+          return p ? { name: s.ex.name, color: s.color, value: p.value } : null;
+        })
+        .filter(Boolean);
+
+      if(rows.length === 0){
+        tooltip.hidden = true;
+        return;
+      }
+
+      tooltip.innerHTML = `<div class="tt-date">${fmtDate(nearest)}</div>` + rows.map(r =>
+        `<div class="tt-row"><span class="tt-swatch" style="background:${r.color}"></span>${r.name}<span class="tt-val">${r.value}${opts.unit}</span></div>`
+      ).join("");
+      tooltip.hidden = false;
+      const left = Math.min(Math.max(x - 60, 0), Math.max(W - 200, 0));
+      tooltip.style.left = left + "px";
+      tooltip.style.top = "8px";
+    }
+
+    overlay.addEventListener("mousemove", showTooltip);
+    overlay.addEventListener("mouseleave", () => {
+      tooltip.hidden = true;
+      crosshair.style.display = "none";
+    });
+  }
+
+  function renderCharts(){
+    const weightSeries = chartSeriesFor(EXERCISES.filter(ex => !ex.repsOnly));
+    const repsSeries = chartSeriesFor(EXERCISES.filter(ex => ex.repsOnly));
+
+    buildChartFilters($("#weightFilters"), weightSeries, weightFilterSelected);
+    buildChartFilters($("#repsFilters"), repsSeries, repsFilterSelected);
+
+    drawLineChart($("#weightChart"), $("#weightTooltip"), weightSeries, weightFilterSelected, { unit: " kg" });
+    drawLineChart($("#repsChart"), $("#repsTooltip"), repsSeries, repsFilterSelected, { unit: " reps" });
+  }
+
+  // ---------- Calendar ----------
+  function renderCalendar(){
+    const year = calMonth.getFullYear();
+    const month = calMonth.getMonth();
+    $("#calTitle").textContent = calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+    const exByDate = {};
+    entries.forEach(e => {
+      (exByDate[e.date] = exByDate[e.date] || new Set()).add(e.exercise);
+    });
+
+    const grid = $("#calGrid");
+    grid.innerHTML = "";
+
+    ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].forEach(d => {
+      const cell = document.createElement("div");
+      cell.className = "cal-dow";
+      cell.textContent = d;
+      grid.appendChild(cell);
+    });
+
+    const firstOfMonth = new Date(year, month, 1);
+    const startOffset = (firstOfMonth.getDay() + 6) % 7; // Monday-first
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayIso = todayISO();
+
+    for(let i = 0; i < startOffset; i++){
+      const filler = document.createElement("div");
+      filler.className = "cal-cell empty";
+      grid.appendChild(filler);
+    }
+
+    for(let day = 1; day <= daysInMonth; day++){
+      const iso = `${year}-${String(month + 1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+      const cell = document.createElement("div");
+      cell.className = "cal-cell";
+      if(exByDate[iso]) cell.classList.add("trained");
+      if(iso === todayIso) cell.classList.add("today");
+      cell.textContent = day;
+      if(exByDate[iso]) cell.title = Array.from(exByDate[iso]).join(", ");
+      grid.appendChild(cell);
     }
   }
 
@@ -833,6 +1370,24 @@
       const file = e.target.files[0];
       if(file) importBackup(file);
       e.target.value = "";
+    });
+
+    $all(".tab-btn", $("#mainTabs")).forEach(btn => {
+      btn.addEventListener("click", () => setView(btn.dataset.view));
+    });
+    $("#calPrev").addEventListener("click", () => {
+      calMonth.setMonth(calMonth.getMonth() - 1);
+      renderCalendar();
+    });
+    $("#calNext").addEventListener("click", () => {
+      calMonth.setMonth(calMonth.getMonth() + 1);
+      renderCalendar();
+    });
+    let resizeRaf = null;
+    window.addEventListener("resize", () => {
+      if(currentView !== "progress") return;
+      if(resizeRaf) cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(renderCharts);
     });
 
     loadEntries().then(render);
