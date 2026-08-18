@@ -179,7 +179,7 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
-    gap:10px;
+    gap:8px;
     margin-bottom:5px;
   }
   .exercise-block .ex-name{
@@ -187,6 +187,10 @@
     font-weight:700;
     font-size:0.98rem;
     letter-spacing:0.01em;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
   .exercise-block .ex-tag{
     font-family:'Gluten',sans-serif;
@@ -235,7 +239,8 @@
     text-transform:uppercase;
     letter-spacing:0.04em;
     cursor:pointer;
-    margin-top:1px;
+    white-space:nowrap;
+    flex:none;
   }
   .add-set-btn:hover{background:var(--steel);color:#fff;border-style:solid;}
 
@@ -925,7 +930,7 @@
       addBtn.className = "add-set-btn";
       addBtn.textContent = "+ Add set";
       addBtn.addEventListener("click", () => addSetRow(rows, ex));
-      block.appendChild(addBtn);
+      head.appendChild(addBtn);
 
       container.appendChild(block);
     });
