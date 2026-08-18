@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iron Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --ink:#17181c;
+    --paper:#f5f3ef;
+    --paper-raised:#ffffff;
+    --plate:#c23b30;
+    --plate-dark:#9c2e25;
+    --steel:#35507a;
+    --steel-light:#5b7aa8;
+    --line:#dcd7cd;
+    --line-strong:#b9b2a4;
+    --muted:#6b675f;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(23,24,28,0.06), 0 4px 12px rgba(23,24,28,0.05);
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    line-height:1.45;
+    padding:24px 20px 80px;
+  }
+
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  h1,h2,h3{font-family:'Bebas Neue',sans-serif;letter-spacing:0.02em;margin:0;}
+
+  a{color:var(--steel);}
+
+  /* Header */
+  header.top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    margin-bottom:22px;
+  }
+  header.top h1{font-size:clamp(2.2rem,6vw,3.2rem);color:var(--ink);}
+  header.top .sub{font-family:'IBM Plex Mono',monospace;font-size:0.78rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;}
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-bottom:28px;
+  }
+  .stat{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    box-shadow:var(--shadow);
+  }
+  .stat .label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .stat .value{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:1.9rem;
+    color:var(--plate);
+  }
+  .stat.steel .value{color:var(--steel);}
+
+  section{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px;
+    margin-bottom:22px;
+    box-shadow:var(--shadow);
+  }
+  section > h2{
+    font-size:1.5rem;
+    margin-bottom:14px;
+    padding-bottom:10px;
+    border-bottom:2px solid var(--ink);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  section > h2 .count{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.7rem;
+    color:var(--muted);
+    text-transform:none;
+    letter-spacing:0;
+  }
+
+  label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--muted);
+    display:block;
+    margin-bottom:4px;
+  }
+
+  input[type="date"], input[type="number"], select{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.95rem;
+    padding:8px 10px;
+    border:1px solid var(--line-strong);
+    border-radius:6px;
+    background:var(--paper);
+    color:var(--ink);
+    width:100%;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible{
+    outline:2px solid var(--steel);
+    outline-offset:2px;
+  }
+
+  .date-row{max-width:220px;margin-bottom:20px;}
+
+  .exercise-block{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 14px 12px;
+    margin-bottom:12px;
+    background:var(--paper);
+  }
+  .exercise-block .ex-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .exercise-block .ex-name{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:1.25rem;
+    letter-spacing:0.01em;
+  }
+  .exercise-block .ex-tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.65rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--steel);
+    border:1px solid var(--steel-light);
+    border-radius:20px;
+    padding:2px 8px;
+    margin-left:8px;
+  }
+
+  .set-row{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    gap:8px;
+    align-items:end;
+    margin-bottom:8px;
+  }
+  .set-row.reps-only{grid-template-columns:1fr auto;}
+  .set-row .field-label{font-size:0.62rem;}
+
+  .icon-btn{
+    background:transparent;
+    border:1px solid var(--line-strong);
+    border-radius:6px;
+    color:var(--muted);
+    width:36px;height:36px;
+    font-size:1rem;
+    cursor:pointer;
+    line-height:1;
+  }
+  .icon-btn:hover{border-color:var(--plate);color:var(--plate);}
+
+  .add-set-btn{
+    background:transparent;
+    border:1px dashed var(--steel-light);
+    color:var(--steel);
+    border-radius:6px;
+    padding:6px 12px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    cursor:pointer;
+    margin-top:2px;
+  }
+  .add-set-btn:hover{background:var(--steel);color:#fff;border-style:solid;}
+
+  .primary-btn{
+    background:var(--plate);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:12px 22px;
+    font-family:'Bebas Neue',sans-serif;
+    font-size:1.15rem;
+    letter-spacing:0.03em;
+    cursor:pointer;
+    width:100%;
+    margin-top:6px;
+    transition:background 0.15s ease;
+  }
+  .primary-btn:hover{background:var(--plate-dark);}
+
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:16px;
+  }
+  .tool-btn{
+    background:var(--paper);
+    border:1px solid var(--line-strong);
+    color:var(--ink);
+    border-radius:6px;
+    padding:8px 14px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    cursor:pointer;
+  }
+  .tool-btn:hover{border-color:var(--steel);color:var(--steel);}
+  .tool-btn.danger:hover{border-color:var(--plate);color:var(--plate);}
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.82rem;
+  }
+  thead th{
+    text-align:left;
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--muted);
+    border-bottom:2px solid var(--ink);
+    padding:8px 10px;
+    position:sticky;
+    top:0;
+    background:var(--paper-raised);
+  }
+  tbody td{
+    padding:8px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  tbody tr:hover{background:var(--paper);}
+  tbody tr.highlight{background:#fbeceb;}
+  tbody tr.highlight:hover{background:#f7dcda;}
+  .scroll-table{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;}
+  .empty-note{color:var(--muted);font-style:italic;padding:14px;font-family:'Inter',sans-serif;font-size:0.85rem;}
+  .per-hand-note{color:var(--muted);font-size:0.72rem;}
+
+  input[type="file"]{display:none;}
+
+  @media (max-width:640px){
+    .stats{grid-template-columns:1fr 1fr;}
+  }
+  @media (max-width:400px){
+    body{padding:16px 12px 60px;}
+    .stats{grid-template-columns:1fr 1fr;gap:8px;}
+    .stat{padding:10px 12px;}
+    .stat .value{font-size:1.5rem;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Iron Log</h1>
+      <div class="sub">Set-by-set training log</div>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="label">Sets logged</div><div class="value" id="statSets">0</div></div>
+    <div class="stat"><div class="label">Days trained</div><div class="value" id="statDays">0</div></div>
+    <div class="stat steel"><div class="label">Last session</div><div class="value" id="statLast" style="font-size:1.3rem;">—</div></div>
+    <div class="stat"><div class="label">Total pushups</div><div class="value" id="statPushups">0</div></div>
+  </div>
+
+  <section>
+    <h2>Log a workout</h2>
+    <div class="date-row">
+      <label for="workoutDate">Date</label>
+      <input type="date" id="workoutDate">
+    </div>
+    <div id="exerciseBlocks"></div>
+    <button class="primary-btn" id="logWorkoutBtn">Log workout</button>
+  </section>
+
+  <section>
+    <h2>Latest by exercise</h2>
+    <div class="scroll-table">
+      <table>
+        <thead>
+          <tr><th>Exercise</th><th>Last date</th><th>Weight</th><th>Reps</th></tr>
+        </thead>
+        <tbody id="latestBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Full log <span class="count" id="fullLogCount"></span></h2>
+    <div class="toolbar">
+      <button class="tool-btn" id="pdfBtn">Download PDF</button>
+      <button class="tool-btn" id="exportBtn">Export backup</button>
+      <button class="tool-btn" id="importBtn">Import backup</button>
+      <input type="file" id="importFile" accept="application/json">
+      <button class="tool-btn danger" id="clearBtn">Clear all data</button>
+    </div>
+    <div class="scroll-table">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Exercise</th><th>Set</th><th>Weight</th><th>Reps</th></tr>
+        </thead>
+        <tbody id="fullLogBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const EXERCISES = [
+    { name: "Long Biceps",       perHand: true,  min: 4,  max: 20,  step: 2 },
+    { name: "Short Biceps",      perHand: false, min: 5,  max: 20,  step: 1 },
+    { name: "Bench Dumbbell",    perHand: true,  min: 40, max: 100, step: 2 },
+    { name: "Bench",             perHand: false, min: 40, max: 100, step: 5 },
+    { name: "Militar",           perHand: false, min: 15, max: 30,  step: 1 },
+    { name: "Lat Raises",        perHand: true,  min: 4,  max: 20,  step: 2 },
+    { name: "Rear Delt Flies",   perHand: true,  min: 4,  max: 20,  step: 2 },
+    { name: "Triceps Pulldown",  perHand: false, min: 1,  max: 10,  step: 1 },
+    { name: "Triceps Horizontal",perHand: false, min: 5,  max: 40,  step: 5 },
+    { name: "Bulgarian",         perHand: false, min: 0,  max: 100, step: 5 },
+    { name: "Squats Máquina",    perHand: false, min: 0,  max: 200, step: 5 },
+    { name: "Core Workout",      perHand: false, min: 0,  max: 100, step: 1 },
+    { name: "Pushups",           repsOnly: true },
+  ];
+
+  const STORAGE_KEY = "ironlog:entries";
+  let entries = [];
+
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const $all = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+
+  function todayISO(){
+    const d = new Date();
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off*60000).toISOString().slice(0,10);
+  }
+
+  function fmtDate(iso){
+    if(!iso) return "—";
+    const [y,m,d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  // ---------- Storage (browser localStorage) ----------
+  async function loadEntries(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      entries = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      entries = [];
+    }
+  }
+
+  async function saveEntries(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }catch(e){
+      console.error("Storage error", e);
+      alert("Could not save — your last change may not persist.");
+    }
+  }
+
+  // ---------- Build the log form ----------
+  function buildExerciseBlocks(){
+    const container = $("#exerciseBlocks");
+    container.innerHTML = "";
+    EXERCISES.forEach((ex) => {
+      const block = document.createElement("div");
+      block.className = "exercise-block";
+      block.dataset.exercise = ex.name;
+
+      const head = document.createElement("div");
+      head.className = "ex-head";
+      head.innerHTML = `<span class="ex-name">${ex.name}${ex.perHand ? '<span class="ex-tag">Per hand</span>' : ''}</span>`;
+      block.appendChild(head);
+
+      const rows = document.createElement("div");
+      rows.className = "rows";
+      block.appendChild(rows);
+      addSetRow(rows, ex);
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "add-set-btn";
+      addBtn.textContent = "+ Add set";
+      addBtn.addEventListener("click", () => addSetRow(rows, ex));
+      block.appendChild(addBtn);
+
+      container.appendChild(block);
+    });
+  }
+
+  function addSetRow(rowsContainer, ex){
+    const row = document.createElement("div");
+    row.className = "set-row" + (ex.repsOnly ? " reps-only" : "");
+
+    if(!ex.repsOnly){
+      const weightWrap = document.createElement("div");
+      weightWrap.innerHTML = `
+        <label class="field-label">Weight (kg)</label>
+        <input type="number" class="weight-input" min="${ex.min}" step="${ex.step}" placeholder="${ex.min}">
+      `;
+      row.appendChild(weightWrap);
+    }
+
+    const repsWrap = document.createElement("div");
+    if(ex.repsOnly){
+      repsWrap.innerHTML = `
+        <label class="field-label">Reps</label>
+        <input type="number" class="reps-input" min="1" step="1" placeholder="Reps">
+      `;
+    } else {
+      let opts = '<option value="">Reps</option>';
+      for(let i=1;i<=30;i++) opts += `<option value="${i}">${i}</option>`;
+      repsWrap.innerHTML = `
+        <label class="field-label">Reps</label>
+        <select class="reps-input">${opts}</select>
+      `;
+    }
+    row.appendChild(repsWrap);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "icon-btn";
+    removeBtn.title = "Remove set";
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => {
+      if(rowsContainer.children.length > 1){
+        row.remove();
+      } else {
+        // reset instead of removing the last row
+        $all("input, select", row).forEach(el => { el.value = ""; });
+      }
+    });
+    row.appendChild(removeBtn);
+
+    rowsContainer.appendChild(row);
+  }
+
+  // ---------- Logging ----------
+  function logWorkout(){
+    const date = $("#workoutDate").value;
+    if(!date){
+      alert("Pick a date first.");
+      return;
+    }
+
+    const newEntries = [];
+    let offset = 0;
+    const baseTime = Date.now();
+
+    EXERCISES.forEach((ex) => {
+      const block = $(`.exercise-block[data-exercise="${cssEscape(ex.name)}"]`);
+      const rows = $all(".set-row", block);
+      rows.forEach((row) => {
+        const repsEl = $(".reps-input", row);
+        const reps = repsEl.value ? parseFloat(repsEl.value) : null;
+        let weight = null;
+        if(!ex.repsOnly){
+          const weightEl = $(".weight-input", row);
+          weight = weightEl.value !== "" ? parseFloat(weightEl.value) : null;
+        }
+        const hasData = ex.repsOnly ? (reps !== null && !isNaN(reps)) : (reps !== null && !isNaN(reps));
+        if(!hasData) return;
+
+        newEntries.push({
+          id: `${baseTime + offset}-${Math.random().toString(36).slice(2,8)}`,
+          date,
+          exercise: ex.name,
+          weight: (!ex.repsOnly && weight !== null && !isNaN(weight)) ? weight : null,
+          reps: reps,
+          loggedAt: baseTime + offset,
+        });
+        offset += 1;
+      });
+    });
+
+    if(newEntries.length === 0){
+      alert("Log at least one set before submitting.");
+      return;
+    }
+
+    entries = entries.concat(newEntries);
+    saveEntries();
+    buildExerciseBlocks();
+    $("#workoutDate").value = date;
+    render();
+  }
+
+  function cssEscape(str){
+    return str.replace(/["\\]/g, "\\$&");
+  }
+
+  // ---------- Derived views ----------
+  function sortedFullLog(){
+    return [...entries].sort((a,b) => b.loggedAt - a.loggedAt);
+  }
+
+  function setNumbers(){
+    // group by date+exercise, order by loggedAt ascending within group
+    const groups = {};
+    entries.forEach(e => {
+      const key = e.date + "||" + e.exercise;
+      (groups[key] = groups[key] || []).push(e);
+    });
+    const map = {};
+    Object.values(groups).forEach(group => {
+      group.sort((a,b) => a.loggedAt - b.loggedAt);
+      group.forEach((e,i) => { map[e.id] = i+1; });
+    });
+    return map;
+  }
+
+  function latestByExercise(){
+    const latest = {};
+    entries.forEach(e => {
+      const cur = latest[e.exercise];
+      if(!cur || e.loggedAt > cur.loggedAt) latest[e.exercise] = e;
+    });
+    return EXERCISES.map(ex => ({ ex, entry: latest[ex.name] || null }))
+      .sort((a,b) => {
+        if(!a.entry && !b.entry) return 0;
+        if(!a.entry) return 1;
+        if(!b.entry) return -1;
+        return b.entry.loggedAt - a.entry.loggedAt;
+      });
+  }
+
+  function computeStats(){
+    const totalSets = entries.length;
+    const days = new Set(entries.map(e => e.date));
+    let lastDate = null;
+    entries.forEach(e => { if(!lastDate || e.date > lastDate) lastDate = e.date; });
+    const pushups = entries
+      .filter(e => e.exercise === "Pushups")
+      .reduce((sum,e) => sum + (e.reps || 0), 0);
+    return { totalSets, days: days.size, lastDate, pushups };
+  }
+
+  // ---------- Render ----------
+  function render(){
+    const stats = computeStats();
+    $("#statSets").textContent = stats.totalSets;
+    $("#statDays").textContent = stats.days;
+    $("#statLast").textContent = stats.lastDate ? fmtDate(stats.lastDate) : "—";
+    $("#statPushups").textContent = stats.pushups;
+
+    // Latest by exercise
+    const latestBody = $("#latestBody");
+    latestBody.innerHTML = "";
+    latestByExercise().forEach(({ex, entry}) => {
+      const tr = document.createElement("tr");
+      const name = ex.name + (ex.perHand ? ' <span class="per-hand-note">(per hand)</span>' : '');
+      if(entry){
+        tr.innerHTML = `
+          <td>${name}</td>
+          <td>${fmtDate(entry.date)}</td>
+          <td>${entry.weight !== null ? entry.weight + " kg" : "—"}</td>
+          <td>${entry.reps !== null ? entry.reps : "—"}</td>
+        `;
+      } else {
+        tr.innerHTML = `<td>${name}</td><td colspan="3" class="empty-note">Not logged yet</td>`;
+      }
+      latestBody.appendChild(tr);
+    });
+
+    // Full log
+    const fullBody = $("#fullLogBody");
+    fullBody.innerHTML = "";
+    const log = sortedFullLog();
+    const setNums = setNumbers();
+    $("#fullLogCount").textContent = log.length ? `${log.length} sets` : "";
+
+    if(log.length === 0){
+      fullBody.innerHTML = `<tr><td colspan="5" class="empty-note">No sets logged yet. Log your first workout above.</td></tr>`;
+    } else {
+      const mostRecentDate = stats.lastDate;
+      log.forEach(e => {
+        const tr = document.createElement("tr");
+        if(e.date === mostRecentDate) tr.classList.add("highlight");
+        tr.innerHTML = `
+          <td>${fmtDate(e.date)}</td>
+          <td>${e.exercise}</td>
+          <td>S${setNums[e.id]}</td>
+          <td>${e.weight !== null ? e.weight + " kg" : "—"}</td>
+          <td>${e.reps !== null ? e.reps : "—"}</td>
+        `;
+        fullBody.appendChild(tr);
+      });
+    }
+  }
+
+  // ---------- PDF export ----------
+  function downloadPDF(){
+    if(entries.length === 0){
+      alert("Nothing to export yet.");
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(18);
+    doc.text("Iron Log", 14, 18);
+    doc.setFontSize(10);
+    doc.setFont("helvetica","normal");
+    doc.text(`Exported ${fmtDate(todayISO())}`, 14, 25);
+
+    const latestRows = latestByExercise().map(({ex, entry}) => [
+      ex.name + (ex.perHand ? " (per hand)" : ""),
+      entry ? fmtDate(entry.date) : "—",
+      entry && entry.weight !== null ? entry.weight + " kg" : "—",
+      entry && entry.reps !== null ? entry.reps : "—",
+    ]);
+
+    doc.autoTable({
+      startY: 32,
+      head: [["Exercise","Last date","Weight","Reps"]],
+      body: latestRows,
+      headStyles: { fillColor: [194,59,48] },
+      styles: { fontSize: 9 },
+    });
+
+    const setNums = setNumbers();
+    const fullRows = sortedFullLog().map(e => [
+      fmtDate(e.date),
+      e.exercise,
+      "S" + setNums[e.id],
+      e.weight !== null ? e.weight + " kg" : "—",
+      e.reps !== null ? e.reps : "—",
+    ]);
+
+    doc.addPage();
+    doc.setFontSize(14);
+    doc.setFont("helvetica","bold");
+    doc.text("Full Log", 14, 18);
+
+    doc.autoTable({
+      startY: 24,
+      head: [["Date","Exercise","Set","Weight","Reps"]],
+      body: fullRows,
+      headStyles: { fillColor: [53,80,122] },
+      styles: { fontSize: 8 },
+    });
+
+    doc.save(`iron-log-${todayISO()}.pdf`);
+  }
+
+  // ---------- Backup export/import ----------
+  function exportBackup(){
+    const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `iron-log-backup-${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function importBackup(file){
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try{
+        const incoming = JSON.parse(reader.result);
+        if(!Array.isArray(incoming)) throw new Error("Not an array");
+        const existingIds = new Set(entries.map(e => e.id));
+        let added = 0;
+        incoming.forEach(e => {
+          if(e && e.id && !existingIds.has(e.id)){
+            entries.push(e);
+            existingIds.add(e.id);
+            added++;
+          }
+        });
+        await saveEntries();
+        render();
+        alert(`Imported ${added} new set${added === 1 ? "" : "s"}.`);
+      }catch(err){
+        alert("Could not read that file — make sure it's an Iron Log backup JSON.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function clearAllData(){
+    if(!confirm("Delete every logged set? This can't be undone. Export a backup first if you're not sure.")){
+      return;
+    }
+    if(!confirm("Really clear everything? Last chance.")){
+      return;
+    }
+    entries = [];
+    saveEntries();
+    render();
+  }
+
+  // ---------- Wire up ----------
+  function init(){
+    $("#workoutDate").value = todayISO();
+    buildExerciseBlocks();
+
+    $("#logWorkoutBtn").addEventListener("click", logWorkout);
+    $("#pdfBtn").addEventListener("click", downloadPDF);
+    $("#exportBtn").addEventListener("click", exportBackup);
+    $("#clearBtn").addEventListener("click", clearAllData);
+
+    $("#importBtn").addEventListener("click", () => $("#importFile").click());
+    $("#importFile").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if(file) importBackup(file);
+      e.target.value = "";
+    });
+
+    loadEntries().then(render);
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>
