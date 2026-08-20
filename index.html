@@ -985,7 +985,7 @@
   // verify-figurine Edge Function, and seeded the owner_secret row —
   // flipping this on before that's done would lock you out of your own
   // app, since the gate has no working backend to check against yet.
-  const GATE_ENABLED = false;
+  const GATE_ENABLED = true;
   const OWNER_UNLOCK_KEY = "ironlog:ownerUnlocked";
   // Fixed placeholder id for the owner's rows — see supabase/auth_schema.sql
   // for why (Postgres keys can't contain NULL, and exercise names need to
