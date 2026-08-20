@@ -616,7 +616,7 @@
   #gateGridView .tool-btn{margin-bottom:18px;}
   .figurine-grid{
     display:grid;
-    grid-template-columns:repeat(20,1fr);
+    grid-template-columns:repeat(20,minmax(0,1fr));
     gap:2px;
     background:var(--line);
     border:1px solid var(--line);
@@ -624,6 +624,7 @@
     overflow:hidden;
   }
   .figurine-cell{
+    min-width:0;
     aspect-ratio:1;
     padding:2px;
     border:none;
