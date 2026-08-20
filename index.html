@@ -1049,7 +1049,10 @@
       chip.style.background = MUSCLE_COLORS[m];
       chip.textContent = MUSCLE_LABELS[m];
       chip.addEventListener("click", () => {
-        if(logMuscleFilter.has(m)) logMuscleFilter.delete(m);
+        // Starting from "All": clicking a muscle isolates it. From then on,
+        // clicking another muscle adds it to the selection (never removes) —
+        // the "All" chip is the only way back to showing everything.
+        if(logMuscleFilter.size === MUSCLES.length) logMuscleFilter = new Set([m]);
         else logMuscleFilter.add(m);
         buildMuscleFilterRow();
         buildExerciseBlocks();
