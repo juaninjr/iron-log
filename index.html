@@ -174,6 +174,113 @@
     flex:none;
   }
 
+  .visually-hidden{
+    position:absolute;
+    width:1px;height:1px;
+    padding:0;margin:-1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+    white-space:nowrap;
+    border:0;
+  }
+
+  /* Exercise wheel */
+  .wheel-wrap{
+    position:relative;
+    height:280px;
+    overflow:hidden;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:var(--paper);
+    margin-bottom:6px;
+    touch-action:none;
+    cursor:grab;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  .wheel-wrap.armed{cursor:grabbing;box-shadow:inset 0 0 0 3px var(--plate);}
+  .wheel-wrap::before, .wheel-wrap::after{
+    content:"";
+    position:absolute;
+    left:0;right:0;
+    height:90px;
+    pointer-events:none;
+    z-index:2;
+  }
+  .wheel-wrap::before{top:0;background:linear-gradient(var(--paper), rgba(255,245,238,0));}
+  .wheel-wrap::after{bottom:0;background:linear-gradient(rgba(255,245,238,0), var(--paper));}
+  .wheel-center-band{
+    position:absolute;
+    top:50%;left:0;right:0;
+    height:56px;
+    transform:translateY(-50%);
+    border-top:2px solid var(--line-strong);
+    border-bottom:2px solid var(--line-strong);
+    pointer-events:none;
+    z-index:1;
+  }
+  .wheel-list{
+    position:absolute;
+    left:0;right:0;top:0;
+    list-style:none;
+    margin:0;padding:0;
+  }
+  .wheel-list:focus-visible{outline:2px solid var(--steel);outline-offset:-2px;}
+  .wheel-list.snap{transition:transform 0.28s cubic-bezier(0.2,0.7,0.3,1);}
+  .wheel-item{
+    height:56px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    cursor:pointer;
+  }
+  .wheel-item .body-svg{transition:opacity 0.15s ease, filter 0.15s ease;}
+  .wheel-item-name{
+    font-family:'Gluten',sans-serif;
+    font-weight:700;
+    font-size:1rem;
+    white-space:nowrap;
+    color:var(--ink);
+  }
+  .wheel-item[aria-selected="true"] .wheel-item-name{color:var(--plate);}
+  .wheel-hint{
+    font-family:'Gluten',sans-serif;
+    font-weight:500;
+    font-size:0.68rem;
+    color:var(--muted);
+    text-align:center;
+    margin:0 0 14px;
+  }
+
+  /* Exercise details panel */
+  .exercise-details{
+    display:grid;
+    grid-template-rows:0fr;
+    transition:grid-template-rows 0.28s ease;
+  }
+  .exercise-details.open{grid-template-rows:1fr;margin-top:4px;}
+  .exercise-details .details-inner{
+    overflow:hidden;min-height:0;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:12px;
+  }
+  .details-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:14px 14px 10px;
+  }
+  .details-name-wrap{display:flex;align-items:center;gap:12px;}
+  .details-name{font-family:'Gluten',sans-serif;font-weight:800;font-size:1.15rem;}
+  .details-muscle{font-family:'Gluten',sans-serif;font-weight:600;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;}
+  .details-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 10px;}
+  .exercise-details .primary-btn{width:calc(100% - 28px);margin:0 14px 10px;}
+  .details-today{padding:0 14px 14px;}
+  .details-today-label{
+    font-family:'Gluten',sans-serif;font-weight:600;font-size:0.68rem;
+    text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:4px;
+  }
+
   .fun-fact{
     background:var(--paper-raised);
     border:1px solid var(--line);
@@ -215,32 +322,7 @@
   .muscle-chip-all{background:var(--ink);}
   .muscle-chip.inactive{filter:saturate(0.2) brightness(1.15);opacity:0.55;}
 
-  .exercise-block{
-    border:1px solid var(--line);
-    border-left:4px solid var(--ex-muscle-color, var(--line));
-    border-radius:8px;
-    padding:8px 10px 6px;
-    margin-bottom:6px;
-    background:var(--paper);
-  }
-  .exercise-block .ex-head{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:8px;
-    margin-bottom:5px;
-  }
-  .exercise-block .ex-name{
-    font-family:'Gluten',sans-serif;
-    font-weight:700;
-    font-size:0.98rem;
-    letter-spacing:0.01em;
-    min-width:0;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-  .exercise-block .ex-tag{
+  .ex-tag{
     font-family:'Gluten',sans-serif;
     font-weight:600;
     font-size:0.58rem;
@@ -375,8 +457,8 @@
     section{padding:14px;}
     section > h2{font-size:1.1rem;}
     .date-inline{max-width:128px;font-size:0.72rem;padding:4px 6px;}
-    .exercise-block{padding:6px 8px 5px;margin-bottom:5px;}
-    .exercise-block .ex-name{font-size:0.9rem;}
+    .wheel-wrap{height:240px;}
+    .wheel-item-name{font-size:0.9rem;}
     .set-row{gap:5px;margin-bottom:4px;}
     input[type="number"], select{padding:5px 6px;font-size:0.8rem;}
     .icon-btn{width:26px;height:26px;font-size:0.8rem;}
@@ -492,12 +574,6 @@
   }
   .suggest-chip:hover{filter:brightness(0.88);}
 
-  @keyframes flash-block{
-    0%,100%{background:var(--paper);}
-    50%{background:#ffe3da;}
-  }
-  .exercise-block.flash{animation:flash-block 0.4s ease 2;}
-
   /* Exercises: add + manage */
   .add-ex-form{display:flex;flex-direction:column;gap:12px;max-width:360px;}
   .add-ex-checks{display:flex;gap:16px;}
@@ -575,8 +651,14 @@
     <section>
       <h2>Log a workout<input type="date" id="workoutDate" class="date-inline" aria-label="Date"></h2>
       <div class="muscle-filter-row" id="muscleFilterRow"></div>
-      <div id="exerciseBlocks"></div>
-      <button class="primary-btn" id="logWorkoutBtn">Log workout</button>
+
+      <div class="wheel-wrap" id="wheelWrap">
+        <div class="wheel-center-band" aria-hidden="true"></div>
+        <div class="wheel-list" id="wheelList" role="listbox" aria-label="Exercise picker" tabindex="0"></div>
+      </div>
+      <p class="wheel-hint">Hold an item still for a second, then drag to scroll. Release to open it.</p>
+
+      <div class="exercise-details" id="exerciseDetails" hidden></div>
     </section>
 
     <section>
@@ -707,6 +789,14 @@
 
 </div>
 
+<!-- Hidden iOS haptic trigger — WebKit fires a system haptic tap only when a
+     <label> for a switch-type checkbox is clicked, not on a direct script
+     click on the input. Kept in the a11y tree (not display:none). -->
+<div class="visually-hidden">
+  <input type="checkbox" switch id="hapticSwitch" tabindex="-1" aria-hidden="true">
+  <label id="hapticLabel" for="hapticSwitch">haptic trigger</label>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -723,6 +813,38 @@
     core: "#4a3aa7",
     legs: "#e34948",
   };
+
+  // Schematic humanoid silhouette (front or back view — "back" muscle uses
+  // the back view since it isn't visible from the front) with one region
+  // highlighted in the exercise's muscle color, the rest in muted gray.
+  // Exercises map to a single muscle in this app's data model, so only one
+  // region is ever highlighted at a time.
+  const BODY_BASE = "#c9c2ba";
+  function bodySvg(muscle, opts){
+    opts = opts || {};
+    const size = opts.size || 32;
+    const view = muscle === "back" ? "back" : "front";
+    const color = MUSCLE_COLORS[muscle] || BODY_BASE;
+    const fill = (region) => region === muscle ? color : BODY_BASE;
+
+    const limbs = `
+      <ellipse cx="26" cy="38" rx="10" ry="8" fill="${fill("shoulders")}"/>
+      <ellipse cx="74" cy="38" rx="10" ry="8" fill="${fill("shoulders")}"/>
+      <rect x="14" y="40" width="12" height="44" rx="6" fill="${fill("arms")}"/>
+      <rect x="74" y="40" width="12" height="44" rx="6" fill="${fill("arms")}"/>
+      <rect x="32" y="96" width="15" height="54" rx="7" fill="${fill("legs")}"/>
+      <rect x="53" y="96" width="15" height="54" rx="7" fill="${fill("legs")}"/>
+    `;
+    const torso = view === "front"
+      ? `<rect x="32" y="34" width="36" height="28" rx="7" fill="${fill("chest")}"/>
+         <rect x="36" y="62" width="28" height="32" rx="7" fill="${fill("core")}"/>`
+      : `<rect x="30" y="32" width="40" height="50" rx="9" fill="${fill("back")}"/>`;
+
+    return `<svg class="body-svg" viewBox="0 0 100 158" width="${size}" height="${Math.round(size * 1.58)}" aria-hidden="true">
+      <circle cx="50" cy="16" r="13" fill="${BODY_BASE}"/>
+      ${view === "front" ? limbs + torso : torso + limbs}
+    </svg>`;
+  }
 
   // The original fixed roster — seeded into the database on first run and
   // used as the fallback if the database is unreachable. These are the
@@ -771,6 +893,24 @@
   // Fun-fact comparisons (loaded once from data/comparisons.txt), and the
   // fact picked for this page load — stays fixed until the page reloads.
   let funFactComparisons = [];
+
+  // ---------- Exercise wheel state ----------
+  const WHEEL_ITEM_H = 56;
+  const WHEEL_HOLD_MS = 1000;
+  const WHEEL_MOVE_CANCEL_PX = 10;
+  let wheelSelectedIndex = 0;
+  let wheelDetailsOpen = false;
+  let wheelPointerActive = false;
+  let wheelIsArmed = false;
+  let wheelMoved = false;
+  let wheelStartY = 0;
+  let wheelStartIndex = 0;
+  let wheelTapIndexAtStart = 0;
+  let wheelHoldTimer = null;
+
+  function clamp(v, min, max){
+    return Math.min(max, Math.max(min, v));
+  }
 
   // ---------- Database config (Supabase) ----------
   // Fill these in after creating a Supabase project and running supabase/schema.sql.
@@ -1038,7 +1178,7 @@
     allBtn.addEventListener("click", () => {
       logMuscleFilter = new Set(MUSCLES);
       buildMuscleFilterRow();
-      buildExerciseBlocks();
+      buildWheelItems();
     });
     row.appendChild(allBtn);
 
@@ -1055,151 +1195,294 @@
         if(logMuscleFilter.size === MUSCLES.length) logMuscleFilter = new Set([m]);
         else logMuscleFilter.add(m);
         buildMuscleFilterRow();
-        buildExerciseBlocks();
+        buildWheelItems();
       });
       row.appendChild(chip);
     });
   }
 
-  function buildExerciseBlocks(){
-    const container = $("#exerciseBlocks");
-    container.innerHTML = "";
-    const visible = EXERCISES.filter(ex => logMuscleFilter.has(ex.muscle));
+  // ---------- Haptics ----------
+  // Android/Chromium: Vibration API. iOS Safari (18+): a system haptic only
+  // fires when a <label> for a switch-type checkbox is clicked — see the
+  // hidden #hapticSwitch/#hapticLabel pair near the end of <body>.
+  function triggerHaptic(){
+    if("vibrate" in navigator){
+      try{ navigator.vibrate(50); }catch(e){ /* ignore */ }
+    }
+    const label = $("#hapticLabel");
+    if(label) label.click();
+  }
 
-    if(visible.length === 0){
-      container.innerHTML = `<p class="empty-note">No exercises selected — enable a muscle group above.</p>`;
+  // ---------- Exercise wheel ----------
+  function wheelExercises(){
+    return EXERCISES.filter(ex => logMuscleFilter.has(ex.muscle));
+  }
+
+  function buildWheelItems(){
+    const list = $("#wheelList");
+    if(!list) return;
+    const items = wheelExercises();
+    list.innerHTML = "";
+
+    if(items.length === 0){
+      wheelSelectedIndex = 0;
+      list.innerHTML = `<p class="empty-note" style="padding:24px 14px 0;">No exercises selected — enable a muscle group above.</p>`;
+      return;
+    }
+    if(wheelSelectedIndex >= items.length) wheelSelectedIndex = items.length - 1;
+
+    items.forEach((ex, i) => {
+      const item = document.createElement("div");
+      item.className = "wheel-item";
+      item.id = "wheel-item-" + i;
+      item.dataset.index = String(i);
+      item.setAttribute("role", "option");
+      item.innerHTML = `${bodySvg(ex.muscle, { size: 30 })}<span class="wheel-item-name">${ex.name}</span>`;
+      list.appendChild(item);
+    });
+
+    updateWheelPositions(0);
+  }
+
+  // Repositions the wheel list by `dragOffset` px from wheelSelectedIndex,
+  // and scales/dims each item (and blurs its muscle diagram) by distance
+  // from center — smaller/dimmer/blurrier the further an item is from focus.
+  function updateWheelPositions(dragOffset){
+    const wrap = $("#wheelWrap");
+    const list = $("#wheelList");
+    if(!wrap || !list) return;
+    const items = $all(".wheel-item", list);
+    if(items.length === 0) return;
+
+    const wrapH = wrap.clientHeight || 280;
+    const continuousIndex = wheelSelectedIndex - dragOffset / WHEEL_ITEM_H;
+    const ty = wrapH / 2 - WHEEL_ITEM_H / 2 - wheelSelectedIndex * WHEEL_ITEM_H + dragOffset;
+    list.style.transform = `translateY(${ty}px)`;
+
+    let nearestIndex = 0, nearestDist = Infinity;
+    items.forEach((item, i) => {
+      const dist = Math.abs(i - continuousIndex);
+      if(dist < nearestDist){ nearestDist = dist; nearestIndex = i; }
+      item.style.transform = `scale(${clamp(1 - dist * 0.16, 0.62, 1)})`;
+      item.style.opacity = String(clamp(1 - dist * 0.32, 0.22, 1));
+      const svg = item.querySelector(".body-svg");
+      if(svg){
+        svg.style.opacity = String(clamp(1 - dist * 0.45, 0.2, 1));
+        svg.style.filter = `blur(${Math.min(3, dist * 1.6)}px)`;
+      }
+      item.setAttribute("aria-selected", "false");
+    });
+    const centerItem = items[nearestIndex];
+    if(centerItem){
+      centerItem.setAttribute("aria-selected", "true");
+      list.setAttribute("aria-activedescendant", centerItem.id);
+    }
+  }
+
+  function wheelIndexFromClientY(clientY){
+    const wrap = $("#wheelWrap");
+    if(!wrap) return wheelSelectedIndex;
+    const items = $all(".wheel-item", $("#wheelList"));
+    if(items.length === 0) return wheelSelectedIndex;
+    let closest = wheelSelectedIndex, closestDist = Infinity;
+    items.forEach((item, i) => {
+      const r = item.getBoundingClientRect();
+      const d = Math.abs((r.top + r.height / 2) - clientY);
+      if(d < closestDist){ closestDist = d; closest = i; }
+    });
+    return closest;
+  }
+
+  function onWheelPointerDown(evt){
+    if(wheelDetailsOpen){
+      closeExerciseDetails();
+      return; // this press just closes the panel — doesn't also start a drag
+    }
+    if(wheelExercises().length === 0) return;
+
+    wheelPointerActive = true;
+    wheelMoved = false;
+    wheelIsArmed = false;
+    wheelStartY = evt.clientY;
+    wheelStartIndex = wheelSelectedIndex;
+    wheelTapIndexAtStart = wheelIndexFromClientY(evt.clientY);
+
+    $("#wheelWrap").classList.remove("armed");
+    $("#wheelList").classList.remove("snap");
+
+    wheelHoldTimer = setTimeout(() => {
+      wheelIsArmed = true;
+      $("#wheelWrap").classList.add("armed");
+      triggerHaptic();
+    }, WHEEL_HOLD_MS);
+
+    window.addEventListener("pointermove", onWheelPointerMove);
+    window.addEventListener("pointerup", onWheelPointerUp);
+  }
+
+  function onWheelPointerMove(evt){
+    if(!wheelPointerActive) return;
+    const deltaY = evt.clientY - wheelStartY;
+    if(Math.abs(deltaY) > WHEEL_MOVE_CANCEL_PX) wheelMoved = true;
+
+    if(!wheelIsArmed){
+      // Holding still is what arms it — movement before arming cancels the
+      // hold rather than starting a drag.
+      if(wheelMoved && wheelHoldTimer){
+        clearTimeout(wheelHoldTimer);
+        wheelHoldTimer = null;
+      }
       return;
     }
 
-    visible.forEach((ex) => {
-      const block = document.createElement("div");
-      block.className = "exercise-block";
-      block.dataset.exercise = ex.name;
-      block.style.setProperty("--ex-muscle-color", MUSCLE_COLORS[ex.muscle]);
-
-      const head = document.createElement("div");
-      head.className = "ex-head";
-      head.innerHTML = `<span class="ex-name">${ex.name}${ex.perHand ? '<span class="ex-tag">Per hand</span>' : ''}</span>`;
-      block.appendChild(head);
-
-      const rows = document.createElement("div");
-      rows.className = "rows";
-      block.appendChild(rows);
-      addSetRow(rows, ex);
-
-      const addBtn = document.createElement("button");
-      addBtn.type = "button";
-      addBtn.className = "add-set-btn";
-      addBtn.textContent = "+ Add set";
-      addBtn.addEventListener("click", () => addSetRow(rows, ex));
-      head.appendChild(addBtn);
-
-      container.appendChild(block);
-    });
+    updateWheelPositions(deltaY);
   }
 
-  function addSetRow(rowsContainer, ex){
-    const row = document.createElement("div");
-    row.className = "set-row" + (ex.repsOnly ? " reps-only" : "");
+  function onWheelPointerUp(evt){
+    if(!wheelPointerActive) return;
+    wheelPointerActive = false;
+    window.removeEventListener("pointermove", onWheelPointerMove);
+    window.removeEventListener("pointerup", onWheelPointerUp);
+    if(wheelHoldTimer){ clearTimeout(wheelHoldTimer); wheelHoldTimer = null; }
 
+    $("#wheelWrap").classList.remove("armed");
+    $("#wheelList").classList.add("snap");
+
+    if(wheelIsArmed){
+      const deltaY = evt.clientY - wheelStartY;
+      const items = wheelExercises();
+      wheelSelectedIndex = clamp(Math.round(wheelStartIndex - deltaY / WHEEL_ITEM_H), 0, items.length - 1);
+      updateWheelPositions(0);
+      openExerciseDetails(wheelSelectedIndex);
+    } else if(!wheelMoved){
+      // Quick tap: jump straight to the tapped item, no details panel.
+      wheelSelectedIndex = wheelTapIndexAtStart;
+      updateWheelPositions(0);
+    } else {
+      // Moved but never held long enough to arm — snap back to where it was.
+      updateWheelPositions(0);
+    }
+    wheelIsArmed = false;
+  }
+
+  function onWheelKeydown(evt){
+    const items = wheelExercises();
+    if(items.length === 0) return;
+    if(evt.key === "ArrowDown"){
+      evt.preventDefault();
+      wheelSelectedIndex = clamp(wheelSelectedIndex + 1, 0, items.length - 1);
+      $("#wheelList").classList.add("snap");
+      updateWheelPositions(0);
+    } else if(evt.key === "ArrowUp"){
+      evt.preventDefault();
+      wheelSelectedIndex = clamp(wheelSelectedIndex - 1, 0, items.length - 1);
+      $("#wheelList").classList.add("snap");
+      updateWheelPositions(0);
+    } else if(evt.key === "Enter" || evt.key === " "){
+      evt.preventDefault();
+      openExerciseDetails(wheelSelectedIndex);
+    }
+  }
+
+  // ---------- Exercise details / logging ----------
+  function buildDetailsInputs(container, ex){
+    container.innerHTML = "";
     if(!ex.repsOnly){
       const min = ex.min ?? 0;
       const step = ex.step ?? 1;
-      const weightWrap = document.createElement("div");
-      weightWrap.innerHTML = `
-        <label class="field-label">Weight (kg)</label>
-        <input type="number" class="weight-input" min="${min}" step="${step}" placeholder="${min}">
-      `;
-      row.appendChild(weightWrap);
+      const wrap = document.createElement("div");
+      wrap.innerHTML = `<label class="field-label">Weight (kg)</label><input type="number" class="weight-input" min="${min}" step="${step}" placeholder="${min}">`;
+      container.appendChild(wrap);
     }
-
     const repsWrap = document.createElement("div");
     if(ex.repsOnly){
-      repsWrap.innerHTML = `
-        <label class="field-label">Reps</label>
-        <input type="number" class="reps-input" min="1" step="1" placeholder="Reps">
-      `;
+      repsWrap.innerHTML = `<label class="field-label">Reps</label><input type="number" class="reps-input" min="1" step="1" placeholder="Reps">`;
     } else {
       let opts = '<option value="">Reps</option>';
-      for(let i=1;i<=30;i++) opts += `<option value="${i}">${i}</option>`;
-      repsWrap.innerHTML = `
-        <label class="field-label">Reps</label>
-        <select class="reps-input">${opts}</select>
-      `;
+      for(let i = 1; i <= 30; i++) opts += `<option value="${i}">${i}</option>`;
+      repsWrap.innerHTML = `<label class="field-label">Reps</label><select class="reps-input">${opts}</select>`;
     }
-    row.appendChild(repsWrap);
-
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "icon-btn";
-    removeBtn.title = "Remove set";
-    removeBtn.textContent = "×";
-    removeBtn.addEventListener("click", () => {
-      if(rowsContainer.children.length > 1){
-        row.remove();
-      } else {
-        // reset instead of removing the last row
-        $all("input, select", row).forEach(el => { el.value = ""; });
-      }
-    });
-    row.appendChild(removeBtn);
-
-    rowsContainer.appendChild(row);
+    container.appendChild(repsWrap);
   }
 
-  // ---------- Logging ----------
-  async function logWorkout(){
+  function openExerciseDetails(index){
+    const items = wheelExercises();
+    const ex = items[index];
+    if(!ex) return;
+    wheelSelectedIndex = index;
+    wheelDetailsOpen = true;
+
+    const panel = $("#exerciseDetails");
+    const date = $("#workoutDate").value || todayISO();
+    const todaysSets = entries
+      .filter(e => e.exercise === ex.name && e.date === date)
+      .sort((a, b) => a.loggedAt - b.loggedAt);
+
+    panel.innerHTML = `
+      <div class="details-inner">
+        <div class="details-head">
+          <div class="details-name-wrap">
+            ${bodySvg(ex.muscle, { size: 56 })}
+            <div>
+              <div class="details-name">${ex.name}${ex.perHand ? ' <span class="ex-tag">Per hand</span>' : ''}</div>
+              <div class="details-muscle" style="color:${MUSCLE_COLORS[ex.muscle]};">${MUSCLE_LABELS[ex.muscle]}</div>
+            </div>
+          </div>
+          <button type="button" class="icon-btn details-close-btn" title="Close">×</button>
+        </div>
+        <div class="details-inputs" id="detailsInputs"></div>
+        <button type="button" class="primary-btn" id="detailsLogBtn">Log set</button>
+        <div class="details-today" id="detailsToday"></div>
+      </div>
+    `;
+
+    buildDetailsInputs($("#detailsInputs", panel), ex);
+    $("#detailsToday", panel).innerHTML = todaysSets.length
+      ? `<div class="details-today-label">Today</div>${renderSetsCell(todaysSets, ex)}`
+      : "";
+
+    $(".details-close-btn", panel).addEventListener("click", closeExerciseDetails);
+    $("#detailsLogBtn", panel).addEventListener("click", () => logSetFromDetails(ex));
+
+    panel.hidden = false;
+    requestAnimationFrame(() => panel.classList.add("open"));
+  }
+
+  function closeExerciseDetails(){
+    const panel = $("#exerciseDetails");
+    panel.classList.remove("open");
+    wheelDetailsOpen = false;
+    setTimeout(() => { panel.hidden = true; }, 280);
+  }
+
+  async function logSetFromDetails(ex){
     const date = $("#workoutDate").value;
     if(!date){
       alert("Pick a date first.");
       return;
     }
-
-    const newEntries = [];
-    let offset = 0;
-    const baseTime = Date.now();
-
-    EXERCISES.forEach((ex) => {
-      const block = $(`.exercise-block[data-exercise="${cssEscape(ex.name)}"]`);
-      if(!block) return; // hidden by the muscle filter — nothing to read
-      const rows = $all(".set-row", block);
-      rows.forEach((row) => {
-        const repsEl = $(".reps-input", row);
-        const reps = repsEl.value ? parseFloat(repsEl.value) : null;
-        let weight = null;
-        if(!ex.repsOnly){
-          const weightEl = $(".weight-input", row);
-          weight = weightEl.value !== "" ? parseFloat(weightEl.value) : null;
-        }
-        const hasData = ex.repsOnly ? (reps !== null && !isNaN(reps)) : (reps !== null && !isNaN(reps));
-        if(!hasData) return;
-
-        newEntries.push({
-          id: `${baseTime + offset}-${Math.random().toString(36).slice(2,8)}`,
-          date,
-          exercise: ex.name,
-          weight: (!ex.repsOnly && weight !== null && !isNaN(weight)) ? weight : null,
-          reps: reps,
-          loggedAt: baseTime + offset,
-        });
-        offset += 1;
-      });
-    });
-
-    if(newEntries.length === 0){
-      alert("Log at least one set before submitting.");
+    const panel = $("#exerciseDetails");
+    const repsEl = $(".reps-input", panel);
+    const reps = repsEl.value !== "" ? parseFloat(repsEl.value) : null;
+    if(reps === null || isNaN(reps)){
+      alert("Enter reps.");
       return;
     }
+    let weight = null;
+    if(!ex.repsOnly){
+      const weightEl = $(".weight-input", panel);
+      weight = weightEl.value !== "" ? parseFloat(weightEl.value) : null;
+    }
 
-    entries = entries.concat(newEntries);
-    await saveEntries(newEntries);
-    buildExerciseBlocks();
-    $("#workoutDate").value = date;
+    const newEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+      date, exercise: ex.name, weight, reps,
+      loggedAt: Date.now(),
+    };
+    entries.push(newEntry);
+    await saveEntries([newEntry]);
     render();
-  }
-
-  function cssEscape(str){
-    return str.replace(/["\\]/g, "\\$&");
+    openExerciseDetails(wheelSelectedIndex);
   }
 
   // ---------- Derived views ----------
@@ -1783,13 +2066,15 @@
 
   function jumpToExercise(name){
     setView("log");
-    requestAnimationFrame(() => {
-      const block = document.querySelector(`.exercise-block[data-exercise="${cssEscape(name)}"]`);
-      if(!block) return;
-      block.scrollIntoView({ behavior: "smooth", block: "center" });
-      block.classList.add("flash");
-      setTimeout(() => block.classList.remove("flash"), 1200);
-    });
+    // Guarantee the target is visible regardless of the current muscle filter.
+    logMuscleFilter = new Set(MUSCLES);
+    buildMuscleFilterRow();
+    buildWheelItems();
+    const idx = wheelExercises().findIndex(ex => ex.name === name);
+    if(idx === -1) return;
+    wheelSelectedIndex = idx;
+    updateWheelPositions(0);
+    requestAnimationFrame(() => openExerciseDetails(idx));
   }
 
   function renderSuggested(){
@@ -1920,7 +2205,7 @@
       const ok = await renameExercise(ex, newName);
       if(!ok) return;
       EXERCISES.sort(exerciseSort);
-      buildExerciseBlocks();
+      buildWheelItems();
       renderExerciseManage();
       render();
     });
@@ -1969,7 +2254,7 @@
     $("#newExPerHand").checked = false;
     $("#newExWeighted").checked = true;
 
-    buildExerciseBlocks();
+    buildWheelItems();
     renderExerciseManage();
     if(currentView === "suggested") renderSuggested();
   }
@@ -2133,7 +2418,6 @@
   async function init(){
     $("#workoutDate").value = todayISO();
 
-    $("#logWorkoutBtn").addEventListener("click", logWorkout);
     $("#pdfBtn").addEventListener("click", downloadPDF);
     $("#exportBtn").addEventListener("click", exportBackup);
     $("#clearBtn").addEventListener("click", clearAllData);
@@ -2157,6 +2441,8 @@
       renderCalendar();
     });
     $("#addExerciseBtn").addEventListener("click", addExercise);
+    $("#wheelWrap").addEventListener("pointerdown", onWheelPointerDown);
+    $("#wheelList").addEventListener("keydown", onWheelKeydown);
     let resizeRaf = null;
     window.addEventListener("resize", () => {
       if(currentView !== "progress") return;
@@ -2166,7 +2452,7 @@
 
     await loadExercises();
     buildMuscleFilterRow();
-    buildExerciseBlocks();
+    buildWheelItems();
 
     await loadEntries();
     render();
