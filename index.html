@@ -9,34 +9,14 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   @font-face{
-    font-family:'Gluten';
-    src:url('fonts/Gluten-Regular.woff2') format('woff2');
-    font-weight:400; font-style:normal; font-display:swap;
+    font-family:'Karrik';
+    src:url('fonts/Karrik-Regular.woff2') format('woff2');
+    font-weight:100 900; font-style:normal; font-display:swap;
   }
   @font-face{
-    font-family:'Gluten';
-    src:url('fonts/Gluten-Medium.woff2') format('woff2');
-    font-weight:500; font-style:normal; font-display:swap;
-  }
-  @font-face{
-    font-family:'Gluten';
-    src:url('fonts/Gluten-SemiBold.woff2') format('woff2');
-    font-weight:600; font-style:normal; font-display:swap;
-  }
-  @font-face{
-    font-family:'Gluten';
-    src:url('fonts/Gluten-Bold.woff2') format('woff2');
-    font-weight:700; font-style:normal; font-display:swap;
-  }
-  @font-face{
-    font-family:'Gluten';
-    src:url('fonts/Gluten-ExtraBold.woff2') format('woff2');
-    font-weight:800; font-style:normal; font-display:swap;
-  }
-  @font-face{
-    font-family:'Gluten';
-    src:url('fonts/Gluten-Black.woff2') format('woff2');
-    font-weight:900; font-style:normal; font-display:swap;
+    font-family:'Karrik';
+    src:url('fonts/Karrik-Italic.woff2') format('woff2');
+    font-weight:100 900; font-style:italic; font-display:swap;
   }
 
   :root{
@@ -60,14 +40,14 @@
     margin:0;
     background:var(--paper);
     color:var(--ink);
-    font-family:'Gluten',system-ui,sans-serif;
+    font-family:'Karrik',system-ui,sans-serif;
     line-height:1.45;
     padding:24px 20px 80px;
   }
 
   .wrap{max-width:1080px;margin:0 auto;}
 
-  h1,h2,h3{font-family:'Gluten',sans-serif;font-weight:800;letter-spacing:0.01em;margin:0;}
+  h1,h2,h3{font-family:'Karrik',sans-serif;font-weight:800;letter-spacing:0.01em;margin:0;}
 
   a{color:var(--steel);}
 
@@ -81,7 +61,7 @@
     margin-bottom:22px;
   }
   header.top h1{font-size:clamp(2.2rem,6vw,3.2rem);color:var(--ink);}
-  header.top .sub{font-family:'Gluten',sans-serif;font-weight:600;font-size:0.78rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;}
+  header.top .sub{font-family:'Karrik',sans-serif;font-weight:600;font-size:0.78rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;}
 
   .stats{
     display:grid;
@@ -97,7 +77,7 @@
     box-shadow:var(--shadow);
   }
   .stat .label{
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:600;
     font-size:0.68rem;
     text-transform:uppercase;
@@ -106,7 +86,7 @@
     margin-bottom:6px;
   }
   .stat .value{
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:800;
     font-variant-numeric:tabular-nums;
     font-size:1.9rem;
@@ -132,7 +112,7 @@
     justify-content:space-between;
   }
   section > h2 .count{
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:500;
     font-size:0.7rem;
     color:var(--muted);
@@ -141,7 +121,7 @@
   }
 
   label{
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:600;
     font-size:0.72rem;
     text-transform:uppercase;
@@ -152,7 +132,7 @@
   }
 
   input[type="date"], input[type="number"], select{
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-size:0.85rem;
     padding:6px 8px;
     border:1px solid var(--line-strong);
@@ -184,21 +164,23 @@
     border:0;
   }
 
-  /* Exercise wheel */
+  /* Exercise wheel — a half-circle picker: only the east-facing arc of a
+     large circle (centered off-screen to the left) is ever visible, so
+     items curve away above/below whichever one is centered. */
   .wheel-wrap{
     position:relative;
-    height:280px;
+    height:min(78vh, 720px);
+    min-height:420px;
     overflow:hidden;
     border:1px solid var(--line);
-    border-radius:12px;
-    background:var(--paper);
-    margin-bottom:6px;
+    border-radius:16px;
+    background:#ffffff;
+    margin:0 -20px 6px;
     touch-action:none;
     cursor:grab;
     user-select:none;
     -webkit-user-select:none;
   }
-  .wheel-wrap.armed{cursor:grabbing;box-shadow:inset 0 0 0 3px var(--plate);}
   .wheel-wrap::before, .wheel-wrap::after{
     content:"";
     position:absolute;
@@ -207,45 +189,46 @@
     pointer-events:none;
     z-index:2;
   }
-  .wheel-wrap::before{top:0;background:linear-gradient(var(--paper), rgba(255,245,238,0));}
-  .wheel-wrap::after{bottom:0;background:linear-gradient(rgba(255,245,238,0), var(--paper));}
+  .wheel-wrap::before{top:0;background:linear-gradient(#ffffff, rgba(255,255,255,0));}
+  .wheel-wrap::after{bottom:0;background:linear-gradient(rgba(255,255,255,0), #ffffff);}
   .wheel-center-band{
     position:absolute;
-    top:50%;left:0;right:0;
-    height:56px;
+    top:50%;left:35%;right:0;
+    height:76px;
     transform:translateY(-50%);
-    border-top:2px solid var(--line-strong);
-    border-bottom:2px solid var(--line-strong);
+    border-top:2px solid var(--line);
+    border-bottom:2px solid var(--line);
     pointer-events:none;
     z-index:1;
   }
   .wheel-list{
     position:absolute;
-    left:0;right:0;top:0;
+    inset:0;
     list-style:none;
     margin:0;padding:0;
   }
   .wheel-list:focus-visible{outline:2px solid var(--steel);outline-offset:-2px;}
-  .wheel-list.snap{transition:transform 0.28s cubic-bezier(0.2,0.7,0.3,1);}
   .wheel-item{
-    height:56px;
+    position:absolute;
+    width:min(78vw, 320px);
     display:flex;
     align-items:center;
-    justify-content:center;
-    gap:10px;
+    gap:14px;
     cursor:pointer;
+    transition:transform 0.05s linear;
   }
-  .wheel-item .body-svg{transition:opacity 0.15s ease, filter 0.15s ease;}
+  .wheel-list.snap .wheel-item{transition:left 0.28s cubic-bezier(0.2,0.7,0.3,1), top 0.28s cubic-bezier(0.2,0.7,0.3,1), transform 0.28s cubic-bezier(0.2,0.7,0.3,1), opacity 0.28s ease;}
+  .wheel-item .body-visual{transition:filter 0.15s ease;flex:none;}
   .wheel-item-name{
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:700;
-    font-size:1rem;
+    font-size:1.3rem;
     white-space:nowrap;
     color:var(--ink);
   }
   .wheel-item[aria-selected="true"] .wheel-item-name{color:var(--plate);}
   .wheel-hint{
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:500;
     font-size:0.68rem;
     color:var(--muted);
@@ -271,13 +254,13 @@
     padding:14px 14px 10px;
   }
   .details-name-wrap{display:flex;align-items:center;gap:12px;}
-  .details-name{font-family:'Gluten',sans-serif;font-weight:800;font-size:1.15rem;}
-  .details-muscle{font-family:'Gluten',sans-serif;font-weight:600;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;}
+  .details-name{font-family:'Karrik',sans-serif;font-weight:800;font-size:1.15rem;}
+  .details-muscle{font-family:'Karrik',sans-serif;font-weight:600;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;}
   .details-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 10px;}
   .exercise-details .primary-btn{width:calc(100% - 28px);margin:0 14px 10px;}
   .details-today{padding:0 14px 14px;}
   .details-today-label{
-    font-family:'Gluten',sans-serif;font-weight:600;font-size:0.68rem;
+    font-family:'Karrik',sans-serif;font-weight:600;font-size:0.68rem;
     text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:4px;
   }
 
@@ -288,7 +271,7 @@
     border-radius:var(--radius);
     padding:12px 16px;
     margin-bottom:22px;
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:600;
     font-size:0.85rem;
     color:var(--ink);
@@ -310,7 +293,7 @@
     padding:5px 11px;
     background:var(--ink);
     color:#fff;
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:700;
     font-size:0.66rem;
     text-transform:uppercase;
@@ -323,7 +306,7 @@
   .muscle-chip.inactive{filter:saturate(0.2) brightness(1.15);opacity:0.55;}
 
   .ex-tag{
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:600;
     font-size:0.58rem;
     text-transform:uppercase;
@@ -363,7 +346,7 @@
     color:var(--steel);
     border-radius:6px;
     padding:3px 10px;
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:600;
     font-size:0.68rem;
     text-transform:uppercase;
@@ -380,7 +363,7 @@
     border:none;
     border-radius:8px;
     padding:12px 22px;
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:800;
     font-size:1.15rem;
     letter-spacing:0.02em;
@@ -403,7 +386,7 @@
     color:var(--ink);
     border-radius:6px;
     padding:8px 14px;
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:600;
     font-size:0.75rem;
     text-transform:uppercase;
@@ -416,7 +399,7 @@
   table{
     width:100%;
     border-collapse:collapse;
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-size:0.82rem;
   }
   thead th{
@@ -441,7 +424,7 @@
   tbody tr.highlight{background:#ffe3da;}
   tbody tr.highlight:hover{background:#ffd0c2;}
   .scroll-table{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;}
-  .empty-note{color:var(--muted);font-weight:500;padding:14px;font-family:'Gluten',sans-serif;font-size:0.85rem;}
+  .empty-note{color:var(--muted);font-weight:500;padding:14px;font-family:'Karrik',sans-serif;font-size:0.85rem;}
   .per-hand-note{color:var(--muted);font-size:0.72rem;}
 
   input[type="file"]{display:none;}
@@ -457,8 +440,8 @@
     section{padding:14px;}
     section > h2{font-size:1.1rem;}
     .date-inline{max-width:128px;font-size:0.72rem;padding:4px 6px;}
-    .wheel-wrap{height:240px;}
-    .wheel-item-name{font-size:0.9rem;}
+    .wheel-wrap{margin:0 -14px 6px;}
+    .wheel-item-name{font-size:1.05rem;}
     .set-row{gap:5px;margin-bottom:4px;}
     input[type="number"], select{padding:5px 6px;font-size:0.8rem;}
     .icon-btn{width:26px;height:26px;font-size:0.8rem;}
@@ -475,7 +458,7 @@
     color:var(--muted);
     border-radius:8px;
     padding:8px 16px;
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:700;
     font-size:0.78rem;
     text-transform:uppercase;
@@ -492,7 +475,7 @@
   .chart-filters{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:14px;}
   .chart-check{
     display:inline-flex;align-items:center;gap:6px;
-    font-family:'Gluten',sans-serif;font-size:0.72rem;
+    font-family:'Karrik',sans-serif;font-size:0.72rem;
     color:var(--ink);cursor:pointer;text-transform:none;letter-spacing:0;
   }
   .chart-check input{width:auto;margin:0;}
@@ -501,15 +484,15 @@
   .chart-wrap{position:relative;}
   .chart-svg{width:100%;height:320px;display:block;}
   .chart-grid{stroke:var(--line);stroke-width:1;}
-  .chart-axis-label{font-family:'Gluten',sans-serif;font-size:9px;fill:var(--muted);}
-  .chart-empty{font-family:'Gluten',sans-serif;font-size:13px;fill:var(--muted);}
+  .chart-axis-label{font-family:'Karrik',sans-serif;font-size:9px;fill:var(--muted);}
+  .chart-empty{font-family:'Karrik',sans-serif;font-size:13px;fill:var(--muted);}
   .chart-crosshair{stroke:var(--line-strong);stroke-width:1;stroke-dasharray:3 3;}
 
   .chart-tooltip{
     position:absolute;top:8px;left:8px;
     background:var(--ink);color:#fff;
     border-radius:6px;padding:8px 10px;
-    font-family:'Gluten',sans-serif;font-size:0.72rem;
+    font-family:'Karrik',sans-serif;font-size:0.72rem;
     pointer-events:none;box-shadow:var(--shadow);
     min-width:150px;z-index:2;
   }
@@ -520,16 +503,16 @@
 
   /* Calendar */
   .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-  .cal-title{font-family:'Gluten',sans-serif;font-weight:800;font-size:1.4rem;}
+  .cal-title{font-family:'Karrik',sans-serif;font-weight:800;font-size:1.4rem;}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
   .cal-dow{
-    font-family:'Gluten',sans-serif;font-weight:600;font-size:0.65rem;text-transform:uppercase;
+    font-family:'Karrik',sans-serif;font-weight:600;font-size:0.65rem;text-transform:uppercase;
     color:var(--muted);text-align:center;padding-bottom:4px;
   }
   .cal-cell{
     aspect-ratio:1;display:flex;align-items:center;justify-content:center;
     border-radius:6px;border:1px solid var(--line);
-    font-family:'Gluten',sans-serif;font-weight:600;font-size:0.8rem;color:var(--ink);
+    font-family:'Karrik',sans-serif;font-weight:600;font-size:0.8rem;color:var(--ink);
     background:var(--paper);
     font-variant-numeric:tabular-nums;
   }
@@ -542,7 +525,7 @@
   .row-actions .icon-btn{width:30px;height:30px;font-size:0.85rem;}
   tr.editing td{background:#fff0e2;}
   .edit-input{
-    font-family:'Gluten',sans-serif;font-size:0.8rem;
+    font-family:'Karrik',sans-serif;font-size:0.8rem;
     padding:5px 6px;border:1px solid var(--line-strong);border-radius:5px;
     background:var(--paper-raised);color:var(--ink);width:100%;
   }
@@ -558,8 +541,8 @@
     border-radius:10px;
     padding:16px;
   }
-  .suggest-muscle{font-family:'Gluten',sans-serif;font-weight:800;font-size:1.7rem;color:var(--plate);}
-  .suggest-sub{font-family:'Gluten',sans-serif;font-weight:500;color:var(--muted);font-size:0.8rem;margin-bottom:12px;}
+  .suggest-muscle{font-family:'Karrik',sans-serif;font-weight:800;font-size:1.7rem;color:var(--plate);}
+  .suggest-sub{font-family:'Karrik',sans-serif;font-weight:500;color:var(--muted);font-size:0.8rem;margin-bottom:12px;}
   .suggest-chips{display:flex;flex-wrap:wrap;gap:8px;}
   .suggest-chip{
     background:var(--plate);
@@ -567,7 +550,7 @@
     border:none;
     border-radius:20px;
     padding:8px 14px;
-    font-family:'Gluten',sans-serif;
+    font-family:'Karrik',sans-serif;
     font-weight:700;
     font-size:0.8rem;
     cursor:pointer;
@@ -579,13 +562,13 @@
   .add-ex-checks{display:flex;gap:16px;}
   .add-ex-checks label{
     display:flex;align-items:center;gap:6px;
-    font-family:'Gluten',sans-serif;font-weight:600;
+    font-family:'Karrik',sans-serif;font-weight:600;
     text-transform:none;letter-spacing:0;font-size:0.78rem;color:var(--ink);
   }
   .add-ex-checks input{width:auto;}
 
   .ex-group-title{
-    font-family:'Gluten',sans-serif;font-weight:800;font-size:1rem;
+    font-family:'Karrik',sans-serif;font-weight:800;font-size:1rem;
     color:var(--steel);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.04em;
   }
   .ex-group-title:first-child{margin-top:0;}
@@ -593,10 +576,10 @@
     display:flex;align-items:center;justify-content:space-between;gap:10px;
     padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--paper);
   }
-  .ex-manage-name{font-family:'Gluten',sans-serif;font-weight:600;font-size:0.88rem;}
+  .ex-manage-name{font-family:'Karrik',sans-serif;font-weight:600;font-size:0.88rem;}
   .ex-backbone-toggle{
     display:flex;align-items:center;gap:6px;white-space:nowrap;
-    font-family:'Gluten',sans-serif;font-weight:600;font-size:0.7rem;
+    font-family:'Karrik',sans-serif;font-weight:600;font-size:0.7rem;
     text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);cursor:pointer;
   }
   .ex-backbone-toggle input{width:auto;}
@@ -617,9 +600,82 @@
   .group-edit-head{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
   .group-edit-head .edit-date{max-width:160px;}
   .group-edit-head .edit-exercise{max-width:220px;}
+
+  /* Gate: figurine grid + stranger auth */
+  .gate-screen{
+    position:fixed;inset:0;z-index:100;
+    background:var(--paper);
+    overflow-y:auto;
+    padding:32px 16px 60px;
+  }
+  .gate-inner{max-width:640px;margin:0 auto;text-align:center;}
+  .gate-logo{
+    font-family:'Karrik',sans-serif;font-weight:800;
+    font-size:clamp(2rem,7vw,3rem);color:var(--ink);margin-bottom:20px;
+  }
+  #gateGridView .tool-btn{margin-bottom:18px;}
+  .figurine-grid{
+    display:grid;
+    grid-template-columns:repeat(20,1fr);
+    gap:2px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .figurine-cell{
+    aspect-ratio:1;
+    padding:2px;
+    border:none;
+    background:var(--paper-raised);
+    cursor:pointer;
+  }
+  .figurine-cell:hover{background:var(--paper);}
+  .figurine-cell:disabled{cursor:default;opacity:0.55;}
+  .gate-cooldown{
+    margin-top:16px;
+    font-family:'Karrik',sans-serif;font-weight:700;font-size:0.9rem;
+    color:var(--plate);
+  }
+  .stranger-auth{max-width:320px;margin:0 auto;text-align:left;}
+  .stranger-auth form{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+  .gate-error{
+    color:var(--plate);font-family:'Karrik',sans-serif;font-weight:600;
+    font-size:0.8rem;margin:10px 0 0;
+  }
+  .stranger-auth .tool-btn{margin-top:14px;}
 </style>
 </head>
 <body>
+
+<div class="gate-screen" id="gateScreen" hidden>
+  <div class="gate-inner">
+    <h1 class="gate-logo">Iron Log</h1>
+
+    <div id="gateGridView">
+      <button type="button" class="tool-btn" id="strangerBtn">I'm a stranger</button>
+      <div class="figurine-grid" id="figurineGrid"></div>
+      <p class="gate-cooldown" id="gateCooldown" hidden></p>
+    </div>
+
+    <div class="stranger-auth" id="strangerAuth" hidden>
+      <div class="tabs">
+        <button type="button" class="tab-btn active" id="strangerSignInTab">Sign in</button>
+        <button type="button" class="tab-btn" id="strangerSignUpTab">Sign up</button>
+      </div>
+      <form id="strangerForm">
+        <label for="strangerEmail">Email</label>
+        <input type="email" id="strangerEmail" autocomplete="email" required>
+        <label for="strangerPassword">Password</label>
+        <input type="password" id="strangerPassword" autocomplete="current-password" minlength="6" required>
+        <button type="submit" class="primary-btn" id="strangerSubmitBtn">Sign in</button>
+      </form>
+      <p class="gate-error" id="strangerError" hidden></p>
+      <button type="button" class="tool-btn" id="strangerBackBtn">Back</button>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
 
   <header class="top">
@@ -627,6 +683,7 @@
       <h1>Iron Log</h1>
       <div class="sub">Set-by-set training log</div>
     </div>
+    <button type="button" class="tool-btn" id="logOutBtn" hidden>Log out</button>
   </header>
 
   <nav class="tabs" id="mainTabs">
@@ -656,7 +713,7 @@
         <div class="wheel-center-band" aria-hidden="true"></div>
         <div class="wheel-list" id="wheelList" role="listbox" aria-label="Exercise picker" tabindex="0"></div>
       </div>
-      <p class="wheel-hint">Hold an item still for a second, then drag to scroll. Release to open it.</p>
+      <p class="wheel-hint">Drag to scroll. Release to open it.</p>
 
       <div class="exercise-details" id="exerciseDetails" hidden></div>
     </section>
@@ -814,36 +871,30 @@
     legs: "#e34948",
   };
 
-  // Schematic humanoid silhouette (front or back view — "back" muscle uses
-  // the back view since it isn't visible from the front) with one region
-  // highlighted in the exercise's muscle color, the rest in muted gray.
-  // Exercises map to a single muscle in this app's data model, so only one
-  // region is ever highlighted at a time.
-  const BODY_BASE = "#c9c2ba";
-  function bodySvg(muscle, opts){
+  // Illustrated body diagrams (public/images/*.png) — a full-body outline
+  // with the relevant muscle highlighted in an orange/red gradient. The
+  // app's `muscle` field is broader than the image set (one "arms" category
+  // covers both biceps- and triceps-led exercises), so "arms" picks between
+  // the two images by checking the exercise name for "tricep".
+  const MUSCLE_IMAGES = {
+    chest: "public/images/chest.png",
+    back: "public/images/back.png",
+    shoulders: "public/images/shoulders.png",
+    core: "public/images/core.png",
+    legs: "public/images/leg.png",
+  };
+  const BODY_IMG_ASPECT = 466 / 234; // height / width, from the source images
+
+  function muscleImageFor(ex){
+    if(ex.muscle === "arms") return /tricep/i.test(ex.name) ? "public/images/triceps.png" : "public/images/biceps.png";
+    return MUSCLE_IMAGES[ex.muscle] || "public/images/core.png";
+  }
+
+  function bodyImageTag(ex, opts){
     opts = opts || {};
-    const size = opts.size || 32;
-    const view = muscle === "back" ? "back" : "front";
-    const color = MUSCLE_COLORS[muscle] || BODY_BASE;
-    const fill = (region) => region === muscle ? color : BODY_BASE;
-
-    const limbs = `
-      <ellipse cx="26" cy="38" rx="10" ry="8" fill="${fill("shoulders")}"/>
-      <ellipse cx="74" cy="38" rx="10" ry="8" fill="${fill("shoulders")}"/>
-      <rect x="14" y="40" width="12" height="44" rx="6" fill="${fill("arms")}"/>
-      <rect x="74" y="40" width="12" height="44" rx="6" fill="${fill("arms")}"/>
-      <rect x="32" y="96" width="15" height="54" rx="7" fill="${fill("legs")}"/>
-      <rect x="53" y="96" width="15" height="54" rx="7" fill="${fill("legs")}"/>
-    `;
-    const torso = view === "front"
-      ? `<rect x="32" y="34" width="36" height="28" rx="7" fill="${fill("chest")}"/>
-         <rect x="36" y="62" width="28" height="32" rx="7" fill="${fill("core")}"/>`
-      : `<rect x="30" y="32" width="40" height="50" rx="9" fill="${fill("back")}"/>`;
-
-    return `<svg class="body-svg" viewBox="0 0 100 158" width="${size}" height="${Math.round(size * 1.58)}" aria-hidden="true">
-      <circle cx="50" cy="16" r="13" fill="${BODY_BASE}"/>
-      ${view === "front" ? limbs + torso : torso + limbs}
-    </svg>`;
+    const w = opts.width || 40;
+    const h = Math.round(w * BODY_IMG_ASPECT);
+    return `<img class="body-visual" src="${muscleImageFor(ex)}" alt="" width="${w}" height="${h}" loading="lazy">`;
   }
 
   // The original fixed roster — seeded into the database on first run and
@@ -895,18 +946,20 @@
   let funFactComparisons = [];
 
   // ---------- Exercise wheel state ----------
-  const WHEEL_ITEM_H = 56;
-  const WHEEL_HOLD_MS = 1000;
-  const WHEEL_MOVE_CANCEL_PX = 10;
+  // Drag-to-index sensitivity stays in flat pixels-per-item; only the
+  // on-screen rendering (updateWheelPositions) is circular/angular.
+  const WHEEL_ITEM_H = 64;
+  const WHEEL_ANGLE_STEP = 12; // degrees of arc between adjacent items
+  const WHEEL_MAX_ANGLE = 84; // items past this angle are fully faded out
+  const WHEEL_MOVE_CANCEL_PX = 6;
   let wheelSelectedIndex = 0;
   let wheelDetailsOpen = false;
   let wheelPointerActive = false;
-  let wheelIsArmed = false;
   let wheelMoved = false;
   let wheelStartY = 0;
   let wheelStartIndex = 0;
   let wheelTapIndexAtStart = 0;
-  let wheelHoldTimer = null;
+  let wheelLastHapticIndex = 0;
 
   function clamp(v, min, max){
     return Math.min(max, Math.max(min, v));
@@ -927,6 +980,25 @@
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
 
+  // Phase 2 gate (figurine-grid owner login + "I'm a stranger" signup).
+  // Leave false until you've run supabase/auth_schema.sql, deployed the
+  // verify-figurine Edge Function, and seeded the owner_secret row —
+  // flipping this on before that's done would lock you out of your own
+  // app, since the gate has no working backend to check against yet.
+  const GATE_ENABLED = false;
+  const OWNER_UNLOCK_KEY = "ironlog:ownerUnlocked";
+  // Fixed placeholder id for the owner's rows — see supabase/auth_schema.sql
+  // for why (Postgres keys can't contain NULL, and exercise names need to
+  // be unique per-user, not globally).
+  const OWNER_SENTINEL_ID = "00000000-0000-0000-0000-000000000000";
+
+  // The signed-in stranger's session, if any — null for the owner (who
+  // never goes through Supabase Auth) and for localStorage-only mode.
+  let currentSession = null;
+  function currentUserId(){
+    return currentSession ? currentSession.user.id : OWNER_SENTINEL_ID;
+  }
+
   function rowToEntry(row){
     return {
       id: row.id,
@@ -946,6 +1018,7 @@
       weight: e.weight,
       reps: e.reps,
       logged_at: e.loggedAt,
+      user_id: currentUserId(),
     };
   }
 
@@ -972,6 +1045,7 @@
       max: ex.max ?? null,
       step: ex.step ?? null,
       backbone: Boolean(ex.backbone),
+      user_id: currentUserId(),
     };
   }
 
@@ -1110,7 +1184,7 @@
       try{
         const { error } = await supabaseClient
           .from("exercises")
-          .upsert([exerciseToRow(ex)], { onConflict: "name" });
+          .upsert([exerciseToRow(ex)], { onConflict: "user_id,name" });
         if(error) throw error;
         return true;
       }catch(e){
@@ -1237,7 +1311,7 @@
       item.id = "wheel-item-" + i;
       item.dataset.index = String(i);
       item.setAttribute("role", "option");
-      item.innerHTML = `${bodySvg(ex.muscle, { size: 30 })}<span class="wheel-item-name">${ex.name}</span>`;
+      item.innerHTML = `${bodyImageTag(ex, { width: 40 })}<span class="wheel-item-name">${ex.name}</span>`;
       list.appendChild(item);
     });
 
@@ -1247,6 +1321,9 @@
   // Repositions the wheel list by `dragOffset` px from wheelSelectedIndex,
   // and scales/dims each item (and blurs its muscle diagram) by distance
   // from center — smaller/dimmer/blurrier the further an item is from focus.
+  // Positions items along the right-facing arc of a large circle whose
+  // center sits off-screen to the left — so only the "east" half of the
+  // wheel is ever visible, curving away above/below the centered item.
   function updateWheelPositions(dragOffset){
     const wrap = $("#wheelWrap");
     const list = $("#wheelList");
@@ -1254,22 +1331,33 @@
     const items = $all(".wheel-item", list);
     if(items.length === 0) return;
 
-    const wrapH = wrap.clientHeight || 280;
-    const continuousIndex = wheelSelectedIndex - dragOffset / WHEEL_ITEM_H;
-    const ty = wrapH / 2 - WHEEL_ITEM_H / 2 - wheelSelectedIndex * WHEEL_ITEM_H + dragOffset;
-    list.style.transform = `translateY(${ty}px)`;
+    const wrapW = wrap.clientWidth || 360;
+    const wrapH = wrap.clientHeight || 600;
+    const rightAnchor = wrapW - 88;
+    const curveDepth = wrapW * 0.62; // how far left items sweep at max angle
+    const cy = wrapH / 2;
 
-    let nearestIndex = 0, nearestDist = Infinity;
+    const continuousIndex = wheelSelectedIndex - dragOffset / WHEEL_ITEM_H;
+
+    let nearestIndex = 0, nearestAbsAngle = Infinity;
     items.forEach((item, i) => {
-      const dist = Math.abs(i - continuousIndex);
-      if(dist < nearestDist){ nearestDist = dist; nearestIndex = i; }
-      item.style.transform = `scale(${clamp(1 - dist * 0.16, 0.62, 1)})`;
-      item.style.opacity = String(clamp(1 - dist * 0.32, 0.22, 1));
-      const svg = item.querySelector(".body-svg");
-      if(svg){
-        svg.style.opacity = String(clamp(1 - dist * 0.45, 0.2, 1));
-        svg.style.filter = `blur(${Math.min(3, dist * 1.6)}px)`;
-      }
+      const signedDist = i - continuousIndex;
+      const angleDeg = clamp(Math.abs(signedDist) * WHEEL_ANGLE_STEP, 0, 90);
+      if(angleDeg < nearestAbsAngle){ nearestAbsAngle = angleDeg; nearestIndex = i; }
+
+      const angleRad = angleDeg * Math.PI / 180;
+      // y keeps a predictable linear rhythm; x sweeps left on an independent
+      // cosine curve — the "half circle" bulge, decoupled from row spacing.
+      const x = rightAnchor - (1 - Math.cos(angleRad)) * curveDepth;
+      const y = cy + signedDist * WHEEL_ITEM_H * 1.15;
+      const t = clamp(1 - angleDeg / WHEEL_MAX_ANGLE, 0, 1);
+
+      item.style.left = `${x}px`;
+      item.style.top = `${y}px`;
+      item.style.transform = `translate(-50%, -50%) scale(${clamp(0.55 + 0.45 * t, 0.55, 1)})`;
+      item.style.opacity = String(clamp(t * 1.2, 0, 1));
+      const img = item.querySelector(".body-visual");
+      if(img) img.style.filter = `blur(${(1 - t) * 2.5}px)`;
       item.setAttribute("aria-selected", "false");
     });
     const centerItem = items[nearestIndex];
@@ -1302,19 +1390,12 @@
 
     wheelPointerActive = true;
     wheelMoved = false;
-    wheelIsArmed = false;
     wheelStartY = evt.clientY;
     wheelStartIndex = wheelSelectedIndex;
     wheelTapIndexAtStart = wheelIndexFromClientY(evt.clientY);
+    wheelLastHapticIndex = wheelSelectedIndex;
 
-    $("#wheelWrap").classList.remove("armed");
     $("#wheelList").classList.remove("snap");
-
-    wheelHoldTimer = setTimeout(() => {
-      wheelIsArmed = true;
-      $("#wheelWrap").classList.add("armed");
-      triggerHaptic();
-    }, WHEEL_HOLD_MS);
 
     window.addEventListener("pointermove", onWheelPointerMove);
     window.addEventListener("pointerup", onWheelPointerUp);
@@ -1325,17 +1406,16 @@
     const deltaY = evt.clientY - wheelStartY;
     if(Math.abs(deltaY) > WHEEL_MOVE_CANCEL_PX) wheelMoved = true;
 
-    if(!wheelIsArmed){
-      // Holding still is what arms it — movement before arming cancels the
-      // hold rather than starting a drag.
-      if(wheelMoved && wheelHoldTimer){
-        clearTimeout(wheelHoldTimer);
-        wheelHoldTimer = null;
-      }
-      return;
-    }
-
     updateWheelPositions(deltaY);
+
+    // A light tap of haptic feedback each time a new item reaches center —
+    // the picker's "detent" click, rather than a one-time hold-to-arm buzz.
+    const items = wheelExercises();
+    const nearestNow = clamp(Math.round(wheelStartIndex - deltaY / WHEEL_ITEM_H), 0, items.length - 1);
+    if(nearestNow !== wheelLastHapticIndex){
+      wheelLastHapticIndex = nearestNow;
+      triggerHaptic();
+    }
   }
 
   function onWheelPointerUp(evt){
@@ -1343,26 +1423,16 @@
     wheelPointerActive = false;
     window.removeEventListener("pointermove", onWheelPointerMove);
     window.removeEventListener("pointerup", onWheelPointerUp);
-    if(wheelHoldTimer){ clearTimeout(wheelHoldTimer); wheelHoldTimer = null; }
 
-    $("#wheelWrap").classList.remove("armed");
     $("#wheelList").classList.add("snap");
 
-    if(wheelIsArmed){
-      const deltaY = evt.clientY - wheelStartY;
-      const items = wheelExercises();
-      wheelSelectedIndex = clamp(Math.round(wheelStartIndex - deltaY / WHEEL_ITEM_H), 0, items.length - 1);
-      updateWheelPositions(0);
-      openExerciseDetails(wheelSelectedIndex);
-    } else if(!wheelMoved){
-      // Quick tap: jump straight to the tapped item, no details panel.
-      wheelSelectedIndex = wheelTapIndexAtStart;
-      updateWheelPositions(0);
-    } else {
-      // Moved but never held long enough to arm — snap back to where it was.
-      updateWheelPositions(0);
-    }
-    wheelIsArmed = false;
+    const deltaY = evt.clientY - wheelStartY;
+    const items = wheelExercises();
+    wheelSelectedIndex = wheelMoved
+      ? clamp(Math.round(wheelStartIndex - deltaY / WHEEL_ITEM_H), 0, items.length - 1)
+      : wheelTapIndexAtStart;
+    updateWheelPositions(0);
+    openExerciseDetails(wheelSelectedIndex);
   }
 
   function onWheelKeydown(evt){
@@ -1422,7 +1492,7 @@
       <div class="details-inner">
         <div class="details-head">
           <div class="details-name-wrap">
-            ${bodySvg(ex.muscle, { size: 56 })}
+            ${bodyImageTag(ex, { width: 72 })}
             <div>
               <div class="details-name">${ex.name}${ex.perHand ? ' <span class="ex-tag">Per hand</span>' : ''}</div>
               <div class="details-muscle" style="color:${MUSCLE_COLORS[ex.muscle]};">${MUSCLE_LABELS[ex.muscle]}</div>
@@ -2414,6 +2484,145 @@
     el.hidden = false;
   }
 
+  // ---------- Gate: figurine grid + stranger auth ----------
+  // A fixed small set of blob/alien shapes, reused across the grid in
+  // random colors/positions each load — decorative only, unrelated to
+  // which cell is correct (the client never learns that).
+  const FIGURINE_COLORS = ["#2a78d6","#1baf7a","#eda100","#008300","#4a3aa7","#e34948","#e87ba4","#eb6834"];
+  function figurineSvg(shape, color){
+    const decorations = [
+      "",
+      '<circle cx="50" cy="8" r="5" fill="currentColor"/>',
+      '<path d="M28,22 L20,10 M72,22 L80,10" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/>',
+      '<rect x="30" y="78" width="10" height="14" rx="5" fill="currentColor"/><rect x="60" y="78" width="10" height="14" rx="5" fill="currentColor"/>',
+    ];
+    return `<svg viewBox="0 0 100 100" width="100%" height="100%" style="color:${color}" aria-hidden="true">
+      <ellipse cx="50" cy="52" rx="34" ry="30" fill="currentColor"/>
+      ${decorations[shape % decorations.length]}
+      <circle cx="38" cy="46" r="6" fill="#fff"/>
+      <circle cx="62" cy="46" r="6" fill="#fff"/>
+      <circle cx="38" cy="46" r="2.5" fill="#222"/>
+      <circle cx="62" cy="46" r="2.5" fill="#222"/>
+    </svg>`;
+  }
+
+  let gateLocked = false;
+
+  function buildFigurineGrid(){
+    const grid = $("#figurineGrid");
+    grid.innerHTML = "";
+    for(let i = 0; i < 400; i++){
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "figurine-cell";
+      const shape = Math.floor(Math.random() * 4);
+      const color = FIGURINE_COLORS[Math.floor(Math.random() * FIGURINE_COLORS.length)];
+      cell.innerHTML = figurineSvg(shape, color);
+      cell.addEventListener("click", () => onFigurineClick(i));
+      grid.appendChild(cell);
+    }
+  }
+
+  function setGridDisabled(disabled){
+    $all(".figurine-cell", $("#figurineGrid")).forEach(c => { c.disabled = disabled; });
+  }
+
+  function startGateCooldown(){
+    const el = $("#gateCooldown");
+    let remaining = 5;
+    el.hidden = false;
+    el.textContent = `Try again in ${remaining}s`;
+    const iv = setInterval(() => {
+      remaining -= 1;
+      if(remaining <= 0){
+        clearInterval(iv);
+        el.hidden = true;
+        setGridDisabled(false);
+        gateLocked = false;
+      } else {
+        el.textContent = `Try again in ${remaining}s`;
+      }
+    }, 1000);
+  }
+
+  async function onFigurineClick(cell){
+    if(gateLocked) return;
+    gateLocked = true;
+    setGridDisabled(true);
+    try{
+      const { data, error } = await supabaseClient.functions.invoke("verify-figurine", { body: { cell } });
+      if(error) throw error;
+      if(data && data.granted){
+        localStorage.setItem(OWNER_UNLOCK_KEY, "true");
+        enterApp();
+        return;
+      }
+    }catch(e){
+      console.error("Figurine verify error", e);
+    }
+    startGateCooldown();
+  }
+
+  let strangerMode = "signin";
+  function setStrangerMode(mode){
+    strangerMode = mode;
+    $("#strangerSignInTab").classList.toggle("active", mode === "signin");
+    $("#strangerSignUpTab").classList.toggle("active", mode === "signup");
+    $("#strangerSubmitBtn").textContent = mode === "signin" ? "Sign in" : "Sign up";
+  }
+
+  function showStrangerAuth(){
+    $("#gateGridView").hidden = true;
+    $("#strangerAuth").hidden = false;
+  }
+  function showFigurineGrid(){
+    $("#strangerAuth").hidden = true;
+    $("#gateGridView").hidden = false;
+  }
+
+  async function handleStrangerSubmit(evt){
+    evt.preventDefault();
+    const email = $("#strangerEmail").value.trim();
+    const password = $("#strangerPassword").value;
+    const errEl = $("#strangerError");
+    errEl.hidden = true;
+    try{
+      const authFn = strangerMode === "signin" ? "signInWithPassword" : "signUp";
+      const { data, error } = await supabaseClient.auth[authFn]({ email, password });
+      if(error) throw error;
+      if(strangerMode === "signup" && !data.session){
+        errEl.textContent = "Check your email to confirm your account, then sign in.";
+        errEl.hidden = false;
+        return;
+      }
+      currentSession = data.session;
+      enterApp();
+    }catch(err){
+      errEl.textContent = (err && err.message) || "Something went wrong.";
+      errEl.hidden = false;
+    }
+  }
+
+  async function logOut(){
+    if(currentSession) await supabaseClient.auth.signOut();
+    localStorage.removeItem(OWNER_UNLOCK_KEY);
+    location.reload();
+  }
+
+  function enterApp(){
+    $("#gateScreen").hidden = true;
+    $(".wrap").hidden = false;
+    init();
+  }
+
+  function wireGateEvents(){
+    $("#strangerBtn").addEventListener("click", showStrangerAuth);
+    $("#strangerBackBtn").addEventListener("click", showFigurineGrid);
+    $("#strangerSignInTab").addEventListener("click", () => setStrangerMode("signin"));
+    $("#strangerSignUpTab").addEventListener("click", () => setStrangerMode("signup"));
+    $("#strangerForm").addEventListener("submit", handleStrangerSubmit);
+  }
+
   // ---------- Wire up ----------
   async function init(){
     $("#workoutDate").value = todayISO();
@@ -2443,6 +2652,8 @@
     $("#addExerciseBtn").addEventListener("click", addExercise);
     $("#wheelWrap").addEventListener("pointerdown", onWheelPointerDown);
     $("#wheelList").addEventListener("keydown", onWheelKeydown);
+    $("#logOutBtn").addEventListener("click", logOut);
+    if(GATE_ENABLED) $("#logOutBtn").hidden = false;
     let resizeRaf = null;
     window.addEventListener("resize", () => {
       if(currentView !== "progress") return;
@@ -2461,7 +2672,31 @@
     renderFunFact();
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  async function bootstrap(){
+    if(!useSupabase || !GATE_ENABLED){
+      await init();
+      return;
+    }
+
+    if(localStorage.getItem(OWNER_UNLOCK_KEY) === "true"){
+      await init();
+      return;
+    }
+
+    const { data } = await supabaseClient.auth.getSession();
+    if(data.session){
+      currentSession = data.session;
+      await init();
+      return;
+    }
+
+    $(".wrap").hidden = true;
+    $("#gateScreen").hidden = false;
+    buildFigurineGrid();
+    wireGateEvents();
+  }
+
+  document.addEventListener("DOMContentLoaded", bootstrap);
 })();
 </script>
 </body>

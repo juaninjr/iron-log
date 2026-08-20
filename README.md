@@ -59,6 +59,57 @@ don't reuse this Supabase project for anything sensitive.
 If you skip this setup, the app keeps working exactly as before, using
 `localStorage`.
 
+## Optional: figurine-grid login + multi-user support
+
+By default Iron Log has no login — anyone with the deployed URL uses the
+same single "owner" dataset. There's an optional gate that adds:
+
+- A 20×20 grid of figurine buttons on load. One specific cell is "correct,"
+  validated **server-side only** (a Supabase Edge Function) — the correct
+  cell is never sent to the browser in any form, so nothing in the page
+  source reveals it. Click it to enter as the owner.
+- Any wrong click locks the whole grid for 5 seconds, enforced by the
+  server too (not just a client-side timer), so it can't be bypassed by
+  editing browser state.
+- An **"I'm a stranger"** button for a normal email/password signup — each
+  stranger gets their own private data, isolated from the owner's and from
+  every other stranger's via Postgres Row Level Security.
+
+**This is an obscurity-based novelty gate, not real security for the
+data.** The owner's workout data still lives behind the same public anon
+key used everywhere else in this app — anyone who extracts that key from
+the deployed page (trivial via browser dev tools) can already read/write it
+directly via the Supabase REST API, with or without ever seeing the grid.
+The grid gates the *page*, not the *data*. Don't use this for anything
+sensitive.
+
+To turn it on:
+
+1. Run [`supabase/schema.sql`](supabase/schema.sql) first if you haven't
+   already (see above).
+2. Run [`supabase/auth_schema.sql`](supabase/auth_schema.sql) in the SQL
+   editor. This adds per-user scoping to `workout_entries`/`exercises`, a
+   `profiles` table for strangers, and two tables with **no** anon/
+   authenticated policies at all (`owner_secret`, `figurine_attempts`) so
+   only a service-role client can ever touch them.
+3. Deploy the Edge Function: in the dashboard, **Edge Functions > New
+   function**, name it `verify-figurine`, and paste in the contents of
+   [`supabase/functions/verify-figurine/index.ts`](supabase/functions/verify-figurine/index.ts).
+   (Or `supabase functions deploy verify-figurine` if you have the CLI
+   linked to this project.) `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+   are injected automatically — no extra secrets to configure.
+4. Seed the correct cell. **Do not commit this value anywhere** — run it
+   directly in the SQL editor as a one-off:
+   ```sql
+   insert into owner_secret (id, correct_cell) values (1, <the number Claude gave you in chat>)
+   on conflict (id) do update set correct_cell = excluded.correct_cell, updated_at = now();
+   ```
+5. Confirm email/password auth is enabled: **Authentication > Providers >
+   Email** should already be on by default.
+6. In `index.html`, flip `const GATE_ENABLED = false;` to `true` — only
+   after steps 1–5 are done, or you'll lock yourself out of your own app
+   with no working backend to unlock it.
+
 ## Data & backups
 
 Once Supabase is configured, entries are stored in your Postgres database and
