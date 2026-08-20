@@ -96,7 +96,11 @@ upstream font source repos) are gitignored and irrelevant to the app; only
 the woff2 files actually copied into `fonts/` are used.
 
 **Exercise body diagrams are illustrated PNGs**, not generated shapes —
-`public/images/{chest,back,shoulders,biceps,triceps,core,legs,glutes}.png`,
+`images/{chest,back,shoulders,biceps,triceps,core,legs,glutes}.png` (not
+`public/images/` — a top-level `public/` folder triggers Vercel's
+zero-config "treat public/ as the deploy output directory" behavior on a
+framework-less static site, which silently dropped `index.html` from the
+deployment the one time this was tried),
 each a full-body outline with one region highlighted in an orange/red
 gradient. `muscleImageFor()` maps an exercise to an image: direct for
 chest/back/shoulders/core/legs, but the app's `muscle` field only has one

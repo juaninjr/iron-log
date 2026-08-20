@@ -871,23 +871,23 @@
     legs: "#e34948",
   };
 
-  // Illustrated body diagrams (public/images/*.png) — a full-body outline
+  // Illustrated body diagrams (images/*.png) — a full-body outline
   // with the relevant muscle highlighted in an orange/red gradient. The
   // app's `muscle` field is broader than the image set (one "arms" category
   // covers both biceps- and triceps-led exercises), so "arms" picks between
   // the two images by checking the exercise name for "tricep".
   const MUSCLE_IMAGES = {
-    chest: "public/images/chest.png",
-    back: "public/images/back.png",
-    shoulders: "public/images/shoulders.png",
-    core: "public/images/core.png",
-    legs: "public/images/leg.png",
+    chest: "images/chest.png",
+    back: "images/back.png",
+    shoulders: "images/shoulders.png",
+    core: "images/core.png",
+    legs: "images/leg.png",
   };
   const BODY_IMG_ASPECT = 466 / 234; // height / width, from the source images
 
   function muscleImageFor(ex){
-    if(ex.muscle === "arms") return /tricep/i.test(ex.name) ? "public/images/triceps.png" : "public/images/biceps.png";
-    return MUSCLE_IMAGES[ex.muscle] || "public/images/core.png";
+    if(ex.muscle === "arms") return /tricep/i.test(ex.name) ? "images/triceps.png" : "images/biceps.png";
+    return MUSCLE_IMAGES[ex.muscle] || "images/core.png";
   }
 
   function bodyImageTag(ex, opts){
