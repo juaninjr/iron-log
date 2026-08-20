@@ -1,0 +1,25 @@
+# Fun-fact comparisons for the "Total weight lifted" stat on the Log tab.
+# Format: label|weight_in_kg  (one per line, "#" lines and blank lines ignored)
+# Figures are approximate, for fun — not scientific claims.
+# Ordered light to heavy; loadComparisons()/renderFunFact() in index.html
+# picks a random one you've "lifted the weight of" and only refreshes it
+# on page load, not on every set you log.
+a bowling ball|7
+a golden retriever|30
+an adult human|75
+a grand piano|300
+a grizzly bear|360
+a Mini Cooper|1200
+a giraffe|1200
+a hippopotamus|1500
+an African elephant|6000
+a school bus|12000
+a humpback whale|30000
+a blue whale|150000
+an empty Boeing 747|180000
+the Statue of Liberty|204000
+an Olympic swimming pool of water|2500000
+the Eiffel Tower|10100000
+an empty football stadium's steel frame|20000000
+the Titanic|52000000
+the Great Pyramid of Giza|6000000000

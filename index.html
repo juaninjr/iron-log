@@ -166,10 +166,58 @@
     outline-offset:2px;
   }
 
-  .date-row{max-width:220px;margin-bottom:16px;}
+  .date-inline{
+    width:auto;
+    max-width:145px;
+    padding:4px 8px;
+    font-size:0.72rem;
+    flex:none;
+  }
+
+  .fun-fact{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-left:4px solid var(--plate);
+    border-radius:var(--radius);
+    padding:12px 16px;
+    margin-bottom:22px;
+    font-family:'Gluten',sans-serif;
+    font-weight:600;
+    font-size:0.85rem;
+    color:var(--ink);
+    box-shadow:var(--shadow);
+  }
+
+  .muscle-filter-row{
+    display:flex;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    gap:5px;
+    margin-bottom:12px;
+    padding-bottom:2px;
+  }
+  .muscle-chip{
+    flex:none;
+    border:none;
+    border-radius:20px;
+    padding:5px 11px;
+    background:var(--ink);
+    color:#fff;
+    font-family:'Gluten',sans-serif;
+    font-weight:700;
+    font-size:0.66rem;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    white-space:nowrap;
+    cursor:pointer;
+    transition:filter 0.15s ease, opacity 0.15s ease;
+  }
+  .muscle-chip-all{background:var(--ink);}
+  .muscle-chip.inactive{filter:saturate(0.2) brightness(1.15);opacity:0.55;}
 
   .exercise-block{
     border:1px solid var(--line);
+    border-left:4px solid var(--ex-muscle-color, var(--line));
     border-radius:8px;
     padding:8px 10px 6px;
     margin-bottom:6px;
@@ -325,6 +373,8 @@
     .stat{padding:10px 12px;}
     .stat .value{font-size:1.5rem;}
     section{padding:14px;}
+    section > h2{font-size:1.1rem;}
+    .date-inline{max-width:128px;font-size:0.72rem;padding:4px 6px;}
     .exercise-block{padding:6px 8px 5px;margin-bottom:5px;}
     .exercise-block .ex-name{font-size:0.9rem;}
     .set-row{gap:5px;margin-bottom:4px;}
@@ -440,7 +490,7 @@
     font-size:0.8rem;
     cursor:pointer;
   }
-  .suggest-chip:hover{background:var(--plate-dark);}
+  .suggest-chip:hover{filter:brightness(0.88);}
 
   @keyframes flash-block{
     0%,100%{background:var(--paper);}
@@ -474,6 +524,23 @@
     text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);cursor:pointer;
   }
   .ex-backbone-toggle input{width:auto;}
+
+  .ex-manage-name-wrap{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:0;}
+  .ex-manage-name-wrap .icon-btn{width:24px;height:24px;font-size:0.7rem;flex:none;}
+  .ex-manage-name-wrap .ex-rename-input{flex:1;min-width:80px;max-width:220px;}
+
+  /* Compact "50/70/60" set display */
+  .sets-compact{display:flex;flex-wrap:wrap;align-items:baseline;gap:1px;}
+  .set-item{display:inline-flex;flex-direction:column;align-items:center;line-height:1.1;padding:0 3px;}
+  .set-weight{font-weight:700;font-size:0.85rem;}
+  .set-reps{font-size:0.6rem;color:var(--muted);font-weight:500;}
+  .set-sep{color:var(--muted);align-self:center;}
+
+  /* Full log grouped-row edit form */
+  .group-edit{padding:6px 0;}
+  .group-edit-head{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .group-edit-head .edit-date{max-width:160px;}
+  .group-edit-head .edit-exercise{max-width:220px;}
 </style>
 </head>
 <body>
@@ -497,18 +564,17 @@
   <div class="view" id="viewLog">
 
     <div class="stats">
-      <div class="stat"><div class="label">Sets logged</div><div class="value" id="statSets">0</div></div>
+      <div class="stat"><div class="label">Total weight lifted</div><div class="value" id="statVolume" style="font-size:1.4rem;">0 kg</div></div>
       <div class="stat"><div class="label">Days trained</div><div class="value" id="statDays">0</div></div>
       <div class="stat steel"><div class="label">Last session</div><div class="value" id="statLast" style="font-size:1.3rem;">—</div></div>
       <div class="stat"><div class="label">Total pushups</div><div class="value" id="statPushups">0</div></div>
     </div>
 
+    <div class="fun-fact" id="funFact" hidden></div>
+
     <section>
-      <h2>Log a workout</h2>
-      <div class="date-row">
-        <label for="workoutDate">Date</label>
-        <input type="date" id="workoutDate">
-      </div>
+      <h2>Log a workout<input type="date" id="workoutDate" class="date-inline" aria-label="Date"></h2>
+      <div class="muscle-filter-row" id="muscleFilterRow"></div>
       <div id="exerciseBlocks"></div>
       <button class="primary-btn" id="logWorkoutBtn">Log workout</button>
     </section>
@@ -518,7 +584,7 @@
       <div class="scroll-table">
         <table>
           <thead>
-            <tr><th>Exercise</th><th>Last date</th><th>Weight</th><th>Reps</th></tr>
+            <tr><th>Exercise</th><th>Last date</th><th>Sets</th></tr>
           </thead>
           <tbody id="latestBody"></tbody>
         </table>
@@ -537,7 +603,7 @@
       <div class="scroll-table">
         <table>
           <thead>
-            <tr><th>Date</th><th>Exercise</th><th>Set</th><th>Weight</th><th>Reps</th><th>Actions</th></tr>
+            <tr><th>Date</th><th>Exercise</th><th>Sets</th><th>Actions</th></tr>
           </thead>
           <tbody id="fullLogBody"></tbody>
         </table>
@@ -549,7 +615,7 @@
   <div class="view" id="viewProgress" hidden>
 
     <section>
-      <h2>Weight progress <span class="count">kg per exercise, by date</span></h2>
+      <h2>Weight volume progress <span class="count">total kg lifted per muscle group, by date</span></h2>
       <div class="chart-filters" id="weightFilters"></div>
       <div class="chart-wrap">
         <svg class="chart-svg" id="weightChart"></svg>
@@ -558,7 +624,7 @@
     </section>
 
     <section>
-      <h2>Reps progress <span class="count">reps per exercise, by date</span></h2>
+      <h2>Reps volume progress <span class="count">total reps per muscle group, by date</span></h2>
       <div class="chart-filters" id="repsFilters"></div>
       <div class="chart-wrap">
         <svg class="chart-svg" id="repsChart"></svg>
@@ -647,6 +713,16 @@
 
   const MUSCLES = ["chest","back","shoulders","arms","core","legs"];
   const MUSCLE_LABELS = { chest:"Chest", back:"Back", shoulders:"Shoulders", arms:"Arms", core:"Core", legs:"Legs" };
+  // Validated categorical palette (first 6 of 8 slots — a prefix of an
+  // already-validated ordering stays CVD-safe), one fixed color per muscle.
+  const MUSCLE_COLORS = {
+    chest: "#2a78d6",
+    back: "#1baf7a",
+    shoulders: "#eda100",
+    arms: "#008300",
+    core: "#4a3aa7",
+    legs: "#e34948",
+  };
 
   // The original fixed roster — seeded into the database on first run and
   // used as the fallback if the database is unreachable. These are the
@@ -677,42 +753,24 @@
     return a.name.localeCompare(b.name);
   }
 
-  // Fixed colors for the original roster — validated categorical palette,
-  // assigned in a stable order so an exercise's color never changes when
-  // filters change. Exercises added later get a deterministic hash color.
-  const EXERCISE_COLORS = {
-    "Long Biceps":        "#2a78d6",
-    "Short Biceps":       "#1baf7a",
-    "Bench Dumbbell":     "#eda100",
-    "Bench":              "#008300",
-    "Militar":            "#4a3aa7",
-    "Lat Raises":         "#e34948",
-    "Rear Delt Flies":    "#e87ba4",
-    "Triceps Pulldown":   "#eb6834",
-    "Triceps Horizontal": "#0f9b8e",
-    "Bulgarian":          "#a8631f",
-    "Squats Máquina":     "#b23fa0",
-    "Core Workout":       "#7a8a1a",
-    "Pushups":            "#8a2f4a",
-  };
-
-  function colorForExercise(name){
-    if(EXERCISE_COLORS[name]) return EXERCISE_COLORS[name];
-    let hash = 0;
-    for(let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-    return `hsl(${hash % 360} 65% 42%)`;
-  }
-
   const STORAGE_KEY = "ironlog:entries";
   const EXERCISES_STORAGE_KEY = "ironlog:exercises";
   let entries = [];
-  let editingId = null;
+  let editingGroupKey = null;
   let currentView = "log";
   let calMonth = new Date();
   calMonth.setDate(1);
 
-  const weightFilterSelected = new Set();
-  const repsFilterSelected = new Set();
+  // Progress-chart filters: which muscle groups are visible per chart.
+  const weightFilterSelected = new Set(MUSCLES);
+  const repsFilterSelected = new Set(MUSCLES);
+
+  // Log-tab filter: which muscle groups show their exercise blocks.
+  let logMuscleFilter = new Set(MUSCLES);
+
+  // Fun-fact comparisons (loaded once from data/comparisons.txt), and the
+  // fact picked for this page load — stays fixed until the page reloads.
+  let funFactComparisons = [];
 
   // ---------- Database config (Supabase) ----------
   // Fill these in after creating a Supabase project and running supabase/schema.sql.
@@ -845,6 +903,31 @@
     }
   }
 
+  // Deletes entries by id. Callers must remove them from the in-memory
+  // `entries` array first (the localStorage branch persists current state).
+  async function deleteEntries(ids){
+    if(ids.length === 0) return true;
+    if(useSupabase){
+      try{
+        const { error } = await supabaseClient.from("workout_entries").delete().in("id", ids);
+        if(error) throw error;
+        return true;
+      }catch(e){
+        console.error("Supabase delete error", e);
+        alert("Could not delete from the database.");
+        return false;
+      }
+    }
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      return true;
+    }catch(e){
+      console.error("Storage error", e);
+      alert("Could not save the deletion.");
+      return false;
+    }
+  }
+
   // Loads the exercise roster, seeding the database/localStorage with
   // DEFAULT_EXERCISES the first time there's nothing stored yet.
   async function loadExercises(){
@@ -906,14 +989,90 @@
     }
   }
 
+  // Renames an exercise, updating the exercises row and every logged entry
+  // that references the old name (no DB foreign key ties them together, so
+  // both need an explicit update).
+  async function renameExercise(ex, newName){
+    const oldName = ex.name;
+    if(useSupabase){
+      try{
+        const { error: exErr } = await supabaseClient
+          .from("exercises").update({ name: newName }).eq("name", oldName);
+        if(exErr) throw exErr;
+        const { error: entErr } = await supabaseClient
+          .from("workout_entries").update({ exercise: newName }).eq("exercise", oldName);
+        if(entErr) throw entErr;
+      }catch(e){
+        console.error("Supabase rename error", e);
+        alert("Could not rename the exercise in the database.");
+        return false;
+      }
+    }
+
+    ex.name = newName;
+    entries.forEach(en => { if(en.exercise === oldName) en.exercise = newName; });
+
+    if(!useSupabase){
+      try{
+        localStorage.setItem(EXERCISES_STORAGE_KEY, JSON.stringify(EXERCISES));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      }catch(e){
+        console.error("Storage error", e);
+        alert("Could not save the rename.");
+        return false;
+      }
+    }
+    return true;
+  }
+
   // ---------- Build the log form ----------
+  function buildMuscleFilterRow(){
+    const row = $("#muscleFilterRow");
+    if(!row) return;
+    row.innerHTML = "";
+
+    const allBtn = document.createElement("button");
+    allBtn.type = "button";
+    allBtn.className = "muscle-chip muscle-chip-all" + (logMuscleFilter.size === MUSCLES.length ? "" : " inactive");
+    allBtn.textContent = "All";
+    allBtn.addEventListener("click", () => {
+      logMuscleFilter = new Set(MUSCLES);
+      buildMuscleFilterRow();
+      buildExerciseBlocks();
+    });
+    row.appendChild(allBtn);
+
+    MUSCLES.forEach(m => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "muscle-chip" + (logMuscleFilter.has(m) ? "" : " inactive");
+      chip.style.background = MUSCLE_COLORS[m];
+      chip.textContent = MUSCLE_LABELS[m];
+      chip.addEventListener("click", () => {
+        if(logMuscleFilter.has(m)) logMuscleFilter.delete(m);
+        else logMuscleFilter.add(m);
+        buildMuscleFilterRow();
+        buildExerciseBlocks();
+      });
+      row.appendChild(chip);
+    });
+  }
+
   function buildExerciseBlocks(){
     const container = $("#exerciseBlocks");
     container.innerHTML = "";
-    EXERCISES.forEach((ex) => {
+    const visible = EXERCISES.filter(ex => logMuscleFilter.has(ex.muscle));
+
+    if(visible.length === 0){
+      container.innerHTML = `<p class="empty-note">No exercises selected — enable a muscle group above.</p>`;
+      return;
+    }
+
+    visible.forEach((ex) => {
       const block = document.createElement("div");
       block.className = "exercise-block";
       block.dataset.exercise = ex.name;
+      block.style.setProperty("--ex-muscle-color", MUSCLE_COLORS[ex.muscle]);
 
       const head = document.createElement("div");
       head.className = "ex-head";
@@ -999,6 +1158,7 @@
 
     EXERCISES.forEach((ex) => {
       const block = $(`.exercise-block[data-exercise="${cssEscape(ex.name)}"]`);
+      if(!block) return; // hidden by the muscle filter — nothing to read
       const rows = $all(".set-row", block);
       rows.forEach((row) => {
         const repsEl = $(".reps-input", row);
@@ -1040,55 +1200,79 @@
   }
 
   // ---------- Derived views ----------
-  function sortedFullLog(){
-    return [...entries].sort((a,b) => b.loggedAt - a.loggedAt);
-  }
-
-  function setNumbers(){
-    // group by date+exercise, order by loggedAt ascending within group
+  // Groups entries by date+exercise (one card/row per session's sets for
+  // that exercise, sorted chronologically), most recently logged group first.
+  function groupedFullLog(){
     const groups = {};
     entries.forEach(e => {
       const key = e.date + "||" + e.exercise;
       (groups[key] = groups[key] || []).push(e);
     });
-    const map = {};
-    Object.values(groups).forEach(group => {
-      group.sort((a,b) => a.loggedAt - b.loggedAt);
-      group.forEach((e,i) => { map[e.id] = i+1; });
-    });
-    return map;
+    return Object.values(groups).map(sets => {
+      sets.sort((a,b) => a.loggedAt - b.loggedAt);
+      return { key: sets[0].date + "||" + sets[0].exercise, date: sets[0].date, exercise: sets[0].exercise, sets };
+    }).sort((a,b) => b.sets[b.sets.length-1].loggedAt - a.sets[a.sets.length-1].loggedAt);
+  }
+
+  // Compact "50/70/60" rendering with small reps beneath each weight — used
+  // in both the Latest-by-exercise and Full-log tables.
+  function renderSetsCell(sets, ex){
+    if(sets.length === 0) return '<span class="empty-note" style="padding:0;">Not logged yet</span>';
+    return `<div class="sets-compact">` + sets.map((s, i) => {
+      const sep = i > 0 ? '<span class="set-sep">/</span>' : '';
+      if(ex && ex.repsOnly){
+        return `${sep}<span class="set-item"><span class="set-weight">${s.reps !== null ? s.reps : "—"}</span></span>`;
+      }
+      return `${sep}<span class="set-item"><span class="set-weight">${s.weight !== null ? s.weight : "—"}</span><span class="set-reps">${s.reps !== null ? s.reps : "—"}</span></span>`;
+    }).join("") + `</div>`;
+  }
+
+  // Plain-text equivalent for the PDF export.
+  function formatSetsText(sets, ex){
+    if(sets.length === 0) return "—";
+    return sets.map(s => {
+      if(ex && ex.repsOnly) return `${s.reps !== null ? s.reps : "—"}`;
+      return `${s.weight !== null ? s.weight : "—"}×${s.reps !== null ? s.reps : "—"}`;
+    }).join(" / ");
   }
 
   function latestByExercise(){
-    const latest = {};
+    const latestDate = {};
     entries.forEach(e => {
-      const cur = latest[e.exercise];
-      if(!cur || e.loggedAt > cur.loggedAt) latest[e.exercise] = e;
+      if(!latestDate[e.exercise] || e.date > latestDate[e.exercise]) latestDate[e.exercise] = e.date;
     });
-    return EXERCISES.map(ex => ({ ex, entry: latest[ex.name] || null }))
-      .sort((a,b) => {
-        if(!a.entry && !b.entry) return 0;
-        if(!a.entry) return 1;
-        if(!b.entry) return -1;
-        return b.entry.loggedAt - a.entry.loggedAt;
-      });
+    return EXERCISES.map(ex => {
+      const date = latestDate[ex.name] || null;
+      const sets = date
+        ? entries.filter(e => e.exercise === ex.name && e.date === date).sort((a,b) => a.loggedAt - b.loggedAt)
+        : [];
+      return { ex, date, sets };
+    }).sort((a,b) => {
+      if(!a.date && !b.date) return 0;
+      if(!a.date) return 1;
+      if(!b.date) return -1;
+      return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0);
+    });
   }
 
   function computeStats(){
-    const totalSets = entries.length;
+    let totalVolume = 0;
+    entries.forEach(e => {
+      if(e.weight !== null && e.reps !== null) totalVolume += e.weight * e.reps;
+    });
     const days = new Set(entries.map(e => e.date));
     let lastDate = null;
     entries.forEach(e => { if(!lastDate || e.date > lastDate) lastDate = e.date; });
     const pushups = entries
       .filter(e => e.exercise === "Pushups")
       .reduce((sum,e) => sum + (e.reps || 0), 0);
-    return { totalSets, days: days.size, lastDate, pushups };
+    return { totalVolume, days: days.size, lastDate, pushups };
   }
 
   // ---------- Render ----------
   function render(){
     const stats = computeStats();
-    $("#statSets").textContent = stats.totalSets;
+    $("#statVolume").textContent = Math.round(stats.totalVolume).toLocaleString() + " kg";
     $("#statDays").textContent = stats.days;
     $("#statLast").textContent = stats.lastDate ? fmtDate(stats.lastDate) : "—";
     $("#statPushups").textContent = stats.pushups;
@@ -1096,18 +1280,17 @@
     // Latest by exercise
     const latestBody = $("#latestBody");
     latestBody.innerHTML = "";
-    latestByExercise().forEach(({ex, entry}) => {
+    latestByExercise().forEach(({ex, date, sets}) => {
       const tr = document.createElement("tr");
       const name = ex.name + (ex.perHand ? ' <span class="per-hand-note">(per hand)</span>' : '');
-      if(entry){
+      if(date){
         tr.innerHTML = `
           <td>${name}</td>
-          <td>${fmtDate(entry.date)}</td>
-          <td>${entry.weight !== null ? entry.weight + " kg" : "—"}</td>
-          <td>${entry.reps !== null ? entry.reps : "—"}</td>
+          <td>${fmtDate(date)}</td>
+          <td>${renderSetsCell(sets, ex)}</td>
         `;
       } else {
-        tr.innerHTML = `<td>${name}</td><td colspan="3" class="empty-note">Not logged yet</td>`;
+        tr.innerHTML = `<td>${name}</td><td colspan="2" class="empty-note">Not logged yet</td>`;
       }
       latestBody.appendChild(tr);
     });
@@ -1115,54 +1298,67 @@
     // Full log
     const fullBody = $("#fullLogBody");
     fullBody.innerHTML = "";
-    const log = sortedFullLog();
-    const setNums = setNumbers();
-    $("#fullLogCount").textContent = log.length ? `${log.length} sets` : "";
+    const groups = groupedFullLog();
+    $("#fullLogCount").textContent = entries.length ? `${entries.length} sets` : "";
 
-    if(log.length === 0){
-      fullBody.innerHTML = `<tr><td colspan="6" class="empty-note">No sets logged yet. Log your first workout above.</td></tr>`;
+    if(groups.length === 0){
+      fullBody.innerHTML = `<tr><td colspan="4" class="empty-note">No sets logged yet. Log your first workout above.</td></tr>`;
     } else {
       const mostRecentDate = stats.lastDate;
-      log.forEach(e => {
+      groups.forEach(g => {
         const tr = document.createElement("tr");
-        if(e.date === mostRecentDate) tr.classList.add("highlight");
+        if(g.date === mostRecentDate) tr.classList.add("highlight");
+        const ex = EXERCISES.find(x => x.name === g.exercise);
 
-        if(e.id === editingId){
+        if(g.key === editingGroupKey){
           tr.classList.add("editing");
-          const ex = EXERCISES.find(x => x.name === e.exercise);
           const exOptions = EXERCISES.map(x =>
-            `<option value="${x.name}" ${x.name === e.exercise ? "selected" : ""}>${x.name}</option>`
+            `<option value="${x.name}" ${x.name === g.exercise ? "selected" : ""}>${x.name}</option>`
           ).join("");
           tr.innerHTML = `
-            <td><input type="date" class="edit-input edit-date" value="${e.date}"></td>
-            <td><select class="edit-input edit-exercise">${exOptions}</select></td>
-            <td>S${setNums[e.id]}</td>
-            <td><input type="number" step="any" class="edit-input edit-weight" value="${e.weight !== null ? e.weight : ""}" ${ex && ex.repsOnly ? "disabled" : ""}></td>
-            <td><input type="number" step="any" class="edit-input edit-reps" value="${e.reps !== null ? e.reps : ""}"></td>
-            <td class="row-actions">
-              <button type="button" class="icon-btn save-edit-btn" title="Save">✓</button>
-              <button type="button" class="icon-btn cancel-edit-btn" title="Cancel">×</button>
+            <td colspan="4">
+              <div class="group-edit">
+                <div class="group-edit-head">
+                  <input type="date" class="edit-input edit-date" value="${g.date}">
+                  <select class="edit-input edit-exercise">${exOptions}</select>
+                </div>
+                <div class="rows" id="groupEditRows"></div>
+                <button type="button" class="add-set-btn" id="groupAddSetBtn">+ Add set</button>
+                <div class="row-actions" style="margin-top:8px;">
+                  <button type="button" class="icon-btn save-edit-btn" title="Save">✓</button>
+                  <button type="button" class="icon-btn cancel-edit-btn" title="Cancel">×</button>
+                </div>
+              </div>
             </td>
           `;
-          const exSelect = $(".edit-exercise", tr);
-          const weightInput = $(".edit-weight", tr);
-          exSelect.addEventListener("change", () => {
-            const newEx = EXERCISES.find(x => x.name === exSelect.value);
-            weightInput.disabled = Boolean(newEx && newEx.repsOnly);
-            if(weightInput.disabled) weightInput.value = "";
+          const rowsContainer = $("#groupEditRows", tr);
+          let currentEx = ex;
+          g.sets.forEach(s => buildGroupEditRow(rowsContainer, currentEx, s));
+
+          $("#groupAddSetBtn", tr).addEventListener("click", () => buildGroupEditRow(rowsContainer, currentEx, null));
+          $(".edit-exercise", tr).addEventListener("change", (evt) => {
+            currentEx = EXERCISES.find(x => x.name === evt.target.value) || currentEx;
+            const snapshot = $all(".set-row", rowsContainer).map(row => ({
+              weight: $(".weight-input", row) ? $(".weight-input", row).value : "",
+              reps: $(".reps-input", row) ? $(".reps-input", row).value : "",
+            }));
+            rowsContainer.innerHTML = "";
+            snapshot.forEach(s => buildGroupEditRow(rowsContainer, currentEx, {
+              weight: s.weight !== "" ? parseFloat(s.weight) : null,
+              reps: s.reps !== "" ? parseFloat(s.reps) : null,
+              id: null,
+            }));
           });
-          $(".save-edit-btn", tr).addEventListener("click", () => saveEditedEntry(e.id, tr));
-          $(".cancel-edit-btn", tr).addEventListener("click", () => { editingId = null; render(); });
+          $(".save-edit-btn", tr).addEventListener("click", () => saveEditedGroup(g, tr));
+          $(".cancel-edit-btn", tr).addEventListener("click", () => { editingGroupKey = null; render(); });
         } else {
           tr.innerHTML = `
-            <td>${fmtDate(e.date)}</td>
-            <td>${e.exercise}</td>
-            <td>S${setNums[e.id]}</td>
-            <td>${e.weight !== null ? e.weight + " kg" : "—"}</td>
-            <td>${e.reps !== null ? e.reps : "—"}</td>
+            <td>${fmtDate(g.date)}</td>
+            <td>${g.exercise}</td>
+            <td>${renderSetsCell(g.sets, ex)}</td>
             <td class="row-actions"><button type="button" class="icon-btn edit-entry-btn" title="Edit">✎</button></td>
           `;
-          $(".edit-entry-btn", tr).addEventListener("click", () => { editingId = e.id; render(); });
+          $(".edit-entry-btn", tr).addEventListener("click", () => { editingGroupKey = g.key; render(); });
         }
 
         fullBody.appendChild(tr);
@@ -1174,10 +1370,51 @@
     if(currentView === "suggested") renderSuggested();
   }
 
-  async function saveEditedEntry(id, tr){
-    const entry = entries.find(e => e.id === id);
-    if(!entry) return;
+  // Builds one editable weight+reps set-row inside a group's expanded edit
+  // form. `existingSet` (an entry, or {weight,reps,id:null} snapshot, or
+  // null for a brand-new set) prefills the fields; row.dataset.entryId
+  // records which entry it maps to so save can tell edits from inserts.
+  function buildGroupEditRow(container, ex, existingSet){
+    const row = document.createElement("div");
+    row.className = "set-row" + (ex.repsOnly ? " reps-only" : "");
+    row.dataset.entryId = existingSet && existingSet.id ? existingSet.id : "";
 
+    if(!ex.repsOnly){
+      const min = ex.min ?? 0;
+      const step = ex.step ?? 1;
+      const weightVal = existingSet && existingSet.weight !== null && existingSet.weight !== undefined ? existingSet.weight : "";
+      const weightWrap = document.createElement("div");
+      weightWrap.innerHTML = `
+        <label class="field-label">Weight (kg)</label>
+        <input type="number" class="weight-input" min="${min}" step="${step}" value="${weightVal}">
+      `;
+      row.appendChild(weightWrap);
+    }
+
+    const repsVal = existingSet && existingSet.reps !== null && existingSet.reps !== undefined ? existingSet.reps : "";
+    const repsWrap = document.createElement("div");
+    if(ex.repsOnly){
+      repsWrap.innerHTML = `<label class="field-label">Reps</label><input type="number" class="reps-input" min="1" step="1" value="${repsVal}">`;
+    } else {
+      let opts = '<option value="">Reps</option>';
+      for(let i=1;i<=30;i++) opts += `<option value="${i}" ${String(i)===String(repsVal) ? "selected" : ""}>${i}</option>`;
+      repsWrap.innerHTML = `<label class="field-label">Reps</label><select class="reps-input">${opts}</select>`;
+    }
+    row.appendChild(repsWrap);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "icon-btn";
+    removeBtn.title = "Remove set";
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => row.remove());
+    row.appendChild(removeBtn);
+
+    container.appendChild(row);
+    return row;
+  }
+
+  async function saveEditedGroup(g, tr){
     const date = $(".edit-date", tr).value;
     if(!date){
       alert("Pick a date.");
@@ -1185,22 +1422,54 @@
     }
     const exercise = $(".edit-exercise", tr).value;
     const ex = EXERCISES.find(x => x.name === exercise);
-    const repsRaw = $(".edit-reps", tr).value;
-    const reps = repsRaw !== "" ? parseFloat(repsRaw) : null;
-    if(reps === null || isNaN(reps)){
-      alert("Enter reps.");
-      return;
-    }
-    const weightRaw = $(".edit-weight", tr).value;
-    const weight = (ex && !ex.repsOnly && weightRaw !== "") ? parseFloat(weightRaw) : null;
 
-    entry.date = date;
-    entry.exercise = exercise;
-    entry.weight = weight;
-    entry.reps = reps;
+    const rows = $all(".set-row", tr);
+    const keptIds = new Set();
+    const upserts = [];
+    const baseTime = Date.now();
+    let offset = 0;
 
-    await saveEntries([entry]);
-    editingId = null;
+    rows.forEach(row => {
+      const repsEl = $(".reps-input", row);
+      const reps = repsEl.value !== "" ? parseFloat(repsEl.value) : null;
+      let weight = null;
+      if(!ex.repsOnly){
+        const weightEl = $(".weight-input", row);
+        weight = weightEl.value !== "" ? parseFloat(weightEl.value) : null;
+      }
+      if(reps === null || isNaN(reps)) return;
+
+      const existingId = row.dataset.entryId;
+      if(existingId){
+        const entry = entries.find(e => e.id === existingId);
+        if(entry){
+          entry.date = date;
+          entry.exercise = exercise;
+          entry.weight = weight;
+          entry.reps = reps;
+          upserts.push(entry);
+          keptIds.add(existingId);
+        }
+      } else {
+        const newEntry = {
+          id: `${baseTime + offset}-${Math.random().toString(36).slice(2,8)}`,
+          date, exercise, weight, reps,
+          loggedAt: baseTime + offset,
+        };
+        offset += 1;
+        entries.push(newEntry);
+        upserts.push(newEntry);
+        keptIds.add(newEntry.id);
+      }
+    });
+
+    const removedIds = g.sets.map(s => s.id).filter(id => !keptIds.has(id));
+    entries = entries.filter(e => !removedIds.includes(e.id));
+
+    if(upserts.length) await saveEntries(upserts);
+    if(removedIds.length) await deleteEntries(removedIds);
+
+    editingGroupKey = null;
     render();
   }
 
@@ -1238,43 +1507,52 @@
 
   // Best (max) value per date for each exercise: weight for weighted lifts,
   // reps for reps-only ones — keeps every series on one consistent unit.
-  function chartSeriesFor(exList){
-    return exList.map(ex => {
+  // Total volume per muscle group per date. "weight" sums weight×reps
+  // across weighted exercises (kg moved); "reps" sums reps across
+  // reps-only exercises — kept as a separate chart since it's a different
+  // unit (see the single-axis rule).
+  function muscleVolumeSeries(kind){
+    return MUSCLES.map(m => {
       const byDate = {};
       entries.forEach(e => {
-        if(e.exercise !== ex.name) return;
-        const val = ex.repsOnly ? e.reps : e.weight;
-        if(val === null || val === undefined) return;
-        if(!(e.date in byDate) || val > byDate[e.date]) byDate[e.date] = val;
+        const ex = EXERCISES.find(x => x.name === e.exercise);
+        if(!ex || ex.muscle !== m) return;
+        if(kind === "weight"){
+          if(ex.repsOnly || e.weight === null || e.reps === null) return;
+          byDate[e.date] = (byDate[e.date] || 0) + e.weight * e.reps;
+        } else {
+          if(!ex.repsOnly || e.reps === null) return;
+          byDate[e.date] = (byDate[e.date] || 0) + e.reps;
+        }
       });
       const points = Object.keys(byDate).sort().map(date => ({ date, value: byDate[date] }));
-      return { ex, color: colorForExercise(ex.name), points };
+      return { key: m, label: MUSCLE_LABELS[m], color: MUSCLE_COLORS[m], points };
     });
   }
 
   function buildChartFilters(container, seriesList, selected){
     container.innerHTML = "";
-    seriesList.forEach(({ ex, color }) => {
-      const label = document.createElement("label");
-      label.className = "chart-check";
-      label.innerHTML = `
-        <input type="checkbox" ${selected.has(ex.name) ? "checked" : ""}>
-        <span class="chart-swatch" style="background:${color}"></span>${ex.name}
+    seriesList.forEach(({ key, label, color }) => {
+      const wrap = document.createElement("label");
+      wrap.className = "chart-check";
+      wrap.innerHTML = `
+        <input type="checkbox" ${selected.has(key) ? "checked" : ""}>
+        <span class="chart-swatch" style="background:${color}"></span>${label}
       `;
-      label.querySelector("input").addEventListener("change", (evt) => {
-        if(evt.target.checked) selected.add(ex.name);
-        else selected.delete(ex.name);
+      wrap.querySelector("input").addEventListener("change", (evt) => {
+        if(evt.target.checked) selected.add(key);
+        else selected.delete(key);
         renderCharts();
       });
-      container.appendChild(label);
+      container.appendChild(wrap);
     });
   }
 
   function drawLineChart(svg, tooltip, seriesAll, selected, opts){
-    const visible = seriesAll.filter(s => selected.has(s.ex.name) && s.points.length > 0);
+    const visible = seriesAll.filter(s => selected.has(s.key) && s.points.length > 0);
     const W = svg.clientWidth || 640;
     const H = svg.clientHeight || 320;
-    const M = { top: 16, right: 16, bottom: 26, left: 40 };
+    const M = { top: 16, right: 16, bottom: 26, left: 54 };
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.innerHTML = "";
 
@@ -1319,7 +1597,7 @@
       label.setAttribute("y", y + 3);
       label.setAttribute("text-anchor", "end");
       label.setAttribute("class", "chart-axis-label");
-      label.textContent = Math.round(v * 10) / 10;
+      label.textContent = Math.round(v).toLocaleString();
       svg.appendChild(label);
     }
 
@@ -1399,7 +1677,7 @@
       const rows = visible
         .map(s => {
           const p = s.points.find(pt => pt.date === nearest);
-          return p ? { name: s.ex.name, color: s.color, value: p.value } : null;
+          return p ? { name: s.label, color: s.color, value: p.value } : null;
         })
         .filter(Boolean);
 
@@ -1409,7 +1687,7 @@
       }
 
       tooltip.innerHTML = `<div class="tt-date">${fmtDate(nearest)}</div>` + rows.map(r =>
-        `<div class="tt-row"><span class="tt-swatch" style="background:${r.color}"></span>${r.name}<span class="tt-val">${r.value}${opts.unit}</span></div>`
+        `<div class="tt-row"><span class="tt-swatch" style="background:${r.color}"></span>${r.name}<span class="tt-val">${Math.round(r.value).toLocaleString()}${opts.unit}</span></div>`
       ).join("");
       tooltip.hidden = false;
       const left = Math.min(Math.max(x - 60, 0), Math.max(W - 200, 0));
@@ -1425,8 +1703,8 @@
   }
 
   function renderCharts(){
-    const weightSeries = chartSeriesFor(EXERCISES.filter(ex => !ex.repsOnly));
-    const repsSeries = chartSeriesFor(EXERCISES.filter(ex => ex.repsOnly));
+    const weightSeries = muscleVolumeSeries("weight");
+    const repsSeries = muscleVolumeSeries("reps");
 
     buildChartFilters($("#weightFilters"), weightSeries, weightFilterSelected);
     buildChartFilters($("#repsFilters"), repsSeries, repsFilterSelected);
@@ -1542,7 +1820,7 @@
 
       primary.innerHTML = `
         <div class="suggest-card">
-          <div class="suggest-muscle">${MUSCLE_LABELS[target]}</div>
+          <div class="suggest-muscle" style="color:${MUSCLE_COLORS[target]};">${MUSCLE_LABELS[target]}</div>
           <div class="suggest-sub">Last trained ${lastStr}</div>
           <div class="suggest-chips" id="suggestChips"></div>
         </div>
@@ -1552,6 +1830,7 @@
         const chip = document.createElement("button");
         chip.type = "button";
         chip.className = "suggest-chip";
+        chip.style.background = MUSCLE_COLORS[target];
         chip.textContent = ex.name;
         chip.addEventListener("click", () => jumpToExercise(ex.name));
         chipsWrap.appendChild(chip);
@@ -1565,7 +1844,7 @@
       if(m === target) tr.classList.add("highlight");
       const names = backboneByMuscle[m].map(ex => ex.name).join(", ") || "—";
       tr.innerHTML = `
-        <td>${MUSCLE_LABELS[m]}</td>
+        <td style="color:${MUSCLE_COLORS[m]};font-weight:700;">${MUSCLE_LABELS[m]}</td>
         <td>${last[m] ? fmtDate(last[m]) : "Never"}</td>
         <td>${names}</td>
       `;
@@ -1585,24 +1864,64 @@
       const h = document.createElement("h3");
       h.className = "ex-group-title";
       h.textContent = MUSCLE_LABELS[m];
+      h.style.color = MUSCLE_COLORS[m];
       container.appendChild(h);
 
       group.forEach(ex => {
         const row = document.createElement("div");
         row.className = "ex-manage-row";
         row.innerHTML = `
-          <span class="ex-manage-name">${ex.name}${ex.perHand ? ' <span class="ex-tag">Per hand</span>' : ''}${ex.repsOnly ? ' <span class="ex-tag">Reps only</span>' : ''}</span>
+          <span class="ex-manage-name-wrap">
+            <span class="ex-manage-name">${ex.name}</span>${ex.perHand ? ' <span class="ex-tag">Per hand</span>' : ''}${ex.repsOnly ? ' <span class="ex-tag">Reps only</span>' : ''}
+            <button type="button" class="icon-btn ex-rename-btn" title="Rename">✎</button>
+          </span>
           <label class="ex-backbone-toggle">
             <input type="checkbox" ${ex.backbone ? "checked" : ""}>
             Backbone
           </label>
         `;
-        $("input", row).addEventListener("change", (evt) => toggleBackbone(ex.name, evt.target.checked));
+        $("input[type=checkbox]", row).addEventListener("change", (evt) => toggleBackbone(ex.name, evt.target.checked));
+        $(".ex-rename-btn", row).addEventListener("click", () => startRenameExercise(ex, row));
         container.appendChild(row);
       });
     });
 
     $("#exercisesCount").textContent = `${EXERCISES.length} exercises`;
+  }
+
+  function startRenameExercise(ex, row){
+    const wrap = $(".ex-manage-name-wrap", row);
+    wrap.innerHTML = `
+      <input type="text" class="edit-input ex-rename-input" value="${ex.name}">
+      <button type="button" class="icon-btn ex-rename-save" title="Save">✓</button>
+      <button type="button" class="icon-btn ex-rename-cancel" title="Cancel">×</button>
+    `;
+    const input = $(".ex-rename-input", wrap);
+    input.focus();
+    input.select();
+
+    $(".ex-rename-save", wrap).addEventListener("click", async () => {
+      const newName = input.value.trim();
+      if(!newName){
+        alert("Enter a name.");
+        return;
+      }
+      if(newName === ex.name){
+        renderExerciseManage();
+        return;
+      }
+      if(EXERCISES.some(x => x.name.toLowerCase() === newName.toLowerCase())){
+        alert("An exercise with that name already exists.");
+        return;
+      }
+      const ok = await renameExercise(ex, newName);
+      if(!ok) return;
+      EXERCISES.sort(exerciseSort);
+      buildExerciseBlocks();
+      renderExerciseManage();
+      render();
+    });
+    $(".ex-rename-cancel", wrap).addEventListener("click", () => renderExerciseManage());
   }
 
   async function toggleBackbone(name, value){
@@ -1642,7 +1961,6 @@
 
     EXERCISES.push(newEx);
     EXERCISES.sort(exerciseSort);
-    (newEx.repsOnly ? repsFilterSelected : weightFilterSelected).add(newEx.name);
 
     nameInput.value = "";
     $("#newExPerHand").checked = false;
@@ -1669,28 +1987,24 @@
     doc.setFont("helvetica","normal");
     doc.text(`Exported ${fmtDate(todayISO())}`, 14, 25);
 
-    const latestRows = latestByExercise().map(({ex, entry}) => [
+    const latestRows = latestByExercise().map(({ex, date, sets}) => [
       ex.name + (ex.perHand ? " (per hand)" : ""),
-      entry ? fmtDate(entry.date) : "—",
-      entry && entry.weight !== null ? entry.weight + " kg" : "—",
-      entry && entry.reps !== null ? entry.reps : "—",
+      date ? fmtDate(date) : "—",
+      formatSetsText(sets, ex),
     ]);
 
     doc.autoTable({
       startY: 32,
-      head: [["Exercise","Last date","Weight","Reps"]],
+      head: [["Exercise","Last date","Sets (weight×reps)"]],
       body: latestRows,
       headStyles: { fillColor: [194,59,48] },
       styles: { fontSize: 9 },
     });
 
-    const setNums = setNumbers();
-    const fullRows = sortedFullLog().map(e => [
-      fmtDate(e.date),
-      e.exercise,
-      "S" + setNums[e.id],
-      e.weight !== null ? e.weight + " kg" : "—",
-      e.reps !== null ? e.reps : "—",
+    const fullRows = groupedFullLog().map(g => [
+      fmtDate(g.date),
+      g.exercise,
+      formatSetsText(g.sets, EXERCISES.find(x => x.name === g.exercise)),
     ]);
 
     doc.addPage();
@@ -1700,7 +2014,7 @@
 
     doc.autoTable({
       startY: 24,
-      head: [["Date","Exercise","Set","Weight","Reps"]],
+      head: [["Date","Exercise","Sets (weight×reps)"]],
       body: fullRows,
       headStyles: { fillColor: [53,80,122] },
       styles: { fontSize: 8 },
@@ -1748,10 +2062,10 @@
   }
 
   async function clearAllData(){
-    if(!confirm("Delete every logged set? This can't be undone. Export a backup first if you're not sure.")){
-      return;
-    }
-    if(!confirm("Really clear everything? Last chance.")){
+    const typed = prompt('This permanently erases every logged set — it cannot be undone. Export a backup first if you\'re not sure.\n\nType DELETE to confirm:');
+    if(typed === null) return;
+    if(typed.trim().toUpperCase() !== "DELETE"){
+      alert('Not deleted — you must type "DELETE" exactly.');
       return;
     }
     if(useSupabase){
@@ -1770,6 +2084,46 @@
     entries = [];
     await saveEntries();
     render();
+  }
+
+  // ---------- Fun fact ----------
+  // Loaded once and picked once per page load — never recomputed by render()
+  // — so the displayed comparison stays stable while you log sets and only
+  // changes when you refresh.
+  async function loadComparisons(){
+    try{
+      const res = await fetch("data/comparisons.txt");
+      if(!res.ok) throw new Error("fetch failed: " + res.status);
+      const text = await res.text();
+      funFactComparisons = text.split("\n")
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith("#"))
+        .map(line => {
+          const [label, kg] = line.split("|");
+          return { label: (label || "").trim(), kg: parseFloat(kg) };
+        })
+        .filter(c => c.label && !isNaN(c.kg));
+    }catch(e){
+      console.error("Could not load fun-fact comparisons", e);
+      funFactComparisons = [];
+    }
+  }
+
+  function renderFunFact(){
+    const el = $("#funFact");
+    if(!el) return;
+    const stats = computeStats();
+    const qualifying = funFactComparisons.filter(c => stats.totalVolume >= c.kg);
+    if(qualifying.length === 0){
+      el.hidden = true;
+      return;
+    }
+    const pick = qualifying[Math.floor(Math.random() * qualifying.length)];
+    const ratio = Math.floor(stats.totalVolume / pick.kg);
+    el.textContent = ratio <= 1
+      ? `🏋️ You've lifted the weight of ${pick.label}!`
+      : `🏋️ You've lifted ${ratio.toLocaleString()}× the weight of ${pick.label}!`;
+    el.hidden = false;
   }
 
   // ---------- Wire up ----------
@@ -1808,13 +2162,14 @@
     });
 
     await loadExercises();
-    EXERCISES.forEach(ex => {
-      (ex.repsOnly ? repsFilterSelected : weightFilterSelected).add(ex.name);
-    });
+    buildMuscleFilterRow();
     buildExerciseBlocks();
 
     await loadEntries();
     render();
+
+    await loadComparisons();
+    renderFunFact();
   }
 
   document.addEventListener("DOMContentLoaded", init);
