@@ -215,7 +215,8 @@
     transition:transform 0.05s linear;
   }
   .wheel-list.snap .wheel-item{transition:left 0.28s cubic-bezier(0.2,0.7,0.3,1), top 0.28s cubic-bezier(0.2,0.7,0.3,1), transform 0.28s cubic-bezier(0.2,0.7,0.3,1), opacity 0.28s ease;}
-  .wheel-item .body-visual{transition:filter 0.15s ease;flex:none;width:min(58vw,260px);height:auto;}
+  .wheel-item .body-visual{transition:filter 0.15s ease, transform 0.15s ease;flex:none;width:min(58vw,260px);height:auto;}
+  .wheel-list.snap .wheel-item .body-visual{transition:filter 0.28s ease, transform 0.28s cubic-bezier(0.2,0.7,0.3,1);}
   .wheel-item-name{
     font-family:'Karrik',sans-serif;
     font-weight:800;
@@ -1315,6 +1316,7 @@
       const item = document.createElement("div");
       item.className = "wheel-item muscle-wheel-item";
       item.id = "muscle-wheel-item-" + i;
+      item.dataset.index = String(i);
       item.setAttribute("role", "option");
       const w = 210, h = Math.round(w * BODY_IMG_ASPECT);
       item.innerHTML = `<img class="body-visual" src="${MUSCLE_WHEEL_IMAGE[m]}" alt="" width="${w}" height="${h}" loading="lazy"><span class="wheel-item-name">${MUSCLE_LABELS[m]}</span>`;
@@ -1328,7 +1330,10 @@
   // Each item sweeps along the arc of a circle whose center sits
   // off-screen to the left (both x AND y move together as angle changes)
   // — genuine rotation, not a vertical scroll with a sideways curve —
-  // and only the "east" sliver of that circle is ever on-screen.
+  // and only the "east" sliver of that circle is ever on-screen. The PNG
+  // itself is also rotated by its arc angle (mounted-on-the-rim, not
+  // staying upright) so it visibly spins rather than just fading in/out;
+  // the label stays untransformed so it's always legible.
   // Opacity/blur/scale still fall off by item-distance (not angle), so
   // only the centered item is ever fully visible.
   function updateMuscleWheelPositions(dragOffset){
@@ -1353,7 +1358,8 @@
       const absDist = Math.abs(signedDist);
       if(absDist < nearestAbsDist){ nearestAbsDist = absDist; nearestIndex = i; }
 
-      const theta = signedDist * MUSCLE_WHEEL_ANGLE_STEP * Math.PI / 180;
+      const angleDeg = signedDist * MUSCLE_WHEEL_ANGLE_STEP;
+      const theta = angleDeg * Math.PI / 180;
       const x = cx + radius * Math.cos(theta);
       const y = cy + radius * Math.sin(theta);
       // Steep, item-distance-based falloff — only the immediate neighbor
@@ -1366,7 +1372,10 @@
       item.style.transform = `translate(-50%, -50%) scale(${clamp(0.4 + 0.6 * t, 0.4, 1)})`;
       item.style.opacity = String(t);
       const img = item.querySelector(".body-visual");
-      if(img) img.style.filter = `blur(${(1 - t) * 6}px)`;
+      if(img){
+        img.style.filter = `blur(${(1 - t) * 6}px)`;
+        img.style.transform = `rotate(${angleDeg}deg)`;
+      }
       item.setAttribute("aria-selected", "false");
     });
     const centerItem = items[nearestIndex];
@@ -1376,13 +1385,19 @@
     }
   }
 
-  function muscleWheelIndexFromClientY(clientY){
+  // Full 2D nearest-center lookup — needed because items now sweep along a
+  // circular arc, so two items can share a Y (or X) coordinate while being
+  // far apart along the arc; comparing only one axis (the old approach)
+  // could resolve a tap to the wrong item.
+  function muscleWheelIndexFromPoint(clientX, clientY){
     const items = $all(".wheel-item", $("#muscleWheelList"));
     if(items.length === 0) return muscleWheelSelectedIndex;
     let closest = muscleWheelSelectedIndex, closestDist = Infinity;
     items.forEach((item, i) => {
       const r = item.getBoundingClientRect();
-      const d = Math.abs((r.top + r.height / 2) - clientY);
+      const dx = (r.left + r.width / 2) - clientX;
+      const dy = (r.top + r.height / 2) - clientY;
+      const d = dx * dx + dy * dy;
       if(d < closestDist){ closestDist = d; closest = i; }
     });
     return closest;
@@ -1393,7 +1408,14 @@
     muscleWheelMoved = false;
     muscleWheelStartY = evt.clientY;
     muscleWheelStartIndex = muscleWheelSelectedIndex;
-    muscleWheelTapIndexAtStart = muscleWheelIndexFromClientY(evt.clientY);
+    // Prefer exact DOM hit-testing (the browser already resolved which
+    // element is under the pointer, transforms and all) — only fall back
+    // to nearest-center math if the pointer started in the gutter between
+    // items.
+    const hitItem = evt.target.closest && evt.target.closest(".wheel-item");
+    muscleWheelTapIndexAtStart = hitItem
+      ? Number(hitItem.dataset.index)
+      : muscleWheelIndexFromPoint(evt.clientX, evt.clientY);
     muscleWheelLastHapticIndex = muscleWheelSelectedIndex;
 
     $("#muscleWheelList").classList.remove("snap");
@@ -2577,6 +2599,13 @@
   // random colors/positions each load — decorative only, unrelated to
   // which cell is correct (the client never learns that).
   const FIGURINE_COLORS = ["#cc382a","#e8574a","#a62d21","#b4e5c8","#7fcda0","#3fa876","#2a2a2a","#8a8a8a"];
+  // Swap the gate's decorative art to PNGs later by just filling this in
+  // (e.g. ["images/figurines/1.png", "images/figurines/2.png", ...]) —
+  // renderFigurineCell() picks a random one and renders an <img> instead
+  // of generating SVG. onFigurineClick() only ever sees the cell's grid
+  // index, never how it was drawn, so this is the only thing to touch.
+  const FIGURINE_IMAGES = [];
+
   function figurineSvg(shape, color){
     const decorations = [
       "",
@@ -2594,6 +2623,20 @@
     </svg>`;
   }
 
+  function figurineImg(src){
+    return `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:contain;" loading="lazy">`;
+  }
+
+  function renderFigurineCell(){
+    if(FIGURINE_IMAGES.length > 0){
+      const src = FIGURINE_IMAGES[Math.floor(Math.random() * FIGURINE_IMAGES.length)];
+      return figurineImg(src);
+    }
+    const shape = Math.floor(Math.random() * 4);
+    const color = FIGURINE_COLORS[Math.floor(Math.random() * FIGURINE_COLORS.length)];
+    return figurineSvg(shape, color);
+  }
+
   let gateLocked = false;
 
   function buildFigurineGrid(){
@@ -2603,9 +2646,7 @@
       const cell = document.createElement("button");
       cell.type = "button";
       cell.className = "figurine-cell";
-      const shape = Math.floor(Math.random() * 4);
-      const color = FIGURINE_COLORS[Math.floor(Math.random() * FIGURINE_COLORS.length)];
-      cell.innerHTML = figurineSvg(shape, color);
+      cell.innerHTML = renderFigurineCell();
       cell.addEventListener("click", () => onFigurineClick(i));
       grid.appendChild(cell);
     }
