@@ -109,17 +109,27 @@ chest/back/shoulders/core/legs, but the app's `muscle` field only has one
 "tricep" (case-insensitive) rather than by a dedicated data field. `glutes`
 has no exercise mapped to it yet — it's an available asset, not wired up.
 
-**Logging a workout is a wheel, not a form.** The Log tab has no batch
-"fill in several exercises, hit submit" form — `buildWheelItems()` renders
-the currently muscle-filtered exercises as absolutely-positioned items along
-a half-circle arc (`updateWheelPositions()`; center is off-screen to the
-left, so only the east-facing hemisphere is visible), driven by
-`onWheelPointerDown/Move/Up` and `onWheelKeydown`. Releasing (drag or tap)
-opens `openExerciseDetails()`, a slide-open panel with a plain grey
-`personSvg()` figure and one weight+reps input pair; `logSetFromDetails()`
-saves that single set immediately, no batching. A light haptic
+**Logging a workout is two wheel stages, not a form.** The Log tab (`#viewLog`)
+has two children toggled via `hidden`: `#muscleSelectStage` (shown by
+default and every time you navigate back to the Log tab — see `setView()`)
+and `#logMainStage` (the actual logging page, hidden until you commit to a
+muscle group). Both stages reuse the same half-circle wheel geometry
+(center of a circle sits off-screen to the left, so only the east-facing
+arc is visible) but are separate, parallel implementations, not a shared
+component — `buildMuscleWheelItems`/`updateMuscleWheelPositions`/
+`onMuscleWheelPointerDown|Move|Up|Keydown` for the muscle picker, and the
+un-prefixed `buildWheelItems`/`updateWheelPositions`/`onWheelPointerDown|...`
+for the exercise picker. The muscle wheel never auto-advances on release —
+only `confirmMuscleSelection()` (the Confirm button) commits the centered
+muscle to `logMuscleFilter` and reveals `#logMainStage`. The exercise wheel,
+by contrast, still opens `openExerciseDetails()` on every release (drag or
+tap) — a slide-open panel with an illustrated muscle diagram and one
+weight+reps input pair; `logSetFromDetails()` saves that single set
+immediately, no batching. Both wheels share one haptic hook
 (`triggerHaptic()` — Vibration API on Android, a hidden switch+label click
-for iOS Safari 18+) fires each time the centered item changes during a drag.
+for iOS Safari 18+), firing each time the centered item changes during a
+drag. `jumpToExercise()` (used by the Suggested tab) explicitly skips
+`#muscleSelectStage` since it's jumping straight to one exercise.
 
 **The gate** (`GATE_ENABLED`, off by default): when on, `bootstrap()` (not
 `init()`) is the `DOMContentLoaded` entry point. It shows `#gateScreen` — a
@@ -157,9 +167,13 @@ assuming it protects anything sensitive.
   Persistence functions alert the user and return `false` on failure rather
   than throwing, so callers generally don't need try/catch of their own.
 - CSS custom properties in `:root` (`--plate`, `--steel`, `--paper`, etc.)
-  define the palette; `--steel` is a legacy name from an earlier blue theme
-  and is now used for the bright-orange secondary accent — don't be misled by
-  the name.
+  define the palette; `--steel` is a legacy name (blue, then orange) and is
+  now the mint-green half of the brand pair (red `--plate` #cc382a / mint
+  `--steel` #3fa876, everything else black/white/gray) — don't be misled by
+  the name. `MUSCLE_COLORS` and `FIGURINE_COLORS` are deliberate exceptions
+  to that palette: muscle categories need 6 mutually distinguishable colors
+  (a validated categorical set from the dataviz work), which red+mint alone
+  can't provide, and the figurine grid's colors are its own derivative set.
 
 ## Testing changes
 
