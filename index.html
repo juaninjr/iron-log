@@ -230,6 +230,13 @@
     color:var(--ink);
   }
   .wheel-item[aria-selected="true"] .wheel-item-name{color:var(--plate);}
+  .muscle-wheel-item{
+    flex-direction:column;
+    gap:8px;
+    width:min(64vw,300px);
+  }
+  .muscle-wheel-item .body-visual{width:min(58vw,260px);height:auto;}
+  .muscle-wheel-item .wheel-item-name{font-size:1.5rem;font-weight:800;}
   .wheel-hint{
     font-family:'Karrik',sans-serif;
     font-weight:500;
@@ -239,17 +246,31 @@
     margin:0 0 14px;
   }
 
-  /* Muscle-select stage — a gate in front of the logging page. Nothing
-     else from the Log tab renders here; it's just the wheel + confirm.
-     Deliberately in-flow (not a fixed overlay) so the header/nav tabs
-     above it stay reachable — otherwise switching to another tab would
-     require confirming a muscle group first. */
+  /* Muscle-select stage — a gate in front of the logging page. Header/nav
+     are hidden while this shows (see JS); the only way back to them
+     without confirming a muscle is #skipToLogBtn. No titles, hints, or
+     boxed containers here on purpose — just the wheel, Confirm, and the
+     home icon. Images are large enough that only the center item and a
+     sliver of its immediate neighbors fit in the viewport at all; anything
+     further is clipped by the wrap's own height, not just faded out. */
+  body.muscle-gate-active{padding-top:16px;}
+  .skip-to-log-btn{
+    display:block;
+    margin:0 0 10px;
+    width:44px;height:44px;
+    border-radius:50%;
+    border:1px solid var(--line-strong);
+    background:var(--paper-raised);
+    font-size:1.3rem;
+    line-height:1;
+    cursor:pointer;
+  }
   .muscle-wheel-row{
     display:flex;
     align-items:center;
-    gap:12px;
-    height:min(80vh,720px);
-    min-height:420px;
+    gap:8px;
+    height:min(86vh,860px);
+    min-height:480px;
   }
   .muscle-wheel-row .wheel-wrap{
     flex:1;
@@ -257,8 +278,11 @@
     min-height:0;
     margin:0;
     border:none;
-    border-radius:16px;
+    border-radius:0;
+    background:transparent;
   }
+  .muscle-wheel-row .wheel-wrap::before,
+  .muscle-wheel-row .wheel-wrap::after{background:none;}
   .confirm-muscle-btn{
     flex:none;
     background:var(--plate);
@@ -514,6 +538,7 @@
   .tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
 
   .view[hidden]{display:none;}
+  header.top[hidden], #mainTabs[hidden]{display:none;}
 
   /* Chart filters / legend */
   .chart-filters{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:14px;}
@@ -742,9 +767,9 @@
   <div class="view" id="viewLog">
 
     <div id="muscleSelectStage">
+      <button type="button" class="skip-to-log-btn" id="skipToLogBtn" title="Go to exercise logging" aria-label="Go to exercise logging">🏠</button>
       <div class="muscle-wheel-row">
         <div class="wheel-wrap" id="muscleWheelWrap">
-          <div class="wheel-center-band" aria-hidden="true"></div>
           <div class="wheel-list" id="muscleWheelList" role="listbox" aria-label="Muscle group picker" tabindex="0"></div>
         </div>
         <button type="button" class="confirm-muscle-btn" id="confirmMuscleBtn">Confirm</button>
@@ -1020,9 +1045,11 @@
   let wheelTapIndexAtStart = 0;
   let wheelLastHapticIndex = 0;
 
-  // Muscle-select wheel — same geometry/gesture constants as the exercise
-  // wheel, but its own state: it settles on release without auto-advancing
+  // Muscle-select wheel — same circular-arc math as the exercise wheel, but
+  // its own item spacing (much larger — the pictures are the whole point)
+  // and its own state: it settles on release without auto-advancing
   // (advancing needs an explicit Confirm tap).
+  const MUSCLE_WHEEL_ITEM_H = 280;
   let muscleWheelSelectedIndex = 0;
   let muscleWheelPointerActive = false;
   let muscleWheelMoved = false;
@@ -1539,10 +1566,10 @@
     list.innerHTML = "";
     MUSCLES.forEach((m, i) => {
       const item = document.createElement("div");
-      item.className = "wheel-item";
+      item.className = "wheel-item muscle-wheel-item";
       item.id = "muscle-wheel-item-" + i;
       item.setAttribute("role", "option");
-      const w = 44, h = Math.round(w * BODY_IMG_ASPECT);
+      const w = 210, h = Math.round(w * BODY_IMG_ASPECT);
       item.innerHTML = `<img class="body-visual" src="${MUSCLE_WHEEL_IMAGE[m]}" alt="" width="${w}" height="${h}" loading="lazy"><span class="wheel-item-name">${MUSCLE_LABELS[m]}</span>`;
       list.appendChild(item);
     });
@@ -1563,25 +1590,29 @@
     const curveDepth = wrapW * 0.62;
     const cy = wrapH / 2;
 
-    const continuousIndex = muscleWheelSelectedIndex - dragOffset / WHEEL_ITEM_H;
+    const continuousIndex = muscleWheelSelectedIndex - dragOffset / MUSCLE_WHEEL_ITEM_H;
 
     let nearestIndex = 0, nearestAbsAngle = Infinity;
     items.forEach((item, i) => {
       const signedDist = i - continuousIndex;
-      const angleDeg = clamp(Math.abs(signedDist) * WHEEL_ANGLE_STEP, 0, 90);
+      const absDist = Math.abs(signedDist);
+      const angleDeg = clamp(absDist * WHEEL_ANGLE_STEP, 0, 90);
       if(angleDeg < nearestAbsAngle){ nearestAbsAngle = angleDeg; nearestIndex = i; }
 
       const angleRad = angleDeg * Math.PI / 180;
       const x = rightAnchor - (1 - Math.cos(angleRad)) * curveDepth;
-      const y = cy + signedDist * WHEEL_ITEM_H * 1.15;
-      const t = clamp(1 - angleDeg / WHEEL_MAX_ANGLE, 0, 1);
+      const y = cy + signedDist * MUSCLE_WHEEL_ITEM_H * 1.15;
+      // Steep, item-distance-based falloff (not angle-based like the
+      // exercise wheel) — only the immediate neighbor is visible at all,
+      // dim and blurred; anything 1.4+ items away is fully invisible.
+      const t = clamp(1 - absDist / 1.4, 0, 1);
 
       item.style.left = `${x}px`;
       item.style.top = `${y}px`;
-      item.style.transform = `translate(-50%, -50%) scale(${clamp(0.55 + 0.45 * t, 0.55, 1)})`;
-      item.style.opacity = String(clamp(t * 1.2, 0, 1));
+      item.style.transform = `translate(-50%, -50%) scale(${clamp(0.4 + 0.6 * t, 0.4, 1)})`;
+      item.style.opacity = String(t);
       const img = item.querySelector(".body-visual");
-      if(img) img.style.filter = `blur(${(1 - t) * 2.5}px)`;
+      if(img) img.style.filter = `blur(${(1 - t) * 6}px)`;
       item.setAttribute("aria-selected", "false");
     });
     const centerItem = items[nearestIndex];
@@ -1624,7 +1655,7 @@
 
     updateMuscleWheelPositions(deltaY);
 
-    const nearestNow = clamp(Math.round(muscleWheelStartIndex - deltaY / WHEEL_ITEM_H), 0, MUSCLES.length - 1);
+    const nearestNow = clamp(Math.round(muscleWheelStartIndex - deltaY / MUSCLE_WHEEL_ITEM_H), 0, MUSCLES.length - 1);
     if(nearestNow !== muscleWheelLastHapticIndex){
       muscleWheelLastHapticIndex = nearestNow;
       triggerHaptic();
@@ -1641,7 +1672,7 @@
 
     const deltaY = evt.clientY - muscleWheelStartY;
     muscleWheelSelectedIndex = muscleWheelMoved
-      ? clamp(Math.round(muscleWheelStartIndex - deltaY / WHEEL_ITEM_H), 0, MUSCLES.length - 1)
+      ? clamp(Math.round(muscleWheelStartIndex - deltaY / MUSCLE_WHEEL_ITEM_H), 0, MUSCLES.length - 1)
       : muscleWheelTapIndexAtStart;
     updateMuscleWheelPositions(0);
     // Settles only — advancing needs an explicit Confirm tap.
@@ -1664,14 +1695,40 @@
     }
   }
 
+  // The muscle-select stage hides the header/nav for a fully minimal
+  // page; both of these are the only ways back to full chrome.
+  function leaveMuscleGate(){
+    $("#muscleSelectStage").hidden = true;
+    $("#logMainStage").hidden = false;
+    $("header.top").hidden = false;
+    $("#mainTabs").hidden = false;
+    document.body.classList.remove("muscle-gate-active");
+  }
+
   function confirmMuscleSelection(){
     const m = MUSCLES[muscleWheelSelectedIndex];
     logMuscleFilter = new Set([m]);
-    $("#muscleSelectStage").hidden = true;
-    $("#logMainStage").hidden = false;
+    leaveMuscleGate();
     buildMuscleFilterRow();
     buildWheelItems();
     render();
+  }
+
+  function skipToLogPage(){
+    logMuscleFilter = new Set(MUSCLES);
+    leaveMuscleGate();
+    buildMuscleFilterRow();
+    buildWheelItems();
+    render();
+  }
+
+  function enterMuscleGate(){
+    $("#muscleSelectStage").hidden = false;
+    $("#logMainStage").hidden = true;
+    $("header.top").hidden = true;
+    $("#mainTabs").hidden = true;
+    document.body.classList.add("muscle-gate-active");
+    buildMuscleWheelItems();
   }
 
   // ---------- Exercise details / logging ----------
@@ -2068,12 +2125,8 @@
     $all(".tab-btn", $("#mainTabs")).forEach(btn => {
       btn.classList.toggle("active", btn.dataset.view === view);
     });
-    if(view === "log"){
-      // Re-entering Log always starts at the muscle-select gate.
-      $("#muscleSelectStage").hidden = false;
-      $("#logMainStage").hidden = true;
-      buildMuscleWheelItems();
-    }
+    // Re-entering Log always starts at the muscle-select gate.
+    if(view === "log") enterMuscleGate();
     if(view === "progress") renderCharts();
     if(view === "calendar") renderCalendar();
     if(view === "suggested") renderSuggested();
@@ -2363,8 +2416,7 @@
   function jumpToExercise(name){
     setView("log");
     // Jumping straight to an exercise skips the muscle-select gate.
-    $("#muscleSelectStage").hidden = true;
-    $("#logMainStage").hidden = false;
+    leaveMuscleGate();
     // Guarantee the target is visible regardless of the current muscle filter.
     logMuscleFilter = new Set(MUSCLES);
     buildMuscleFilterRow();
@@ -2853,7 +2905,7 @@
   }
 
   // ---------- Wire up ----------
-  async function init(){1
+  async function init(){
     $("#workoutDate").value = todayISO();
 
     $("#pdfBtn").addEventListener("click", downloadPDF);
@@ -2884,6 +2936,7 @@
     $("#muscleWheelWrap").addEventListener("pointerdown", onMuscleWheelPointerDown);
     $("#muscleWheelList").addEventListener("keydown", onMuscleWheelKeydown);
     $("#confirmMuscleBtn").addEventListener("click", confirmMuscleSelection);
+    $("#skipToLogBtn").addEventListener("click", skipToLogPage);
     $("#logOutBtn").addEventListener("click", logOut);
     if(GATE_ENABLED) $("#logOutBtn").hidden = false;
     let resizeRaf = null;
@@ -2897,7 +2950,8 @@
       }
     });
 
-    buildMuscleWheelItems();
+    // Initial load starts on the muscle-select gate (currentView is "log").
+    enterMuscleGate();
 
     await loadExercises();
     buildMuscleFilterRow();
