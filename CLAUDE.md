@@ -102,34 +102,41 @@ zero-config "treat public/ as the deploy output directory" behavior on a
 framework-less static site, which silently dropped `index.html` from the
 deployment the one time this was tried),
 each a full-body outline with one region highlighted in an orange/red
-gradient. `muscleImageFor()` maps an exercise to an image: direct for
-chest/back/shoulders/core/legs, but the app's `muscle` field only has one
-"arms" category covering both biceps- and triceps-led exercises, so for
-`muscle === "arms"` it picks the image by checking the exercise *name* for
-"tricep" (case-insensitive) rather than by a dedicated data field. `glutes`
-has no exercise mapped to it yet — it's an available asset, not wired up.
+gradient. These are used *only* by the muscle-select wheel (below), one
+image per muscle group via the `MUSCLE_WHEEL_IMAGE` map — there's no
+per-exercise image anywhere in the app. `biceps`/`triceps`/`glutes` are
+available assets not currently wired to any muscle-group entry in
+`MUSCLES`.
 
-**Logging a workout is two wheel stages, not a form.** The Log tab (`#viewLog`)
-has two children toggled via `hidden`: `#muscleSelectStage` (shown by
-default and every time you navigate back to the Log tab — see `setView()`)
-and `#logMainStage` (the actual logging page, hidden until you commit to a
-muscle group). Both stages reuse the same half-circle wheel geometry
-(center of a circle sits off-screen to the left, so only the east-facing
-arc is visible) but are separate, parallel implementations, not a shared
-component — `buildMuscleWheelItems`/`updateMuscleWheelPositions`/
-`onMuscleWheelPointerDown|Move|Up|Keydown` for the muscle picker, and the
-un-prefixed `buildWheelItems`/`updateWheelPositions`/`onWheelPointerDown|...`
-for the exercise picker. The muscle wheel never auto-advances on release —
-only `confirmMuscleSelection()` (the Confirm button) commits the centered
-muscle to `logMuscleFilter` and reveals `#logMainStage`. The exercise wheel,
-by contrast, still opens `openExerciseDetails()` on every release (drag or
-tap) — a slide-open panel with an illustrated muscle diagram and one
-weight+reps input pair; `logSetFromDetails()` saves that single set
-immediately, no batching. Both wheels share one haptic hook
-(`triggerHaptic()` — Vibration API on Android, a hidden switch+label click
-for iOS Safari 18+), firing each time the centered item changes during a
-drag. `jumpToExercise()` (used by the Suggested tab) explicitly skips
-`#muscleSelectStage` since it's jumping straight to one exercise.
+**Logging a workout is a muscle-select wheel followed by a classic
+block-list form**, not one continuous wheel. The Log tab (`#viewLog`) has
+two children toggled via `hidden`: `#muscleSelectStage` (shown by default
+and every time you navigate back to the Log tab — see `setView()`) and
+`#logMainStage` (the actual logging page, hidden until you commit to a
+muscle group). `#muscleSelectStage` is the *only* wheel left in the app —
+a genuine spinning dial, not a scrolling list: `buildMuscleWheelItems()`
+renders one item per muscle group, and `updateMuscleWheelPositions()`
+places each along the arc of a circle whose center sits off-screen to the
+left (`x = cx + radius*cos(theta)`, `y = cy + radius*sin(theta)`, both
+axes moving together) so only the "east" sliver of that circle is ever
+visible — items genuinely rotate into and out of view rather than
+translating straight up/down. `MUSCLE_WHEEL_ANGLE_STEP` (60°) controls how
+far a drag has to travel per item. Opacity/blur/scale still fall off by
+item-*distance* (not angle) via `onMuscleWheelPointerMove` →
+`updateMuscleWheelPositions`, so only the centered item is ever sharp.
+There's no separate Confirm button — `onMuscleWheelPointerUp()` treats a
+tap on the already-centered item as confirm (calling
+`confirmMuscleSelection()`, which commits the muscle to `logMuscleFilter`
+and reveals `#logMainStage`); a tap on any other item just spins it to
+center instead. `#logMainStage` itself is a plain form: `buildExerciseBlocks()`
+renders one `.exercise-block` per visible exercise (name + muscle-colored
+left border, no images or icons), each with one or more `.set-row`s
+(weight/reps inputs, "+ Add set" next to the exercise name via
+`addSetRow()`), and a single "Log workout" button (`logWorkout()`) batches
+every filled row across every visible block into one save — nothing is
+saved per-keystroke or per-row. `jumpToExercise()` (used by the Suggested
+tab) explicitly skips `#muscleSelectStage`, broadens `logMuscleFilter` to
+show every exercise, then scrolls to and flashes the target block.
 
 **The gate** (`GATE_ENABLED`, off by default): when on, `bootstrap()` (not
 `init()`) is the `DOMContentLoaded` entry point. It shows `#gateScreen` — a
@@ -159,9 +166,8 @@ assuming it protects anything sensitive.
   `exercises` row and every `workout_entries` row referencing the old name,
   since there's no DB foreign key tying them together.
 - `entries` (workout sets) use a generated `id` of the form
-  `${timestamp}-${random}` — see `logSetFromDetails()` and
-  `saveEditedGroup()`.
-- Every mutating flow (log a set, edit a group of sets, add an exercise,
+  `${timestamp}-${random}` — see `logWorkout()` and `saveEditedGroup()`.
+- Every mutating flow (log a workout, edit a group of sets, add an exercise,
   toggle backbone, clear all data) follows the same pattern: mutate the
   in-memory array first, then `await` the persistence call, then re-render.
   Persistence functions alert the user and return `false` on failure rather
