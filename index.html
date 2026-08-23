@@ -7,6 +7,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- Three.js for the 3D muscle-select model (wheel3d.js) — a separate
+     module file, not inlined, since a Three.js scene is sizable and
+     self-contained enough to be clearer on its own. See wheel3d.js and
+     legacy/muscle-wheel-2d-backup.md for the 2D wheel this replaced. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="wheel3d.js"></script>
 <style>
   @font-face{
     font-family:'Karrik';
@@ -64,35 +77,35 @@
     margin-bottom:22px;
   }
   header.top h1{font-size:clamp(2.2rem,6vw,3.2rem);color:var(--ink);}
-  header.top .sub{font-family:'Karrik',sans-serif;font-weight:600;font-size:0.78rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;}
+  header.top .sub{font-family:'Karrik',sans-serif;font-weight:600;font-size:0.82rem;color:var(--plate);min-height:1.1em;}
 
   .stats{
     display:grid;
     grid-template-columns:repeat(4,1fr);
-    gap:12px;
-    margin-bottom:28px;
+    gap:8px;
+    margin-bottom:22px;
   }
   .stat{
     background:var(--paper-raised);
     border:1px solid var(--line);
     border-radius:var(--radius);
-    padding:14px 16px;
+    padding:9px 10px;
     box-shadow:var(--shadow);
   }
   .stat .label{
     font-family:'Karrik',sans-serif;
     font-weight:600;
-    font-size:0.68rem;
+    font-size:0.58rem;
     text-transform:uppercase;
-    letter-spacing:0.08em;
+    letter-spacing:0.06em;
     color:var(--muted);
-    margin-bottom:6px;
+    margin-bottom:4px;
   }
   .stat .value{
     font-family:'Karrik',sans-serif;
     font-weight:800;
     font-variant-numeric:tabular-nums;
-    font-size:1.9rem;
+    font-size:1.25rem;
     color:var(--plate);
   }
   .stat.steel .value{color:var(--steel);}
@@ -167,70 +180,12 @@
     border:0;
   }
 
-  /* The muscle-select wheel — the only wheel in the app. A spinning dial:
-     items sit 60° apart around a circle whose center is off-screen to the
-     left, so only the east-facing edge is ever visible, and a full spin
-     cycles all 6 muscles through the front position. Center item is big
-     and sharp; its immediate neighbor is a small blurred sliver; anything
-     further is both invisible and clipped by the wrap's own height. */
-  .wheel-wrap{
-    position:relative;
-    height:min(78vh, 720px);
-    min-height:420px;
-    overflow:hidden;
-    border:1px solid var(--line);
-    border-radius:16px;
-    background:#ffffff;
-    margin:0 -20px 6px;
-    touch-action:none;
-    cursor:grab;
-    user-select:none;
-    -webkit-user-select:none;
-  }
-  .wheel-wrap::before, .wheel-wrap::after{
-    content:"";
-    position:absolute;
-    left:0;right:0;
-    height:90px;
-    pointer-events:none;
-    z-index:2;
-  }
-  .wheel-wrap::before{top:0;background:linear-gradient(#ffffff, rgba(255,255,255,0));}
-  .wheel-wrap::after{bottom:0;background:linear-gradient(rgba(255,255,255,0), #ffffff);}
-  .wheel-list{
-    position:absolute;
-    inset:0;
-    list-style:none;
-    margin:0;padding:0;
-  }
-  .wheel-list:focus-visible{outline:2px solid var(--steel);outline-offset:-2px;}
-  .wheel-item{
-    position:absolute;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:8px;
-    width:min(64vw,300px);
-    cursor:pointer;
-    transition:transform 0.05s linear;
-  }
-  .wheel-list.snap .wheel-item{transition:left 0.28s cubic-bezier(0.2,0.7,0.3,1), top 0.28s cubic-bezier(0.2,0.7,0.3,1), transform 0.28s cubic-bezier(0.2,0.7,0.3,1), opacity 0.28s ease;}
-  .wheel-item .body-visual{transition:filter 0.15s ease, transform 0.15s ease;flex:none;width:min(58vw,260px);height:auto;}
-  .wheel-list.snap .wheel-item .body-visual{transition:filter 0.28s ease, transform 0.28s cubic-bezier(0.2,0.7,0.3,1);}
-  .wheel-item-name{
-    font-family:'Karrik',sans-serif;
-    font-weight:800;
-    font-size:1.5rem;
-    white-space:nowrap;
-    color:var(--ink);
-  }
-  .wheel-item[aria-selected="true"] .wheel-item-name{color:var(--plate);}
-
-  /* Muscle-select stage. Header/nav are hidden while this shows (see JS);
-     the only way back to them without confirming is #skipToLogBtn. No
-     titles, hints, or boxed containers on purpose — just the wheel and
-     the home icon. Tapping the centered (big, sharp) item confirms it
-     directly — there's no separate Confirm button. */
+  /* The muscle-select stage: a spinning 3D model (wheel3d.js draws into
+     #wheel3dContainer) with a row of muscle-group buttons underneath it —
+     dragging the model is just for feel, picking happens via the
+     buttons. See legacy/muscle-wheel-2d-backup.md for the 2D dial this
+     replaced. Header/nav are hidden while this shows (see JS); the only
+     way back to them without picking is #skipToLogBtn. */
   body.muscle-gate-active{padding-top:16px;}
   .skip-to-log-btn{
     display:block;
@@ -243,30 +198,37 @@
     line-height:1;
     cursor:pointer;
   }
-  #muscleSelectStage .wheel-wrap{
-    height:min(88vh,880px);
-    min-height:480px;
-    margin:0;
-    border:none;
-    border-radius:0;
-    background:transparent;
+  .wheel3d-wrap{
+    position:relative;
+    height:min(58vh, 520px);
+    min-height:300px;
+    touch-action:none;
+    cursor:grab;
   }
-  #muscleSelectStage .wheel-wrap::before,
-  #muscleSelectStage .wheel-wrap::after{background:none;}
-
-  .fun-fact{
+  .wheel3d-wrap:active{cursor:grabbing;}
+  .wheel3d-wrap canvas{display:block;width:100%;height:100%;}
+  .muscle-pick-row{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:10px;
+    padding:10px 0 24px;
+  }
+  .muscle-pick-btn{
     background:var(--paper-raised);
-    border:1px solid var(--line);
-    border-left:4px solid var(--plate);
-    border-radius:var(--radius);
-    padding:12px 16px;
-    margin-bottom:22px;
+    border:2px solid var(--line-strong);
+    border-radius:12px;
+    padding:12px 20px;
     font-family:'Karrik',sans-serif;
-    font-weight:600;
-    font-size:0.85rem;
-    color:var(--ink);
+    font-weight:700;
+    font-size:0.95rem;
+    color:#fff;
+    cursor:pointer;
     box-shadow:var(--shadow);
+    transition:transform 0.1s ease;
   }
+  .muscle-pick-btn:active{transform:scale(0.96);}
+
 
   .muscle-filter-row{
     display:flex;
@@ -455,14 +417,13 @@
   }
   @media (max-width:400px){
     body{padding:16px 12px 60px;}
-    .stats{grid-template-columns:1fr 1fr;gap:8px;}
-    .stat{padding:10px 12px;}
-    .stat .value{font-size:1.5rem;}
+    .stats{grid-template-columns:1fr 1fr;gap:6px;}
+    .stat{padding:7px 9px;}
+    .stat .value{font-size:1.05rem;}
     section{padding:14px;}
     section > h2{font-size:1.1rem;}
     .date-inline{max-width:128px;font-size:0.72rem;padding:4px 6px;}
-    .wheel-wrap{margin:0 -14px 6px;}
-    .wheel-item-name{font-size:1.05rem;}
+    .muscle-pick-btn{padding:10px 16px;font-size:0.85rem;}
     .set-row{gap:5px;margin-bottom:4px;}
     input[type="number"], select{padding:5px 6px;font-size:0.8rem;}
     .icon-btn{width:26px;height:26px;font-size:0.8rem;}
@@ -471,7 +432,7 @@
     *{transition:none !important;}
   }
 
-  /* Tabs */
+  /* Tabs (also reused, unscoped, by the gate's sign-in/sign-up toggle) */
   .tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
   .tab-btn{
     background:var(--paper-raised);
@@ -490,8 +451,53 @@
   .tab-btn:hover{color:var(--steel);border-color:var(--steel);}
   .tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
 
+  /* Main nav — a hamburger button in the header's corner that drops down
+     the view list, instead of a full-width tab bar. Scoped to #mainTabs so
+     it doesn't touch the gate's (unrelated) .tabs/.tab-btn sign-in toggle. */
+  .nav-wrap{position:relative;display:flex;align-items:center;gap:10px;flex:none;}
+  .nav-toggle{
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+    gap:5px;
+    width:42px;height:42px;
+    border:1px solid var(--line-strong);
+    border-radius:10px;
+    background:var(--paper-raised);
+    cursor:pointer;
+    box-shadow:var(--shadow);
+    flex:none;
+  }
+  .nav-toggle span{display:block;width:18px;height:2px;background:var(--ink);border-radius:2px;transition:transform 0.2s ease, opacity 0.2s ease;}
+  .nav-toggle[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+  .nav-toggle[aria-expanded="true"] span:nth-child(2){opacity:0;}
+  .nav-toggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+
+  #mainTabs.tabs{
+    position:absolute;
+    top:calc(100% + 8px);
+    right:0;
+    z-index:50;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    flex-wrap:nowrap;
+    margin-bottom:0;
+    min-width:170px;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:8px;
+    box-shadow:0 10px 28px rgba(0,0,0,0.16);
+    opacity:0;
+    transform:translateY(-6px);
+    pointer-events:none;
+    transition:opacity 0.15s ease, transform 0.15s ease;
+  }
+  #mainTabs.tabs.open{opacity:1;transform:translateY(0);pointer-events:auto;}
+  #mainTabs .tab-btn{width:100%;text-align:left;box-shadow:none;}
+
   .view[hidden]{display:none;}
-  header.top[hidden], #mainTabs[hidden]{display:none;}
+  header.top[hidden]{display:none;}
+  #mainTabs[hidden]{display:none !important;}
 
   /* Chart filters / legend */
   .chart-filters{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:14px;}
@@ -704,38 +710,39 @@
   <header class="top">
     <div>
       <h1>Iron Log</h1>
-      <div class="sub">Set-by-set training log</div>
+      <div class="sub" id="funFact"></div>
     </div>
-    <button type="button" class="tool-btn" id="logOutBtn" hidden>Log out</button>
+    <div class="nav-wrap">
+      <button type="button" class="tool-btn" id="logOutBtn" hidden>Log out</button>
+      <button type="button" class="nav-toggle" id="navToggle" aria-haspopup="true" aria-expanded="false" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="tabs" id="mainTabs">
+        <button type="button" class="tab-btn active" data-view="log">Log</button>
+        <button type="button" class="tab-btn" data-view="progress">Progress</button>
+        <button type="button" class="tab-btn" data-view="calendar">Calendar</button>
+        <button type="button" class="tab-btn" data-view="suggested">Suggested</button>
+        <button type="button" class="tab-btn" data-view="exercises">Exercises</button>
+      </nav>
+    </div>
   </header>
-
-  <nav class="tabs" id="mainTabs">
-    <button type="button" class="tab-btn active" data-view="log">Log</button>
-    <button type="button" class="tab-btn" data-view="progress">Progress</button>
-    <button type="button" class="tab-btn" data-view="calendar">Calendar</button>
-    <button type="button" class="tab-btn" data-view="suggested">Suggested</button>
-    <button type="button" class="tab-btn" data-view="exercises">Exercises</button>
-  </nav>
 
   <div class="view" id="viewLog">
 
     <div id="muscleSelectStage">
       <button type="button" class="skip-to-log-btn" id="skipToLogBtn" title="Go to exercise logging" aria-label="Go to exercise logging">🏠</button>
-      <div class="wheel-wrap" id="muscleWheelWrap">
-        <div class="wheel-list" id="muscleWheelList" role="listbox" aria-label="Muscle group picker" tabindex="0"></div>
-      </div>
+      <div class="wheel3d-wrap" id="wheel3dContainer" aria-hidden="true"></div>
+      <div class="muscle-pick-row" id="musclePickRow" role="group" aria-label="Muscle group picker"></div>
     </div>
 
     <div id="logMainStage" hidden>
 
       <div class="stats">
-        <div class="stat"><div class="label">Total weight lifted</div><div class="value" id="statVolume" style="font-size:1.4rem;">0 kg</div></div>
+        <div class="stat"><div class="label">Total weight lifted</div><div class="value" id="statVolume">0 kg</div></div>
         <div class="stat"><div class="label">Days trained</div><div class="value" id="statDays">0</div></div>
-        <div class="stat steel"><div class="label">Last session</div><div class="value" id="statLast" style="font-size:1.3rem;">—</div></div>
+        <div class="stat steel"><div class="label">Last session</div><div class="value" id="statLast">—</div></div>
         <div class="stat"><div class="label">Total pushups</div><div class="value" id="statPushups">0</div></div>
       </div>
-
-      <div class="fun-fact" id="funFact" hidden></div>
 
       <section>
         <h2>Log a workout<input type="date" id="workoutDate" class="date-inline" aria-label="Date"></h2>
@@ -899,13 +906,6 @@
     legs: "#e34948",
   };
 
-  // Illustrated body diagrams (images/*.png) — a full-body outline
-  // with the relevant muscle highlighted in an orange/red gradient. The
-  // app's `muscle` field is broader than the image set (one "arms" category
-  // covers both biceps- and triceps-led exercises), so "arms" picks between
-  // the two images by checking the exercise name for "tricep".
-  const BODY_IMG_ASPECT = 466 / 234; // height / width, from the source images
-
   // The original fixed roster — seeded into the database on first run and
   // used as the fallback if the database is unreachable. These are the
   // "backbone" exercises: the pool Suggested draws from. Exercises added
@@ -953,33 +953,6 @@
   // Fun-fact comparisons (loaded once from data/comparisons.txt), and the
   // fact picked for this page load — stays fixed until the page reloads.
   let funFactComparisons = [];
-
-  // ---------- Muscle-select wheel state ----------
-  // The only wheel left in the app: a genuine spinning dial (each item
-  // swings along the arc of a circle whose center sits off-screen to the
-  // left, rather than translating straight up/down). Drag-to-index
-  // sensitivity stays in flat pixels-per-item; only the on-screen
-  // rendering (updateMuscleWheelPositions) is circular. There's no
-  // separate Confirm button — tapping the already-centered item confirms
-  // it; tapping any other item just spins it to center.
-  const MUSCLE_WHEEL_ANGLE_STEP = 60; // degrees of arc between adjacent items
-  const WHEEL_MOVE_CANCEL_PX = 6;
-  const MUSCLE_WHEEL_ITEM_H = 280;
-  let muscleWheelSelectedIndex = 0;
-  let muscleWheelPointerActive = false;
-  let muscleWheelMoved = false;
-  let muscleWheelStartY = 0;
-  let muscleWheelStartIndex = 0;
-  let muscleWheelTapIndexAtStart = 0;
-  let muscleWheelLastHapticIndex = 0;
-  const MUSCLE_WHEEL_IMAGE = {
-    chest: "images/chest.png",
-    back: "images/back.png",
-    shoulders: "images/shoulders.png",
-    arms: "images/biceps.png",
-    core: "images/core.png",
-    legs: "images/leg.png",
-  };
 
   function clamp(v, min, max){
     return Math.min(max, Math.max(min, v));
@@ -1284,9 +1257,11 @@
       chip.textContent = MUSCLE_LABELS[m];
       chip.addEventListener("click", () => {
         // Starting from "All": clicking a muscle isolates it. From then on,
-        // clicking another muscle adds it to the selection (never removes) —
-        // the "All" chip is the only way back to showing everything.
+        // clicking another muscle adds it to the selection; re-clicking an
+        // already-active one toggles it back off. The "All" chip is the
+        // only way to jump straight back to showing everything at once.
         if(logMuscleFilter.size === MUSCLES.length) logMuscleFilter = new Set([m]);
+        else if(logMuscleFilter.has(m)) logMuscleFilter.delete(m);
         else logMuscleFilter.add(m);
         buildMuscleFilterRow();
         buildExerciseBlocks();
@@ -1307,178 +1282,27 @@
     if(label) label.click();
   }
 
-  // ---------- Muscle-select wheel (the gate in front of the Log page) ----------
-  function buildMuscleWheelItems(){
-    const list = $("#muscleWheelList");
-    if(!list) return;
-    list.innerHTML = "";
-    MUSCLES.forEach((m, i) => {
-      const item = document.createElement("div");
-      item.className = "wheel-item muscle-wheel-item";
-      item.id = "muscle-wheel-item-" + i;
-      item.dataset.index = String(i);
-      item.setAttribute("role", "option");
-      const w = 210, h = Math.round(w * BODY_IMG_ASPECT);
-      item.innerHTML = `<img class="body-visual" src="${MUSCLE_WHEEL_IMAGE[m]}" alt="" width="${w}" height="${h}" loading="lazy"><span class="wheel-item-name">${MUSCLE_LABELS[m]}</span>`;
-      list.appendChild(item);
+  // ---------- Muscle-select stage (the gate in front of the Log page) ----------
+  // The 3D model (wheel3d.js) is purely decorative here — it spins for
+  // feel but doesn't drive selection. Picking a muscle happens through
+  // this row of buttons instead; see legacy/muscle-wheel-2d-backup.md for
+  // the old spinning-dial-as-picker version this replaced.
+  function buildMusclePickRow(){
+    const row = $("#musclePickRow");
+    if(!row) return;
+    row.innerHTML = "";
+    MUSCLES.forEach(m => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "muscle-pick-btn";
+      btn.style.background = MUSCLE_COLORS[m];
+      btn.textContent = MUSCLE_LABELS[m];
+      btn.addEventListener("click", () => {
+        triggerHaptic();
+        confirmMuscleSelection(m);
+      });
+      row.appendChild(btn);
     });
-    if(muscleWheelSelectedIndex >= MUSCLES.length) muscleWheelSelectedIndex = MUSCLES.length - 1;
-    updateMuscleWheelPositions(0);
-  }
-
-  // Repositions the dial by `dragOffset` px from muscleWheelSelectedIndex.
-  // Each item sweeps along the arc of a circle whose center sits
-  // off-screen to the left (both x AND y move together as angle changes)
-  // — genuine rotation, not a vertical scroll with a sideways curve —
-  // and only the "east" sliver of that circle is ever on-screen. The PNG
-  // itself is also rotated by its arc angle (mounted-on-the-rim, not
-  // staying upright) so it visibly spins rather than just fading in/out;
-  // the label stays untransformed so it's always legible.
-  // Opacity/blur/scale still fall off by item-distance (not angle), so
-  // only the centered item is ever fully visible.
-  function updateMuscleWheelPositions(dragOffset){
-    const wrap = $("#muscleWheelWrap");
-    const list = $("#muscleWheelList");
-    if(!wrap || !list) return;
-    const items = $all(".wheel-item", list);
-    if(items.length === 0) return;
-
-    const wrapW = wrap.clientWidth || 300;
-    const wrapH = wrap.clientHeight || 500;
-    const rightAnchor = wrapW - 88;
-    const radius = wrapW * 0.62;
-    const cx = rightAnchor - radius;
-    const cy = wrapH / 2;
-
-    const continuousIndex = muscleWheelSelectedIndex - dragOffset / MUSCLE_WHEEL_ITEM_H;
-
-    let nearestIndex = 0, nearestAbsDist = Infinity;
-    items.forEach((item, i) => {
-      const signedDist = i - continuousIndex;
-      const absDist = Math.abs(signedDist);
-      if(absDist < nearestAbsDist){ nearestAbsDist = absDist; nearestIndex = i; }
-
-      const angleDeg = signedDist * MUSCLE_WHEEL_ANGLE_STEP;
-      const theta = angleDeg * Math.PI / 180;
-      const x = cx + radius * Math.cos(theta);
-      const y = cy + radius * Math.sin(theta);
-      // Steep, item-distance-based falloff — only the immediate neighbor
-      // is visible at all, dim and blurred; anything 1.4+ items away is
-      // fully invisible.
-      const t = clamp(1 - absDist / 1.4, 0, 1);
-
-      item.style.left = `${x}px`;
-      item.style.top = `${y}px`;
-      item.style.transform = `translate(-50%, -50%) scale(${clamp(0.4 + 0.6 * t, 0.4, 1)})`;
-      item.style.opacity = String(t);
-      const img = item.querySelector(".body-visual");
-      if(img){
-        img.style.filter = `blur(${(1 - t) * 6}px)`;
-        img.style.transform = `rotate(${angleDeg}deg)`;
-      }
-      item.setAttribute("aria-selected", "false");
-    });
-    const centerItem = items[nearestIndex];
-    if(centerItem){
-      centerItem.setAttribute("aria-selected", "true");
-      list.setAttribute("aria-activedescendant", centerItem.id);
-    }
-  }
-
-  // Full 2D nearest-center lookup — needed because items now sweep along a
-  // circular arc, so two items can share a Y (or X) coordinate while being
-  // far apart along the arc; comparing only one axis (the old approach)
-  // could resolve a tap to the wrong item.
-  function muscleWheelIndexFromPoint(clientX, clientY){
-    const items = $all(".wheel-item", $("#muscleWheelList"));
-    if(items.length === 0) return muscleWheelSelectedIndex;
-    let closest = muscleWheelSelectedIndex, closestDist = Infinity;
-    items.forEach((item, i) => {
-      const r = item.getBoundingClientRect();
-      const dx = (r.left + r.width / 2) - clientX;
-      const dy = (r.top + r.height / 2) - clientY;
-      const d = dx * dx + dy * dy;
-      if(d < closestDist){ closestDist = d; closest = i; }
-    });
-    return closest;
-  }
-
-  function onMuscleWheelPointerDown(evt){
-    muscleWheelPointerActive = true;
-    muscleWheelMoved = false;
-    muscleWheelStartY = evt.clientY;
-    muscleWheelStartIndex = muscleWheelSelectedIndex;
-    // Prefer exact DOM hit-testing (the browser already resolved which
-    // element is under the pointer, transforms and all) — only fall back
-    // to nearest-center math if the pointer started in the gutter between
-    // items.
-    const hitItem = evt.target.closest && evt.target.closest(".wheel-item");
-    muscleWheelTapIndexAtStart = hitItem
-      ? Number(hitItem.dataset.index)
-      : muscleWheelIndexFromPoint(evt.clientX, evt.clientY);
-    muscleWheelLastHapticIndex = muscleWheelSelectedIndex;
-
-    $("#muscleWheelList").classList.remove("snap");
-
-    window.addEventListener("pointermove", onMuscleWheelPointerMove);
-    window.addEventListener("pointerup", onMuscleWheelPointerUp);
-  }
-
-  function onMuscleWheelPointerMove(evt){
-    if(!muscleWheelPointerActive) return;
-    const deltaY = evt.clientY - muscleWheelStartY;
-    if(Math.abs(deltaY) > WHEEL_MOVE_CANCEL_PX) muscleWheelMoved = true;
-
-    updateMuscleWheelPositions(deltaY);
-
-    const nearestNow = clamp(Math.round(muscleWheelStartIndex - deltaY / MUSCLE_WHEEL_ITEM_H), 0, MUSCLES.length - 1);
-    if(nearestNow !== muscleWheelLastHapticIndex){
-      muscleWheelLastHapticIndex = nearestNow;
-      triggerHaptic();
-    }
-  }
-
-  // Releasing a drag just settles the dial. Releasing a plain tap either
-  // spins the tapped item to center, or — if it was already centered —
-  // confirms it. There's no separate Confirm button; the centered icon
-  // itself is the button.
-  function onMuscleWheelPointerUp(evt){
-    if(!muscleWheelPointerActive) return;
-    muscleWheelPointerActive = false;
-    window.removeEventListener("pointermove", onMuscleWheelPointerMove);
-    window.removeEventListener("pointerup", onMuscleWheelPointerUp);
-
-    $("#muscleWheelList").classList.add("snap");
-
-    if(muscleWheelMoved){
-      const deltaY = evt.clientY - muscleWheelStartY;
-      muscleWheelSelectedIndex = clamp(Math.round(muscleWheelStartIndex - deltaY / MUSCLE_WHEEL_ITEM_H), 0, MUSCLES.length - 1);
-      updateMuscleWheelPositions(0);
-      return;
-    }
-    if(muscleWheelTapIndexAtStart === muscleWheelSelectedIndex){
-      confirmMuscleSelection();
-    } else {
-      muscleWheelSelectedIndex = muscleWheelTapIndexAtStart;
-      updateMuscleWheelPositions(0);
-    }
-  }
-
-  function onMuscleWheelKeydown(evt){
-    if(evt.key === "ArrowDown"){
-      evt.preventDefault();
-      muscleWheelSelectedIndex = clamp(muscleWheelSelectedIndex + 1, 0, MUSCLES.length - 1);
-      $("#muscleWheelList").classList.add("snap");
-      updateMuscleWheelPositions(0);
-    } else if(evt.key === "ArrowUp"){
-      evt.preventDefault();
-      muscleWheelSelectedIndex = clamp(muscleWheelSelectedIndex - 1, 0, MUSCLES.length - 1);
-      $("#muscleWheelList").classList.add("snap");
-      updateMuscleWheelPositions(0);
-    } else if(evt.key === "Enter" || evt.key === " "){
-      evt.preventDefault();
-      confirmMuscleSelection();
-    }
   }
 
   // The muscle-select stage hides the header/nav for a fully minimal
@@ -1489,10 +1313,10 @@
     $("header.top").hidden = false;
     $("#mainTabs").hidden = false;
     document.body.classList.remove("muscle-gate-active");
+    if(window.IronLogWheel3D) window.IronLogWheel3D.hide();
   }
 
-  function confirmMuscleSelection(){
-    const m = MUSCLES[muscleWheelSelectedIndex];
+  function confirmMuscleSelection(m){
     logMuscleFilter = new Set([m]);
     leaveMuscleGate();
     buildMuscleFilterRow();
@@ -1514,7 +1338,8 @@
     $("header.top").hidden = true;
     $("#mainTabs").hidden = true;
     document.body.classList.add("muscle-gate-active");
-    buildMuscleWheelItems();
+    buildMusclePickRow();
+    if(window.IronLogWheel3D) window.IronLogWheel3D.show($("#wheel3dContainer"));
   }
 
   // ---------- Exercise blocks / logging ----------
@@ -1931,6 +1756,17 @@
 
     editingGroupKey = null;
     render();
+  }
+
+  // The nav is a hamburger dropdown, not a full-width tab bar — this just
+  // toggles the panel's own open/closed state; it's independent of the
+  // muscle-gate's hidden/shown state (enterMuscleGate/leaveMuscleGate).
+  function toggleNavMenu(force){
+    const menu = $("#mainTabs");
+    const btn = $("#navToggle");
+    const open = typeof force === "boolean" ? force : !menu.classList.contains("open");
+    menu.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", String(open));
   }
 
   // ---------- Views (Log / Progress / Calendar) ----------
@@ -2768,7 +2604,16 @@
     });
 
     $all(".tab-btn", $("#mainTabs")).forEach(btn => {
-      btn.addEventListener("click", () => setView(btn.dataset.view));
+      btn.addEventListener("click", () => { setView(btn.dataset.view); toggleNavMenu(false); });
+    });
+    $("#navToggle").addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleNavMenu();
+    });
+    document.addEventListener("click", (e) => {
+      if(!$("#mainTabs").classList.contains("open")) return;
+      if(e.target.closest("#mainTabs") || e.target.closest("#navToggle")) return;
+      toggleNavMenu(false);
     });
     $("#calPrev").addEventListener("click", () => {
       calMonth.setMonth(calMonth.getMonth() - 1);
@@ -2780,8 +2625,6 @@
     });
     $("#addExerciseBtn").addEventListener("click", addExercise);
     $("#logWorkoutBtn").addEventListener("click", logWorkout);
-    $("#muscleWheelWrap").addEventListener("pointerdown", onMuscleWheelPointerDown);
-    $("#muscleWheelList").addEventListener("keydown", onMuscleWheelKeydown);
     $("#skipToLogBtn").addEventListener("click", skipToLogPage);
     $("#logOutBtn").addEventListener("click", logOut);
     if(GATE_ENABLED) $("#logOutBtn").hidden = false;
@@ -2792,7 +2635,7 @@
         resizeRaf = requestAnimationFrame(renderCharts);
       } else if(currentView === "log" && !$("#muscleSelectStage").hidden) {
         if(resizeRaf) cancelAnimationFrame(resizeRaf);
-        resizeRaf = requestAnimationFrame(() => updateMuscleWheelPositions(0));
+        resizeRaf = requestAnimationFrame(() => { if(window.IronLogWheel3D) window.IronLogWheel3D.resize(); });
       }
     });
 

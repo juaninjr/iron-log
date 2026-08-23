@@ -5,10 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Iron Log — a personal gym workout tracker. Single-user by default, no login.
-The entire app (HTML, CSS, JS) lives in one file, `index.html`, as a
-vanilla-JS IIFE with no build step and no framework. There's an optional
-figurine-grid gate + Supabase Auth for multi-user use — see "The gate" below;
-it's off by default (`GATE_ENABLED = false`).
+Almost the entire app (HTML, CSS, JS) lives in one file, `index.html`, as a
+vanilla-JS IIFE with no build step and no framework — the one deliberate
+exception is `wheel3d.js` (a Three.js module for the muscle-select stage's
+3D model), split out because a 3D scene is sizable and self-contained
+enough to be clearer on its own; see "The muscle-select stage" below.
+There's an optional figurine-grid gate + Supabase Auth for multi-user use —
+see "The gate" below; it's off by default (`GATE_ENABLED = false`).
 
 ## Commands
 
@@ -28,10 +31,15 @@ see "Testing changes" below.
 
 ## Architecture
 
-**Everything is in `index.html`**: inline `<style>` block, then a single
-`<script>` containing an IIFE with all app logic. There's no bundler, no
-modules, no npm dependencies. Third-party libraries (jsPDF, jsPDF-autotable,
-Supabase JS client) are loaded via CDN `<script>` tags in `<head>`.
+**Everything is in `index.html`**, except the 3D model: inline `<style>`
+block, then a single `<script>` containing an IIFE with all app logic.
+There's no bundler, no npm dependencies. Third-party libraries (jsPDF,
+jsPDF-autotable, Supabase JS client, Three.js) are loaded via CDN
+`<script>` tags in `<head>` — Three.js via an `importmap` since it's
+distributed as ES modules, everything else as classic UMD scripts.
+`wheel3d.js` is the one piece of app logic that lives outside `index.html`,
+loaded as `<script type="module" src="wheel3d.js">`; it talks to the main
+IIFE only through `window.IronLogWheel3D` (see "The muscle-select stage").
 
 **Data layer — Supabase with a localStorage fallback.** Near the top of the
 script, `SUPABASE_URL` / `SUPABASE_ANON_KEY` are hardcoded constants. If they
@@ -102,33 +110,26 @@ zero-config "treat public/ as the deploy output directory" behavior on a
 framework-less static site, which silently dropped `index.html` from the
 deployment the one time this was tried),
 each a full-body outline with one region highlighted in an orange/red
-gradient. These are used *only* by the muscle-select wheel (below), one
-image per muscle group via the `MUSCLE_WHEEL_IMAGE` map — there's no
-per-exercise image anywhere in the app. `biceps`/`triceps`/`glutes` are
-available assets not currently wired to any muscle-group entry in
-`MUSCLES`.
+gradient. These aren't used anywhere in the app currently (the
+muscle-select stage that used to show them is now the 3D model below);
+`biceps`/`triceps`/`glutes` in particular were never wired to any
+muscle-group entry in `MUSCLES` even before that.
 
-**Logging a workout is a muscle-select wheel followed by a classic
-block-list form**, not one continuous wheel. The Log tab (`#viewLog`) has
-two children toggled via `hidden`: `#muscleSelectStage` (shown by default
-and every time you navigate back to the Log tab — see `setView()`) and
-`#logMainStage` (the actual logging page, hidden until you commit to a
-muscle group). `#muscleSelectStage` is the *only* wheel left in the app —
-a genuine spinning dial, not a scrolling list: `buildMuscleWheelItems()`
-renders one item per muscle group, and `updateMuscleWheelPositions()`
-places each along the arc of a circle whose center sits off-screen to the
-left (`x = cx + radius*cos(theta)`, `y = cy + radius*sin(theta)`, both
-axes moving together) so only the "east" sliver of that circle is ever
-visible — items genuinely rotate into and out of view rather than
-translating straight up/down. `MUSCLE_WHEEL_ANGLE_STEP` (60°) controls how
-far a drag has to travel per item. Opacity/blur/scale still fall off by
-item-*distance* (not angle) via `onMuscleWheelPointerMove` →
-`updateMuscleWheelPositions`, so only the centered item is ever sharp.
-There's no separate Confirm button — `onMuscleWheelPointerUp()` treats a
-tap on the already-centered item as confirm (calling
-`confirmMuscleSelection()`, which commits the muscle to `logMuscleFilter`
-and reveals `#logMainStage`); a tap on any other item just spins it to
-center instead. `#logMainStage` itself is a plain form: `buildExerciseBlocks()`
+**Logging a workout is a muscle-select stage followed by a classic
+block-list form.** The Log tab (`#viewLog`) has two children toggled via
+`hidden`: `#muscleSelectStage` (shown by default and every time you
+navigate back to the Log tab — see `setView()`) and `#logMainStage` (the
+actual logging page, hidden until you pick a muscle group). The
+muscle-select stage has a 3D model (`#wheel3dContainer`, driven by
+`wheel3d.js`) that spins for feel when dragged — purely decorative, it
+does not drive selection — plus a row of plain buttons underneath
+(`#musclePickRow`, built by `buildMusclePickRow()`) that actually pick the
+muscle group: clicking one calls `confirmMuscleSelection(m)`, which
+commits `m` to `logMuscleFilter` and reveals `#logMainStage`. A 2D
+spinning-dial picker (drag-to-rotate through 6 muscle images, tap the
+centered one to confirm) filled this role before; it's preserved verbatim
+in `legacy/muscle-wheel-2d-backup.md` in case the 3D version needs to be
+rolled back. `#logMainStage` itself is a plain form: `buildExerciseBlocks()`
 renders one `.exercise-block` per visible exercise (name + muscle-colored
 left border, no images or icons), each with one or more `.set-row`s
 (weight/reps inputs, "+ Add set" next to the exercise name via
@@ -136,7 +137,57 @@ left border, no images or icons), each with one or more `.set-row`s
 every filled row across every visible block into one save — nothing is
 saved per-keystroke or per-row. `jumpToExercise()` (used by the Suggested
 tab) explicitly skips `#muscleSelectStage`, broadens `logMuscleFilter` to
-show every exercise, then scrolls to and flashes the target block.
+show every exercise, then scrolls to and flashes the target block. The
+muscle filter chips above the block list (`buildMuscleFilterRow()`) follow
+an isolate/add/toggle-off pattern: from "All", clicking a muscle isolates
+it; clicking a different muscle adds it to the selection; re-clicking an
+already-active muscle removes it; the "All" chip is the only way to jump
+straight back to showing everything.
+
+**The muscle-select stage's 3D model** (`wheel3d.js`, a separate ES module
+— see "What this is" above) loads `models/human.3dm` — the raw Rhino
+file, no export step — via Three.js's `Rhino3dmLoader` (backed by the
+`rhino3dm` WASM decoder, pulled from a CDN at runtime, not vendored),
+centers and scales it to a consistent size regardless of the source
+model's units/pivot, and spins it in response to drag (with a small idle
+auto-spin when left alone) via a `requestAnimationFrame` loop. It exposes
+exactly three methods on `window.IronLogWheel3D` — `show(container)`,
+`hide()`, `resize()` — so the main IIFE can drive it without being a
+module itself: `show()` lazily creates the renderer/scene on first call
+and is otherwise idempotent (safe to call every time `enterMuscleGate()`
+runs), `hide()` just cancels the animation frame loop (called from
+`leaveMuscleGate()`) so it isn't burning battery while off-screen, and
+`resize()` is wired into the existing window `resize` listener. If
+`models/human.3dm` doesn't exist, `wheel3d.js` renders a placeholder
+message instead of a blank canvas. **`models/human.3dm` is ~70MB** — see
+`models/README.md` for the size/load-time tradeoff and how to switch to a
+much smaller glTF export instead (a small, mechanical loader swap) once
+that matters. The model is currently a single decorative mesh; a planned
+follow-up splits it into 6 named parts (one per muscle group) so spinning
+to face a part can select that muscle directly instead of going through
+the button row.
+
+**The main nav is a hamburger dropdown, not a tab bar.** `#navToggle` (the
+three-bar button in the header's corner) toggles an `.open` class on
+`#mainTabs` via `toggleNavMenu()`; the panel itself is absolutely
+positioned under the button so it doesn't take up layout space when
+closed. This is independent of the muscle-gate's `hidden` attribute on
+the same element (`enterMuscleGate()`/`leaveMuscleGate()` hide the whole
+header, dropdown included, while `hidden` is set) — the `[hidden]` CSS
+rule uses `!important` specifically so it always wins regardless of the
+dropdown's own `.open` state. `.tabs`/`.tab-btn` are also reused, unscoped,
+by the gate's sign-in/sign-up toggle (`#strangerSignInTab`/
+`#strangerSignUpTab`), so anything dropdown-specific is scoped to
+`#mainTabs` rather than the bare classes.
+
+**The header's subtitle is the "curiosity" fun fact, not a static
+tagline.** `renderFunFact()` writes directly into `header.top .sub`
+(`id="funFact"`) — there's no separate boxed fun-fact element anymore.
+The comparisons it picks from (`data/comparisons.txt`, `label|weight_in_kg`
+per line) are the user-editable "stats surpassed" file — thresholds and
+labels can be edited freely and take effect on next load with no code
+changes, since `loadComparisons()` just re-parses the file and
+`renderFunFact()` filters by `stats.totalVolume >= c.kg`.
 
 **The gate** (`GATE_ENABLED`, off by default): when on, `bootstrap()` (not
 `init()`) is the `DOMContentLoaded` entry point. It shows `#gateScreen` — a
