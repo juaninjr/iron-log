@@ -15,32 +15,34 @@
 // stays as a fallback — see legacy/muscle-wheel-2d-backup.md for the
 // original 2D dial this replaced.
 //
-// Loads the Rhino file directly — models/human.3dm — via Three.js's
-// Rhino3dmLoader (backed by the rhino3dm WASM decoder, loaded from CDN),
-// so no manual export step is needed. NOTE: a raw .3dm is much bigger
-// than an equivalent glTF for the same visible mesh (this one is ~70MB),
-// which means a genuinely slow first load and a large file permanently
-// baked into git history once committed. If load time or repo size
-// becomes a problem, export a glTF (.glb) from Rhino instead (File >
-// Export Selected > glTF) and point MODEL_URL at that — GLTFLoader is
-// already used elsewhere in the three.js ecosystem the same way and
-// would swap in as a straight replacement below.
+// Tries a glTF first — models/muscle-select.glb — since it's the fast
+// path (a small binary file, no extra WASM decoder download, near-
+// instant parse). If that file doesn't exist (404, the common case until
+// one's been exported), silently falls back to loading the Rhino file
+// directly — models/human.3dm — via Three.js's Rhino3dmLoader (backed by
+// the rhino3dm WASM decoder, loaded from CDN). The .3dm path needs no
+// export step but is much slower to load (this one's ~70MB); dropping a
+// models/muscle-select.glb in switches to the fast path automatically,
+// no code changes needed. See models/README.md for exporting one.
 //
-// Per-part hit-testing needs the Rhino file's individual SubD/mesh
-// objects named after the muscle they belong to (Rhino: select the
-// object(s), Properties panel, set Name to e.g. "chest" — multiple
-// objects can share the same name). Rhino3dmLoader carries each object's
-// Rhino Name into the resulting Mesh's `.name`; organizeMuscleGroups()
-// below buckets meshes by matching MUSCLE_KEYS against `.name`
-// (case-insensitive substring match, so "Chest_L"/"chest-01"/etc. all
-// still match "chest"). Unnamed/unmatched geometry is left alone — it
-// renders normally but is neither hoverable nor clickable. See
-// models/README.md for the full naming walkthrough.
+// Per-part hit-testing needs the model's individual SubD/mesh objects
+// named after the muscle they belong to (Rhino: select the object(s),
+// Properties panel, set Name to e.g. "chest" — multiple objects can
+// share the same name; a Layer name works too as a fallback, see
+// organizeMuscleGroups() below). Rhino3dmLoader/GLTFLoader both carry
+// that Name into the resulting Mesh's `.name`; organizeMuscleGroups()
+// buckets meshes by matching MUSCLE_KEYS against `.name` (case-
+// insensitive substring match, so "Chest_L"/"chest-01"/etc. all still
+// match "chest"). Unnamed/unmatched geometry is left alone — it renders
+// normally but is neither hoverable nor clickable. See models/README.md
+// for the full naming walkthrough.
 
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Rhino3dmLoader } from "three/addons/loaders/3DMLoader.js";
 
-const MODEL_URL = "models/human.3dm";
+const GLTF_MODEL_URL = "models/muscle-select.glb";
+const RHINO_MODEL_URL = "models/human.3dm";
 // Pinned to the version the three.js r160 examples document as
 // compatible with this loader — a mismatched rhino3dm version can throw
 // binding errors on load (e.g. SubD mesh conversion) for models that use
@@ -109,20 +111,52 @@ function clearMessage(el){
 // that bucket's own combined bounding-box center — so scaling the group
 // for the hover effect grows it around its own middle, not the model's
 // origin or the world origin.
+//
+// Matches on the mesh's own Name first; if that doesn't hit, falls back
+// to the mesh's Rhino Layer name (Rhino3dmLoader stores each mesh's full
+// Rhino attributes — including layerIndex — in `.userData.attributes`,
+// and the root object's `.userData.layers` has the layer name list; see
+// models/README.md). This only applies when loading the .3dm — a glTF
+// export has no equivalent "layer" concept, so for that path only the
+// node/mesh Name matters.
 function organizeMuscleGroups(root){
+  const layers = root.userData && root.userData.layers;
+
+  function layerNameFor(obj){
+    if(!layers) return "";
+    const attrs = obj.userData && obj.userData.attributes;
+    const idx = attrs && attrs.layerIndex;
+    const layer = (typeof idx === "number" && idx >= 0) ? layers[idx] : null;
+    return layer && layer.name ? layer.name : "";
+  }
+
   const buckets = {};
   MUSCLE_KEYS.forEach(k => { buckets[k] = []; });
 
   root.traverse(obj => {
     if(!obj.isMesh) return;
     const lname = (obj.name || "").toLowerCase();
-    const key = MUSCLE_KEYS.find(k => lname.includes(k));
+    let key = MUSCLE_KEYS.find(k => lname.includes(k));
+    if(!key){
+      const llayer = layerNameFor(obj).toLowerCase();
+      if(llayer) key = MUSCLE_KEYS.find(k => llayer.includes(k));
+    }
     if(key) buckets[key].push(obj);
   });
 
   MUSCLE_KEYS.forEach(key => {
     const meshes = buckets[key];
     if(meshes.length === 0) return;
+
+    // Clone each mesh's material before it's ever mutated — Rhino/glTF
+    // exports commonly share one material instance across many objects
+    // (e.g. one uniform body-color material for the whole figure), so
+    // without this, highlighting one muscle group's emissive color would
+    // bleed into every other mesh using that same shared material.
+    meshes.forEach(m => {
+      if(Array.isArray(m.material)) m.material = m.material.map(mat => mat.clone());
+      else if(m.material) m.material = m.material.clone();
+    });
 
     const box = new THREE.Box3();
     meshes.forEach(m => box.expandByObject(m));
@@ -153,25 +187,30 @@ function muscleKeyForMesh(mesh){
   return null;
 }
 
+function applyHighlight(mat, key, on){
+  if(!mat || !mat.emissive) return; // material type doesn't support emissive (e.g. basic) — scale-only highlight
+  if(!mat.userData) mat.userData = {};
+  if(!mat.userData.baseEmissive){
+    mat.userData.baseEmissive = mat.emissive.clone();
+    mat.userData.baseEmissiveIntensity = mat.emissiveIntensity ?? 1;
+  }
+  if(on){
+    mat.emissive.setHex(MUSCLE_GLOW_COLOR[key] ?? 0xffffff);
+    mat.emissiveIntensity = HOVER_EMISSIVE_INTENSITY;
+  } else {
+    mat.emissive.copy(mat.userData.baseEmissive);
+    mat.emissiveIntensity = mat.userData.baseEmissiveIntensity;
+  }
+}
+
 function setHighlighted(key, on){
   const group = muscleGroups[key];
   if(!group) return;
   group.scale.setScalar(on ? HOVER_SCALE : 1);
   group.traverse(obj => {
     if(!obj.isMesh || !obj.material) return;
-    const mat = obj.material;
-    if(!mat.emissive) return; // material type doesn't support emissive (e.g. basic) — scale-only highlight
-    if(!obj.userData.baseEmissive){
-      obj.userData.baseEmissive = mat.emissive.clone();
-      obj.userData.baseEmissiveIntensity = mat.emissiveIntensity ?? 1;
-    }
-    if(on){
-      mat.emissive.setHex(MUSCLE_GLOW_COLOR[key] ?? 0xffffff);
-      mat.emissiveIntensity = HOVER_EMISSIVE_INTENSITY;
-    } else {
-      mat.emissive.copy(obj.userData.baseEmissive);
-      mat.emissiveIntensity = obj.userData.baseEmissiveIntensity;
-    }
+    if(Array.isArray(obj.material)) obj.material.forEach(m => applyHighlight(m, key, on));
+    else applyHighlight(obj.material, key, on);
   });
 }
 
@@ -194,6 +233,37 @@ function raycastAt(clientX, clientY){
   return hits.length > 0 ? muscleKeyForMesh(hits[0].object) : null;
 }
 
+function onModelReady(el, object){
+  model = object;
+  // Scale first, then recompute the box and recenter — position is
+  // applied in the *scaled* object's parent space, so centering with a
+  // pre-scale box's center would offset it by the wrong amount
+  // (everything except the scale factor's worth would be left over).
+  const rawBox = new THREE.Box3().setFromObject(model);
+  const rawSize = rawBox.getSize(new THREE.Vector3());
+  const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z) || 1;
+  model.scale.setScalar(3 / maxDim);
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  model.position.sub(scaledBox.getCenter(new THREE.Vector3()));
+  scene.add(model);
+  organizeMuscleGroups(model);
+  clearMessage(el);
+}
+
+function loadRhino(el){
+  const loader = new Rhino3dmLoader();
+  loader.setLibraryPath(RHINO3DM_LIBRARY_PATH);
+  loader.load(
+    RHINO_MODEL_URL,
+    (object) => onModelReady(el, object),
+    undefined,
+    (err) => {
+      console.error("IronLogWheel3D: could not load", RHINO_MODEL_URL, err);
+      setMessage(el, "3D model failed to load — check models/human.3dm or models/muscle-select.glb exist (see models/README.md).");
+    }
+  );
+}
+
 function ensureScene(el){
   if(renderer) return; // already built once — show()/hide() just start/stop it
 
@@ -212,31 +282,15 @@ function ensureScene(el){
 
   setMessage(el, "Loading 3D model…");
 
-  const loader = new Rhino3dmLoader();
-  loader.setLibraryPath(RHINO3DM_LIBRARY_PATH);
-  loader.load(
-    MODEL_URL,
-    (object) => {
-      model = object;
-      // Scale first, then recompute the box and recenter — position is
-      // applied in the *scaled* object's parent space, so centering with
-      // a pre-scale box's center would offset it by the wrong amount
-      // (everything except the scale factor's worth would be left over).
-      const rawBox = new THREE.Box3().setFromObject(model);
-      const rawSize = rawBox.getSize(new THREE.Vector3());
-      const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z) || 1;
-      model.scale.setScalar(3 / maxDim);
-      const scaledBox = new THREE.Box3().setFromObject(model);
-      model.position.sub(scaledBox.getCenter(new THREE.Vector3()));
-      scene.add(model);
-      organizeMuscleGroups(model);
-      clearMessage(el);
-    },
+  // Fast path first: a glTF export, if one exists, loads in a fraction
+  // of the time (small binary file, no rhino3dm WASM download). Falls
+  // back to the raw Rhino file silently — a missing .glb is the expected
+  // case until one's been exported, not a real error.
+  new GLTFLoader().load(
+    GLTF_MODEL_URL,
+    (gltf) => onModelReady(el, gltf.scene),
     undefined,
-    (err) => {
-      console.error("IronLogWheel3D: could not load", MODEL_URL, err);
-      setMessage(el, "3D model failed to load — check models/human.3dm exists (see models/README.md).");
-    }
+    () => loadRhino(el)
   );
 
   el.addEventListener("pointerdown", onPointerDown);

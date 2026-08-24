@@ -1,40 +1,46 @@
 # 3D model for the muscle-select stage
 
-`wheel3d.js` loads `models/human.3dm` **directly** — your raw Rhino file,
-no export step needed — via Three.js's `Rhino3dmLoader` (backed by the
-`rhino3dm` WASM decoder, pulled from a CDN at runtime). Replacing that
+`wheel3d.js` tries `models/muscle-select.glb` first (fast path — see
+"Loading speed" below); if that doesn't exist, it falls back to
+`models/human.3dm`, your raw Rhino file, loaded directly via Three.js's
+`Rhino3dmLoader` (backed by the `rhino3dm` WASM decoder, pulled from a
+CDN at runtime) — no export step needed for that path. Replacing either
 file is all it takes to change the model; no code changes needed. Until
-the file exists, you'll see a placeholder message on the page instead of
-a broken/blank canvas.
+one of them exists, you'll see a placeholder message on the page instead
+of a broken/blank canvas.
 
-## The size/performance tradeoff
+## Loading speed
 
-`human.3dm` as currently dropped in is **~70MB**. A raw `.3dm` is much
-bigger than an equivalent glTF for the same visible mesh (NURBS + Rhino's
-own file overhead vs. a web-optimized binary mesh format), which means:
+`human.3dm` as currently dropped in is **~70MB**, which is why the first
+load takes a while — a raw `.3dm` carries a lot more than the visible
+mesh (SubD control cages, cached render meshes, undo history, Rhino's own
+file overhead), and on top of downloading the file itself, the browser
+also has to download the `rhino3dm` WASM decoder and parse the whole
+thing before anything appears.
 
-- **Slow first load.** Every visitor downloads and WASM-parses the full
-  70MB before the model appears (a loading placeholder covers this, but
-  it can still take several seconds, more on a slow connection or older
-  device).
-- **Permanent git bloat.** Once committed, that 70MB stays in the repo's
-  history forever, even if the file is later replaced or deleted.
-
-This is fine for local development / previewing the feature. Before
-shipping it for real, consider exporting a glTF instead:
+**The fix is a glTF export**, typically a fraction of the `.3dm` size and
+near-instant to load (no WASM decoder needed at all):
 
 1. In Rhino, select the geometry, then **File → Export Selected…**
 2. Choose **glTF** as the file type, save as **`.glb`** (single binary
    file, simplest to drop in — no separate `.bin`/texture files).
 3. Save it as `models/muscle-select.glb`.
-4. Ask for `wheel3d.js` to be pointed at that file with `GLTFLoader`
-   instead of `Rhino3dmLoader` + `models/human.3dm` — it's a small,
-   mechanical swap (both loaders resolve to the same centered/scaled
-   `Object3D`-like result, so the rest of the file doesn't change).
 
-A glTF export of the same geometry is typically a fraction of the `.3dm`
-size, loads near-instantly, and doesn't need the extra `rhino3dm` WASM
-download at all.
+That's it — `wheel3d.js` already checks for that file first on every
+load and uses it automatically the moment it exists, falling back to the
+`.3dm` only if it's missing. No code changes needed either way. The part
+**naming** for hover/click (below) carries over the same way through a
+glTF export, so do that step first if you haven't yet — no need to redo
+it for glTF specifically.
+
+Secondary, smaller wins if you want to keep working from the `.3dm` for
+now: Rhino's `Purge` command (removes unused/orphaned data) and saving
+with "Save small" checked (strips cached render meshes/history) can both
+shrink a `.3dm` meaningfully without changing the export format.
+
+Committing `human.3dm` also bakes ~70MB into git history permanently,
+even after it's replaced or deleted later — another reason to move to a
+`.glb` once you're happy with the model.
 
 ## Sizing / orientation
 
@@ -52,28 +58,40 @@ tapping/clicking it (without dragging) picks that muscle directly, same
 as clicking the button row underneath (which stays as a fallback — handy
 on touch devices, or if a part's naming doesn't quite match).
 
-To make a part recognized:
+To make a part recognized, **use the object's Name, not its Layer** —
+Layer name is only checked as a fallback (see below), Name is what
+`wheel3d.js` reads first:
 
 1. In Rhino, select every SubD/mesh object that belongs to one muscle
    group (e.g. all the pieces making up the chest).
 2. Open the **Properties** panel (`Properties` command or F3) and set the
    **Name** field to one of: `chest`, `back`, `shoulders`, `arms`, `core`,
    `legs`. Multiple objects can share the exact same name — do this for
-   every piece in that group.
+   every piece in that group. (Note: your groups currently show up as
+   Rhino's auto-generated `"Group16371"`-style names in the loaded scene —
+   that's the Group ID, not a Name; you still need to set Name
+   explicitly, grouping alone doesn't do it.)
 3. Repeat for the other muscle groups. Anything left unnamed (or named
    something that doesn't match) still renders normally, it's just not
    hoverable/clickable.
-4. Save/export and replace `models/human.3dm` with the updated file. No
-   code changes needed — `wheel3d.js` reads each mesh's name at load time
-   (case-insensitive, and it only needs to *contain* the muscle word, so
-   `"Chest_L"`, `"chest-01"`, etc. all still match `"chest"`).
+4. Save/export and replace `models/human.3dm` (or re-export
+   `models/muscle-select.glb`, once you're using that) with the updated
+   file. No code changes needed — `wheel3d.js` reads each mesh's name at
+   load time (case-insensitive, and it only needs to *contain* the muscle
+   word, so `"Chest_L"`, `"chest-01"`, etc. all still match `"chest"`).
 
-This relies on Rhino3dmLoader carrying each object's Rhino Name into the
-loaded mesh's `.name` — confirmed working against three.js r160's loader.
-If you ever switch to a glTF export instead (see above), the equivalent
-step there is naming each **node/group** in Rhino's glTF export the same
-way; `wheel3d.js`'s `organizeMuscleGroups()` would need pointing at
-`GLTFLoader`'s result the same way it already reads `Rhino3dmLoader`'s.
+**If you'd rather organize by Layer instead of per-object Name** (e.g.
+you already have `chest`/`back`/etc. layers and don't want to rename 22
+individual objects). That works too, automatically, as a fallback — if an
+object's own Name doesn't match a muscle key, `organizeMuscleGroups()` in
+`wheel3d.js` checks which Rhino Layer the object is on and matches against
+that layer's name instead. So naming just the *layers* is enough; you
+don't need to also rename every object on them. This layer fallback only
+applies to the `.3dm` path — a glTF export has no equivalent "layer"
+concept, so if you switch to `.glb`, matching depends only on the
+exported node/mesh Name (Rhino's glTF exporter generally carries object
+Names and/or layer groupings into node names, but layer-only matching
+specifically won't apply there).
 
 ## Tuning the hover effect
 
