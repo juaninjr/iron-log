@@ -1,6 +1,7 @@
 .DS_Store
 .vercel
 node_modules
+dist
 Gluten-master/
 karrik_fonts-main/
 body.psd

@@ -1,29 +1,33 @@
-// Iron Log — the muscle-select stage's 3D model. Loaded as a module
-// script (see the <script type="importmap"> / <script type="module">
-// tags in index.html's <head>) rather than inlined into the main IIFE,
-// since a Three.js scene is sizable and self-contained enough to be
-// clearer split out on its own. Exposes window.IronLogWheel3D so
-// index.html's plain-script IIFE can drive it without needing to be a
-// module itself.
+// Iron Log — the muscle-select stage's 3D model. A separate module (its
+// own file, imported by main.js) since a Three.js scene is sizable and
+// self-contained enough to be clearer split out on its own. Exposes
+// window.IronLogWheel3D so log-tab.js — a plain global, since this is the
+// one piece of the app that talks to a raw WebGL canvas rather than the
+// rest of the DOM/state.js-driven UI — can drive it without a tighter
+// coupling than it needs.
 //
 // The model is interactive: hovering (or, on touch, tapping without
 // dragging) a recognized muscle-group part scales it up and gives it an
 // emissive glow, and releasing on it fires a "musclepick" CustomEvent on
-// the container element with `detail: { muscle }` — index.html listens
+// the container element with `detail: { muscle }` — log-tab.js listens
 // for that and calls confirmMuscleSelection(muscle), same as clicking
-// the button row. The button row (buildMusclePickRow() in index.html)
-// stays as a fallback — see legacy/muscle-wheel-2d-backup.md for the
-// original 2D dial this replaced.
+// the button row (buildMusclePickRow(), also in log-tab.js), which stays
+// as a fallback. See legacy/muscle-wheel-2d-backup.md for the original 2D
+// dial this replaced.
 //
-// Tries a glTF first — models/muscle-select.glb — since it's the fast
-// path (a small binary file, no extra WASM decoder download, near-
-// instant parse). If that file doesn't exist (404, the common case until
-// one's been exported), silently falls back to loading the Rhino file
-// directly — models/human.3dm — via Three.js's Rhino3dmLoader (backed by
-// the rhino3dm WASM decoder, loaded from CDN). The .3dm path needs no
-// export step but is much slower to load (this one's ~70MB); dropping a
-// models/muscle-select.glb in switches to the fast path automatically,
-// no code changes needed. See models/README.md for exporting one.
+// Tries a glTF first — /models/muscle-select.glb (served from the
+// public/ folder, see models/README.md) — since it's the fast path (a
+// small binary file, no extra WASM decoder download, near-instant
+// parse). If that file doesn't exist (404, the common case until one's
+// been exported), silently falls back to loading the Rhino file directly
+// — /models/human.3dm — via Three.js's Rhino3dmLoader (backed by the
+// rhino3dm WASM decoder, loaded from CDN at runtime — unlike the rest of
+// Three.js, rhino3dm isn't an npm dependency here since it's loaded as a
+// WASM binary at runtime via setLibraryPath(), not imported as a module).
+// The .3dm path needs no export step but is much slower to load (this
+// one's ~70MB); dropping a /models/muscle-select.glb in switches to the
+// fast path automatically, no code changes needed. See models/README.md
+// for exporting one.
 //
 // Per-part hit-testing needs the model's individual SubD/mesh objects
 // named after the muscle they belong to (Rhino: select the object(s),
@@ -42,8 +46,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Rhino3dmLoader } from "three/addons/loaders/3DMLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
-const GLTF_MODEL_URL = "models/muscle-select.glb";
-const RHINO_MODEL_URL = "models/human.3dm";
+const GLTF_MODEL_URL = "/models/muscle-select.glb";
+const RHINO_MODEL_URL = "/models/human.3dm";
 // Pinned to the version the three.js r160 examples document as
 // compatible with this loader — a mismatched rhino3dm version can throw
 // binding errors on load (e.g. SubD mesh conversion) for models that use
@@ -64,7 +68,6 @@ const MUSCLE_GLOW_COLOR = {
   legs: 0xe34948,
 };
 
-const HOVER_SCALE = 1.15;
 const HOVER_EMISSIVE_INTENSITY = 0.7;
 const DRAG_CANCEL_PX = 6;
 
@@ -159,6 +162,13 @@ function organizeMuscleGroups(root){
   });
 
   root.updateMatrixWorld(true);
+  // Bake each fragment's transform relative to `root`, not the world —
+  // the merged replacement gets reparented as a child of `root` below,
+  // so it needs to end up in `root`'s own local space (world space would
+  // double up whatever transform `root` itself carries, and — more
+  // importantly — would leave the merged parts unable to rotate together
+  // with `root` at all, since they'd sit outside its hierarchy).
+  const rootInverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
 
   MUSCLE_KEYS.forEach(key => {
     const meshes = buckets[key];
@@ -170,13 +180,11 @@ function organizeMuscleGroups(root){
     // with 4000+ pieces total) — raycasting against that many individual
     // objects on every pointer move is far too slow for interactive
     // hover (measured: ~1s per raycast, making the model unusably
-    // laggy), and it's also needlessly many draw calls per frame. World
-    // transforms are baked into each piece's geometry before merging, so
-    // the combined result doesn't depend on the original (now-discarded)
-    // mesh hierarchy.
+    // laggy), and it's also needlessly many draw calls per frame.
     const pieceGeometries = meshes.map(m => {
       const g = m.geometry.clone();
-      g.applyMatrix4(m.matrixWorld);
+      const localMatrix = new THREE.Matrix4().multiplyMatrices(rootInverse, m.matrixWorld);
+      g.applyMatrix4(localMatrix);
       // Merge only needs position + normal — drop anything else so
       // pieces with mismatched attribute sets (e.g. some with UVs, some
       // without) can still merge instead of silently failing.
@@ -200,10 +208,10 @@ function organizeMuscleGroups(root){
     });
 
     // Recenter the merged geometry on its own bounding-box center (data
-    // is already in world space from applyMatrix4 above), then park the
-    // wrapping group at that center — this is what makes the hover
-    // scale-up grow the part around its own middle rather than the
-    // model's or world origin.
+    // is in `root`-local space from the bake above), then park the
+    // wrapping group at that center — this is what makes the hover glow
+    // (and any future scale effect) center on the part itself rather
+    // than the model's or world origin.
     merged.computeBoundingBox();
     const center = merged.boundingBox.getCenter(new THREE.Vector3());
     merged.translate(-center.x, -center.y, -center.z);
@@ -213,7 +221,7 @@ function organizeMuscleGroups(root){
     group.name = "muscle-group-" + key;
     group.position.copy(center);
     group.add(mesh);
-    scene.add(group);
+    root.add(group);
 
     muscleGroups[key] = group;
   });
@@ -253,7 +261,6 @@ function applyHighlight(mat, key, on){
 function setHighlighted(key, on){
   const group = muscleGroups[key];
   if(!group) return;
-  group.scale.setScalar(on ? HOVER_SCALE : 1);
   group.traverse(obj => {
     if(!obj.isMesh || !obj.material) return;
     if(Array.isArray(obj.material)) obj.material.forEach(m => applyHighlight(m, key, on));
@@ -316,21 +323,35 @@ function sanitizeMaterials(root){
 }
 
 function onModelReady(el, object, rotateXDeg){
-  model = object;
-  if(rotateXDeg) model.rotation.x = rotateXDeg * Math.PI / 180;
+  // Two nested objects, not one: `content` gets the one-time orientation
+  // fix (and scale/centering) baked into its transform and is never
+  // touched again; `model` — the thing animate() actually spins — only
+  // ever has its own .rotation.y written to, every frame, for the rest
+  // of the session. Doing both on the same object doesn't work: Three's
+  // Euler angles compose in a fixed axis order, so writing .rotation.y
+  // on an object that also has a fixed .rotation.x looks like it's
+  // spinning around some tilted, wrong axis (it is — its LOCAL Y axis
+  // after the X correction, not world-space up) rather than a clean
+  // turntable rotation.
+  const content = object;
+  if(rotateXDeg) content.rotation.x = rotateXDeg * Math.PI / 180;
   // Scale first, then recompute the box and recenter — position is
   // applied in the *scaled* object's parent space, so centering with a
   // pre-scale box's center would offset it by the wrong amount
   // (everything except the scale factor's worth would be left over).
-  const rawBox = new THREE.Box3().setFromObject(model);
+  const rawBox = new THREE.Box3().setFromObject(content);
   const rawSize = rawBox.getSize(new THREE.Vector3());
   const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z) || 1;
-  model.scale.setScalar(3 / maxDim);
-  const scaledBox = new THREE.Box3().setFromObject(model);
-  model.position.sub(scaledBox.getCenter(new THREE.Vector3()));
+  content.scale.setScalar(3 / maxDim);
+  const scaledBox = new THREE.Box3().setFromObject(content);
+  content.position.sub(scaledBox.getCenter(new THREE.Vector3()));
+
+  model = new THREE.Group();
+  model.add(content);
   scene.add(model);
-  sanitizeMaterials(model);
-  organizeMuscleGroups(model);
+
+  sanitizeMaterials(content);
+  organizeMuscleGroups(content); // reparents merged muscle-group meshes under `content`, so they spin with everything else
   clearMessage(el);
 }
 
@@ -343,7 +364,7 @@ function loadRhino(el){
     undefined,
     (err) => {
       console.error("IronLogWheel3D: could not load", RHINO_MODEL_URL, err);
-      setMessage(el, "3D model failed to load — check models/human.3dm or models/muscle-select.glb exist (see models/README.md).");
+      setMessage(el, "3D model failed to load — check public/models/human.3dm or public/models/muscle-select.glb exist (see models/README.md).");
     }
   );
 }

@@ -1,25 +1,30 @@
 # Iron Log
 
-A single-file gym workout tracker — log sets per exercise, see your most recent
-lift for each movement, export a PDF, and back up your data as JSON.
+A gym workout tracker — log sets per exercise, see your most recent lift for
+each movement, export a PDF, and back up your data as JSON.
 
-No build step, no custom backend server. Everything lives in `index.html`.
-Data is stored in [Supabase](https://supabase.com) (Postgres) once configured
-(see below); until then it falls back to the browser's `localStorage`.
+Vanilla JS split across ES modules in `src/`, built with Vite — no framework,
+no custom backend server. Data is stored in [Supabase](https://supabase.com)
+(Postgres) once configured (see below); until then it falls back to the
+browser's `localStorage`.
 
 ## Run locally
 
-Just open `index.html` in a browser, or serve it:
-
 ```bash
-npx serve .
+npm install
+npm run dev
 ```
+
+Open the printed localhost URL. `npm run build` produces a production build
+in `dist/`; `npm run preview` serves that build locally to sanity-check it
+before deploying.
 
 ## Deploy to Vercel
 
 1. Push this repo to GitHub (see below).
 2. Go to [vercel.com/new](https://vercel.com/new) and import the repo.
-3. Framework preset: **Other** (no build command needed). Root directory: `.`
+3. Framework preset: Vercel auto-detects **Vite** from `package.json` — no
+   manual config needed. Root directory: `.`
 4. Deploy.
 
 ## Push to GitHub
@@ -47,14 +52,13 @@ don't reuse this Supabase project for anything sensitive.
    exists`), so it's safe to run again.
 3. Open **Project Settings > API** and copy the **Project URL** and the
    **anon public** key.
-4. In `index.html`, find these lines near the top of the `<script>` block and
-   fill in your values:
+4. In `src/state.js`, find these lines and fill in your values:
    ```js
-   const SUPABASE_URL = "YOUR_SUPABASE_URL";
-   const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+   export const SUPABASE_URL = "YOUR_SUPABASE_URL";
+   export const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
    ```
-5. Reload the page. Iron Log will now read/write workouts from Supabase
-   instead of `localStorage`.
+5. Reload the page (or restart `npm run dev`). Iron Log will now read/write
+   workouts from Supabase instead of `localStorage`.
 
 If you skip this setup, the app keeps working exactly as before, using
 `localStorage`.
@@ -106,9 +110,9 @@ To turn it on:
    ```
 5. Confirm email/password auth is enabled: **Authentication > Providers >
    Email** should already be on by default.
-6. In `index.html`, flip `const GATE_ENABLED = false;` to `true` — only
-   after steps 1–5 are done, or you'll lock yourself out of your own app
-   with no working backend to unlock it.
+6. In `src/state.js`, flip `export const GATE_ENABLED = false;` to `true` —
+   only after steps 1–5 are done, or you'll lock yourself out of your own
+   app with no working backend to unlock it.
 
 ## Data & backups
 

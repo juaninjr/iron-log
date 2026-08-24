@@ -1,13 +1,15 @@
 # 3D model for the muscle-select stage
 
-`wheel3d.js` tries `models/muscle-select.glb` first (the fast path, and
-what's currently in place); if that doesn't exist, it falls back to
-`models/human.3dm`, the raw Rhino file, loaded directly via Three.js's
-`Rhino3dmLoader` (backed by the `rhino3dm` WASM decoder, pulled from a
-CDN at runtime) — no export step needed for that path. Replacing either
-file is all it takes to change the model; no code changes needed. Until
-one of them exists, you'll see a placeholder message on the page instead
-of a broken/blank canvas.
+`wheel3d.js` (`src/wheel3d.js`) tries `/models/muscle-select.glb` first
+(the fast path, and what's currently in place); if that doesn't exist, it
+falls back to `/models/human.3dm`, the raw Rhino file, loaded directly via
+Three.js's `Rhino3dmLoader` (backed by the `rhino3dm` WASM decoder, pulled
+from a CDN at runtime) — no export step needed for that path. Both files
+live in `public/models/` (this repo-root `models/` folder is
+documentation only, not deployed — see CLAUDE.md's "Module map").
+Replacing either file in `public/models/` is all it takes to change the
+model; no code changes needed. Until one of them exists, you'll see a
+placeholder message on the page instead of a broken/blank canvas.
 
 ## Loading speed
 
@@ -17,10 +19,10 @@ render meshes, undo history, Rhino's own file overhead), on top of which
 the browser has to separately download the `rhino3dm` WASM decoder and
 parse the whole thing.
 
-`models/muscle-select.glb` (currently ~11MB) fixes this — `wheel3d.js`
-already checks for it first on every load and uses it automatically,
-falling back to the `.3dm` only if it's missing. No code changes needed
-either way.
+`public/models/muscle-select.glb` (currently ~11MB) fixes this —
+`wheel3d.js` already checks for it first on every load and uses it
+automatically, falling back to the `.3dm` only if it's missing. No code
+changes needed either way.
 
 **The other big lever is polygon count**, independent of file format:
 the current model has ~2 million triangles, and two single pieces account
@@ -63,10 +65,10 @@ wrong again after a re-export:
 
 ## Making parts clickable
 
-Hovering a recognized part scales it up and gives it a colored glow;
-tapping/clicking it (without dragging) picks that muscle directly, same
-as clicking the button row underneath (which stays as a fallback — handy
-on touch devices, or if a part's naming doesn't quite match).
+Hovering a recognized part gives it a colored glow; tapping/clicking it
+(without dragging) picks that muscle directly, same as clicking the
+button row underneath (which stays as a fallback — handy on touch
+devices, or if a part's naming doesn't quite match).
 
 `organizeMuscleGroups()` in `wheel3d.js` matches, in this order, for
 every mesh in the model:
@@ -91,7 +93,7 @@ muscle group onto a Layer (or set each object's own Name) called one of
 and only needs to *contain* the word (`"Chest_L"`, `"chest-01"`, etc. all
 match `"chest"`). Anything left unmatched still renders normally, it's
 just not hoverable/clickable. Re-export/re-save and replace whichever
-model file you're using — no code changes needed.
+model file you're using in `public/models/` — no code changes needed.
 
 **Performance note**: a glTF export commonly fragments one logical body
 part into hundreds or thousands of tiny mesh primitives (see above).
@@ -106,9 +108,11 @@ thousands might need it revisited).
 
 ## Tuning the hover effect
 
-In `wheel3d.js`: `HOVER_SCALE` (how much bigger a hovered part gets),
-`HOVER_EMISSIVE_INTENSITY` (how strong the glow is), and
+Hovering a part changes its color only (no size change — an earlier
+scale-up version made parts visibly shift position, since a part's own
+"center" isn't always where it visually looks centered). In `wheel3d.js`:
+`HOVER_EMISSIVE_INTENSITY` (how strong the glow is) and
 `MUSCLE_GLOW_COLOR` (the glow's tint per muscle — currently matches this
-app's `MUSCLE_COLORS` palette in `index.html`, kept in sync by hand since
-`wheel3d.js` is a separate module and can't import from the non-module
-main script).
+app's `MUSCLE_COLORS` palette in `src/state.js`, kept in sync by hand
+since `wheel3d.js` doesn't import from `state.js`, to keep it a
+self-contained module with no dependency on the rest of the app's state).
