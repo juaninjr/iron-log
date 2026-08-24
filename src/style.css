@@ -1,14 +1,3 @@
-  @font-face{
-    font-family:'Karrik';
-    src:url('/fonts/Karrik-Regular.woff2') format('woff2');
-    font-weight:100 900; font-style:normal; font-display:swap;
-  }
-  @font-face{
-    font-family:'Karrik';
-    src:url('/fonts/Karrik-Italic.woff2') format('woff2');
-    font-weight:100 900; font-style:italic; font-display:swap;
-  }
-
   :root{
     --ink:#000000;
     --paper:#f7f7f7;
@@ -33,14 +22,14 @@
     margin:0;
     background:var(--paper);
     color:var(--ink);
-    font-family:'Karrik',system-ui,sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     line-height:1.45;
     padding:24px 20px 80px;
   }
 
   .wrap{max-width:1080px;margin:0 auto;}
 
-  h1,h2,h3{font-family:'Karrik',sans-serif;font-weight:800;letter-spacing:0.01em;margin:0;}
+  h1,h2,h3{font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:800;letter-spacing:0.01em;margin:0;}
 
   a{color:var(--steel);}
 
@@ -54,7 +43,7 @@
     margin-bottom:22px;
   }
   header.top h1{font-size:clamp(2.2rem,6vw,3.2rem);color:var(--ink);}
-  header.top .sub{font-family:'Karrik',sans-serif;font-weight:600;font-size:0.82rem;color:var(--plate);min-height:1.1em;}
+  header.top .sub{font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:0.82rem;color:var(--plate);min-height:1.1em;}
 
   .stats{
     display:grid;
@@ -70,7 +59,7 @@
     box-shadow:var(--shadow);
   }
   .stat .label{
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:600;
     font-size:0.58rem;
     text-transform:uppercase;
@@ -79,7 +68,7 @@
     margin-bottom:4px;
   }
   .stat .value{
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:800;
     font-variant-numeric:tabular-nums;
     font-size:1.25rem;
@@ -105,7 +94,7 @@
     justify-content:space-between;
   }
   section > h2 .count{
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:500;
     font-size:0.7rem;
     color:var(--muted);
@@ -114,7 +103,7 @@
   }
 
   label{
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:600;
     font-size:0.72rem;
     text-transform:uppercase;
@@ -125,7 +114,7 @@
   }
 
   input[type="date"], input[type="number"], select{
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-size:0.85rem;
     padding:6px 8px;
     border:1px solid var(--line-strong);
@@ -165,16 +154,18 @@
      way back to them without picking is #skipToLogBtn. */
   body.muscle-gate-active{padding-top:16px;}
   .skip-to-log-btn{
-    display:block;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     margin:0 0 10px;
     width:44px;height:44px;
-    border-radius:50%;
-    border:1px solid var(--line-strong);
-    background:var(--paper-raised);
-    font-size:1.3rem;
-    line-height:1;
+    padding:0;
+    border:none;
+    background:transparent;
+    color:var(--ink);
     cursor:pointer;
   }
+  .skip-to-log-btn svg{fill:currentColor;display:block;}
   .wheel3d-wrap{
     position:relative;
     height:min(58vh, 520px);
@@ -192,18 +183,21 @@
     padding:10px 0 24px;
   }
   .muscle-pick-btn{
-    background:var(--paper-raised);
-    border:2px solid var(--line-strong);
-    border-radius:12px;
-    padding:12px 20px;
-    font-family:'Karrik',sans-serif;
+    background:var(--ink);
+    border:none;
+    border-radius:6px;
+    padding:12px 22px;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:700;
-    font-size:0.95rem;
+    font-size:0.82rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
     color:#fff;
     cursor:pointer;
     box-shadow:var(--shadow);
-    transition:transform 0.1s ease;
+    transition:background 0.15s ease, transform 0.1s ease;
   }
+  .muscle-pick-btn:hover{background:var(--plate);}
   .muscle-pick-btn:active{transform:scale(0.96);}
 
 
@@ -218,21 +212,21 @@
   .muscle-chip{
     flex:none;
     border:none;
-    border-radius:20px;
+    border-radius:5px;
     padding:5px 11px;
     background:var(--ink);
     color:#fff;
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:700;
     font-size:0.66rem;
     text-transform:uppercase;
     letter-spacing:0.03em;
     white-space:nowrap;
     cursor:pointer;
-    transition:filter 0.15s ease, opacity 0.15s ease;
+    transition:opacity 0.15s ease;
   }
   .muscle-chip-all{background:var(--ink);}
-  .muscle-chip.inactive{filter:saturate(0.2) brightness(1.15);opacity:0.55;}
+  .muscle-chip.inactive{opacity:0.4;}
 
   .exercise-block{
     border:1px solid var(--line);
@@ -250,7 +244,7 @@
     margin-bottom:5px;
   }
   .exercise-block .ex-name{
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:700;
     font-size:0.98rem;
     letter-spacing:0.01em;
@@ -266,7 +260,7 @@
   .exercise-block.flash{animation:flash-block 0.4s ease 2;}
 
   .ex-tag{
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:600;
     font-size:0.58rem;
     text-transform:uppercase;
@@ -306,7 +300,7 @@
     color:var(--steel);
     border-radius:6px;
     padding:3px 10px;
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:600;
     font-size:0.68rem;
     text-transform:uppercase;
@@ -323,7 +317,7 @@
     border:none;
     border-radius:8px;
     padding:12px 22px;
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:800;
     font-size:1.15rem;
     letter-spacing:0.02em;
@@ -346,7 +340,7 @@
     color:var(--ink);
     border-radius:6px;
     padding:8px 14px;
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:600;
     font-size:0.75rem;
     text-transform:uppercase;
@@ -359,7 +353,7 @@
   table{
     width:100%;
     border-collapse:collapse;
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-size:0.82rem;
   }
   thead th{
@@ -384,7 +378,7 @@
   tbody tr.highlight{background:#e3f5ea;}
   tbody tr.highlight:hover{background:#c8ecd6;}
   .scroll-table{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;}
-  .empty-note{color:var(--muted);font-weight:500;padding:14px;font-family:'Karrik',sans-serif;font-size:0.85rem;}
+  .empty-note{color:var(--muted);font-weight:500;padding:14px;font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:0.85rem;}
   .per-hand-note{color:var(--muted);font-size:0.72rem;}
 
   input[type="file"]{display:none;}
@@ -417,7 +411,7 @@
     color:var(--muted);
     border-radius:8px;
     padding:8px 16px;
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:700;
     font-size:0.78rem;
     text-transform:uppercase;
@@ -451,7 +445,7 @@
   #mainTabs.tabs{
     position:absolute;
     top:calc(100% + 8px);
-    right:0;
+    left:0;
     z-index:50;
     display:flex;
     flex-direction:column;
@@ -459,6 +453,7 @@
     flex-wrap:nowrap;
     margin-bottom:0;
     min-width:170px;
+    max-width:calc(100vw - 32px);
     background:var(--paper-raised);
     border:1px solid var(--line);
     border-radius:12px;
@@ -480,7 +475,7 @@
   .chart-filters{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:14px;}
   .chart-check{
     display:inline-flex;align-items:center;gap:6px;
-    font-family:'Karrik',sans-serif;font-size:0.72rem;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:0.72rem;
     color:var(--ink);cursor:pointer;text-transform:none;letter-spacing:0;
   }
   .chart-check input{width:auto;margin:0;}
@@ -489,15 +484,15 @@
   .chart-wrap{position:relative;}
   .chart-svg{width:100%;height:320px;display:block;}
   .chart-grid{stroke:var(--line);stroke-width:1;}
-  .chart-axis-label{font-family:'Karrik',sans-serif;font-size:9px;fill:var(--muted);}
-  .chart-empty{font-family:'Karrik',sans-serif;font-size:13px;fill:var(--muted);}
+  .chart-axis-label{font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:9px;fill:var(--muted);}
+  .chart-empty{font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:13px;fill:var(--muted);}
   .chart-crosshair{stroke:var(--line-strong);stroke-width:1;stroke-dasharray:3 3;}
 
   .chart-tooltip{
     position:absolute;top:8px;left:8px;
     background:var(--ink);color:#fff;
     border-radius:6px;padding:8px 10px;
-    font-family:'Karrik',sans-serif;font-size:0.72rem;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:0.72rem;
     pointer-events:none;box-shadow:var(--shadow);
     min-width:150px;z-index:2;
   }
@@ -508,16 +503,16 @@
 
   /* Calendar */
   .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-  .cal-title{font-family:'Karrik',sans-serif;font-weight:800;font-size:1.4rem;}
+  .cal-title{font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:800;font-size:1.4rem;}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
   .cal-dow{
-    font-family:'Karrik',sans-serif;font-weight:600;font-size:0.65rem;text-transform:uppercase;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:0.65rem;text-transform:uppercase;
     color:var(--muted);text-align:center;padding-bottom:4px;
   }
   .cal-cell{
     aspect-ratio:1;display:flex;align-items:center;justify-content:center;
     border-radius:6px;border:1px solid var(--line);
-    font-family:'Karrik',sans-serif;font-weight:600;font-size:0.8rem;color:var(--ink);
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:0.8rem;color:var(--ink);
     background:var(--paper);
     font-variant-numeric:tabular-nums;
   }
@@ -530,7 +525,7 @@
   .row-actions .icon-btn{width:30px;height:30px;font-size:0.85rem;}
   tr.editing td{background:#eeeeee;}
   .edit-input{
-    font-family:'Karrik',sans-serif;font-size:0.8rem;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:0.8rem;
     padding:5px 6px;border:1px solid var(--line-strong);border-radius:5px;
     background:var(--paper-raised);color:var(--ink);width:100%;
   }
@@ -546,8 +541,8 @@
     border-radius:10px;
     padding:16px;
   }
-  .suggest-muscle{font-family:'Karrik',sans-serif;font-weight:800;font-size:1.7rem;color:var(--plate);}
-  .suggest-sub{font-family:'Karrik',sans-serif;font-weight:500;color:var(--muted);font-size:0.8rem;margin-bottom:12px;}
+  .suggest-muscle{font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:800;font-size:1.7rem;color:var(--plate);}
+  .suggest-sub{font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:500;color:var(--muted);font-size:0.8rem;margin-bottom:12px;}
   .suggest-chips{display:flex;flex-wrap:wrap;gap:8px;}
   .suggest-chip{
     background:var(--plate);
@@ -555,7 +550,7 @@
     border:none;
     border-radius:20px;
     padding:8px 14px;
-    font-family:'Karrik',sans-serif;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-weight:700;
     font-size:0.8rem;
     cursor:pointer;
@@ -567,13 +562,13 @@
   .add-ex-checks{display:flex;gap:16px;}
   .add-ex-checks label{
     display:flex;align-items:center;gap:6px;
-    font-family:'Karrik',sans-serif;font-weight:600;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;
     text-transform:none;letter-spacing:0;font-size:0.78rem;color:var(--ink);
   }
   .add-ex-checks input{width:auto;}
 
   .ex-group-title{
-    font-family:'Karrik',sans-serif;font-weight:800;font-size:1rem;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:800;font-size:1rem;
     color:var(--steel);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.04em;
   }
   .ex-group-title:first-child{margin-top:0;}
@@ -581,10 +576,10 @@
     display:flex;align-items:center;justify-content:space-between;gap:10px;
     padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--paper);
   }
-  .ex-manage-name{font-family:'Karrik',sans-serif;font-weight:600;font-size:0.88rem;}
+  .ex-manage-name{font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:0.88rem;}
   .ex-backbone-toggle{
     display:flex;align-items:center;gap:6px;white-space:nowrap;
-    font-family:'Karrik',sans-serif;font-weight:600;font-size:0.7rem;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;font-size:0.7rem;
     text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);cursor:pointer;
   }
   .ex-backbone-toggle input{width:auto;}
@@ -615,7 +610,7 @@
   }
   .gate-inner{max-width:640px;margin:0 auto;text-align:center;}
   .gate-logo{
-    font-family:'Karrik',sans-serif;font-weight:800;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:800;
     font-size:clamp(2rem,7vw,3rem);color:var(--ink);margin-bottom:20px;
   }
   #gateGridView .tool-btn{margin-bottom:18px;}
@@ -640,13 +635,13 @@
   .figurine-cell:disabled{cursor:default;opacity:0.55;}
   .gate-cooldown{
     margin-top:16px;
-    font-family:'Karrik',sans-serif;font-weight:700;font-size:0.9rem;
+    font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:700;font-size:0.9rem;
     color:var(--plate);
   }
   .stranger-auth{max-width:320px;margin:0 auto;text-align:left;}
   .stranger-auth form{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
   .gate-error{
-    color:var(--plate);font-family:'Karrik',sans-serif;font-weight:600;
+    color:var(--plate);font-family:"Helvetica Neue",Helvetica,Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:600;
     font-size:0.8rem;margin:10px 0 0;
   }
   .stranger-auth .tool-btn{margin-top:14px;}

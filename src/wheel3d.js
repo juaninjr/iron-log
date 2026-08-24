@@ -99,7 +99,7 @@ function setMessage(el, message){
   if(!p){
     p = document.createElement("p");
     p.className = "wheel3d-message";
-    p.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#8a8a8a;font-family:Karrik,sans-serif;font-size:0.85rem;pointer-events:none;";
+    p.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#8a8a8a;font-family:\"Helvetica Neue\",Helvetica,Arial,system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;font-size:0.85rem;pointer-events:none;";
     el.appendChild(p);
   }
   p.textContent = message;
@@ -297,13 +297,17 @@ function raycastAt(clientX, clientY){
 // 0.
 const GLTF_ROTATE_X_DEG = 90;
 
-// Rhino's glTF export sometimes leaves objects with no material
-// explicitly assigned, which comes through as a black, fully-metallic
-// PBR material — under this scene's simple two-light setup that reflects
-// almost no light back to the camera, rendering as a solid black
-// silhouette instead of the neutral grey seen via the .3dm path. Swap
-// that specific degenerate case for a sensible default; anything with an
-// actual assigned color/material is left untouched.
+// Neither export path assigns the body a real material: Rhino's glTF
+// export leaves objects with no material explicitly assigned, which
+// comes through as a black, fully-metallic PBR material (under this
+// scene's simple two-light setup that reflects almost no light back to
+// the camera, rendering as a solid black silhouette); the .3dm path's
+// own unassigned-material default renders as a flat neutral grey
+// instead. Both are grayscale (r≈g≈b), so one check catches both and
+// swaps in a white, non-metallic default — the directional light still
+// carves out visible shading across the form, it's just not tinted gray
+// anymore. Anything with an actual assigned (non-grayscale) color is
+// left untouched.
 function sanitizeMaterials(root){
   const seen = new Set();
   root.traverse(obj => {
@@ -312,11 +316,12 @@ function sanitizeMaterials(root){
     mats.forEach(mat => {
       if(seen.has(mat) || !mat.color) return;
       seen.add(mat);
-      const isBlack = mat.color.r < 0.08 && mat.color.g < 0.08 && mat.color.b < 0.08;
-      if(isBlack && (mat.metalness ?? 0) >= 0.9){
-        mat.color.setHex(0x9a9a9a);
+      const { r, g, b } = mat.color;
+      const isGrayscale = Math.abs(r - g) < 0.05 && Math.abs(g - b) < 0.05;
+      if(isGrayscale){
+        mat.color.setHex(0xffffff);
         mat.metalness = 0;
-        mat.roughness = 0.6;
+        mat.roughness = 0.55;
       }
     });
   });

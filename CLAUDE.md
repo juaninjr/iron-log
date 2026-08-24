@@ -14,7 +14,10 @@ imports what it needs from the others — see "Module map" below before
 making changes, so new code lands in the right file rather than growing
 whichever file you happened to open first. There's an optional
 figurine-grid gate + Supabase Auth for multi-user use — see "The gate"
-below; it's off by default (`GATE_ENABLED = false`).
+below; `GATE_ENABLED` (`state.js`) currently defaults to `true` in this
+repo, for local/dev use. **Remind the user to flip it back to `false`
+before any deploy to the public internet** — ask this any time they say
+they want to deploy/ship/push live, don't wait to be asked.
 
 ## Commands
 
@@ -322,8 +325,10 @@ file — thresholds and labels can be edited freely and take effect on next
 load with no code changes, since `loadComparisons()` just re-parses the
 file and `renderFunFact()` filters by `stats.totalVolume >= c.kg`.
 
-**The gate** (`gate.js`; `GATE_ENABLED` in `state.js`, off by default):
-when on, `bootstrap()` (not `init()`, in `main.js`) is the
+**The gate** (`gate.js`; `GATE_ENABLED` in `state.js`, currently `true` by
+default in this repo — see the note in "What this is" about disabling it
+before a public deploy): when on, `bootstrap()` (not `init()`, in
+`main.js`) is the
 `DOMContentLoaded` entry point. It shows `#gateScreen` — a 20×20 grid of
 decorative figurine buttons — until either the `ironlog:ownerUnlocked`
 localStorage flag or an active Supabase Auth session is present, then
@@ -404,3 +409,21 @@ real-looking but fake URL (so `useSupabase` evaluates true and
 `/auth/v1/*`, `/functions/v1/verify-figurine`, and the REST table
 endpoints (`/rest/v1/...`, respond with `[]` for "no rows") with
 controlled fake JSON responses.
+
+## Status notes (for Claude's reference — trim once stale)
+
+- The full `index.html` → Vite/ES-modules reorg described throughout this
+  file is done and pushed to `main` (commit `e75b82d`): hover-scale bug
+  fixed (color-only now), the two spin bugs fixed (wrong axis + only
+  head/neck rotating), and the ~2000-line inline script split into the
+  `src/` modules listed under "Module map."
+- Not yet actioned, only noted as optional/tangential — don't start on
+  these without the user asking: trimming the ~1.27MB main JS bundle
+  size; upgrading `jspdf`/`vite` to clear `npm audit` warnings (held back
+  deliberately to avoid destabilizing tested versions).
+- `weight_lifted_loading_screen_captions_v2.md` sits untracked at the
+  repo root — the user dropped it in; it's not wired into the app and
+  hasn't been asked for yet.
+- The next Vercel deploy after the reorg hasn't been confirmed live yet —
+  it should auto-detect the new Vite setup via `package.json`, but check
+  the deploy log if the user reports something looks off post-deploy.

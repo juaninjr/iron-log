@@ -26,7 +26,6 @@ export function buildMuscleFilterRow() {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "muscle-chip" + (state.logMuscleFilter.has(m) ? "" : " inactive");
-    chip.style.background = MUSCLE_COLORS[m];
     chip.textContent = MUSCLE_LABELS[m];
     chip.addEventListener("click", () => {
       // Starting from "All": clicking a muscle isolates it. From then on,
@@ -56,7 +55,6 @@ export function buildMusclePickRow() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "muscle-pick-btn";
-    btn.style.background = MUSCLE_COLORS[m];
     btn.textContent = MUSCLE_LABELS[m];
     btn.addEventListener("click", () => {
       triggerHaptic();
