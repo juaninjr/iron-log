@@ -2626,6 +2626,13 @@
     $("#addExerciseBtn").addEventListener("click", addExercise);
     $("#logWorkoutBtn").addEventListener("click", logWorkout);
     $("#skipToLogBtn").addEventListener("click", skipToLogPage);
+    // Tapping a recognized (hoverable/highlighted) part of the 3D model
+    // picks that muscle directly — wheel3d.js dispatches this once per
+    // tap-that-hits-a-part. The button row stays as a fallback.
+    $("#wheel3dContainer").addEventListener("musclepick", (evt) => {
+      triggerHaptic();
+      confirmMuscleSelection(evt.detail.muscle);
+    });
     $("#logOutBtn").addEventListener("click", logOut);
     if(GATE_ENABLED) $("#logOutBtn").hidden = false;
     let resizeRaf = null;

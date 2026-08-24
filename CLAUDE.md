@@ -162,10 +162,30 @@ runs), `hide()` just cancels the animation frame loop (called from
 message instead of a blank canvas. **`models/human.3dm` is ~70MB** — see
 `models/README.md` for the size/load-time tradeoff and how to switch to a
 much smaller glTF export instead (a small, mechanical loader swap) once
-that matters. The model is currently a single decorative mesh; a planned
-follow-up splits it into 6 named parts (one per muscle group) so spinning
-to face a part can select that muscle directly instead of going through
-the button row.
+that matters.
+
+**Individual parts of the 3D model are hoverable/clickable**, keyed off
+each mesh's `.name` — Rhino3dmLoader carries the Rhino object's own Name
+property through, so any SubD/mesh object named (or containing) `chest`,
+`back`, `shoulders`, `arms`, `core`, or `legs` gets picked up by
+`organizeMuscleGroups()` at load time and reparented (via `Group.attach()`,
+which preserves world transform) into a per-muscle `THREE.Group`
+positioned at that bucket's own combined bounding-box center — so the
+hover effect (`setHighlighted()`: scale up + emissive glow, color from
+`MUSCLE_GLOW_COLOR`, a hand-kept-in-sync duplicate of `MUSCLE_COLORS`)
+grows each part around its own middle, not the model's origin.
+`raycastAt()` drives both true hover (desktop mousemove) and touch (a
+raycast seeded at `pointerdown`, since touch has no hover-before-touch);
+a release that wasn't a drag on a currently-hovered part dispatches a
+`musclepick` CustomEvent on `#wheel3dContainer` (`detail.muscle`), which
+`index.html` listens for once in `init()` and forwards straight into
+`confirmMuscleSelection()` — same effect as clicking the button row,
+which stays wired up as a fallback for parts that don't hover cleanly or
+touch devices where precision taps are harder. Naming instructions (and
+how to tune `HOVER_SCALE`/`HOVER_EMISSIVE_INTENSITY`/`MUSCLE_GLOW_COLOR`)
+are in `models/README.md`. Unnamed or unmatched geometry renders normally
+but is inert — this degrades gracefully, so a model with no named parts
+at all (as originally dropped in) just isn't interactive yet, not broken.
 
 **The main nav is a hamburger dropdown, not a tab bar.** `#navToggle` (the
 three-bar button in the header's corner) toggles an `.open` class on

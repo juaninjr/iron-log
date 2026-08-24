@@ -45,13 +45,41 @@ sideways or upside-down on the page, rotate it in Rhino before
 re-exporting (or ask for a fixed rotation offset to be added in code once
 you see how it looks).
 
-## What's next
+## Making parts clickable
 
-Right now the model is decorative — dragging it spins it for feel, but
-picking a muscle group still happens through the button row below it.
-The plan (per your last request) is to eventually split the model into
-6 named parts, one per muscle group, so spinning it to face a given part
-can select that muscle directly. That'll need the model's parts named
-clearly (e.g. `chest`, `back`, `shoulders`, `arms`, `core`, `legs`) so the
-code can find them — flag when you're ready to do that and export/save a
-version with parts split out.
+Hovering a recognized part scales it up and gives it a colored glow;
+tapping/clicking it (without dragging) picks that muscle directly, same
+as clicking the button row underneath (which stays as a fallback — handy
+on touch devices, or if a part's naming doesn't quite match).
+
+To make a part recognized:
+
+1. In Rhino, select every SubD/mesh object that belongs to one muscle
+   group (e.g. all the pieces making up the chest).
+2. Open the **Properties** panel (`Properties` command or F3) and set the
+   **Name** field to one of: `chest`, `back`, `shoulders`, `arms`, `core`,
+   `legs`. Multiple objects can share the exact same name — do this for
+   every piece in that group.
+3. Repeat for the other muscle groups. Anything left unnamed (or named
+   something that doesn't match) still renders normally, it's just not
+   hoverable/clickable.
+4. Save/export and replace `models/human.3dm` with the updated file. No
+   code changes needed — `wheel3d.js` reads each mesh's name at load time
+   (case-insensitive, and it only needs to *contain* the muscle word, so
+   `"Chest_L"`, `"chest-01"`, etc. all still match `"chest"`).
+
+This relies on Rhino3dmLoader carrying each object's Rhino Name into the
+loaded mesh's `.name` — confirmed working against three.js r160's loader.
+If you ever switch to a glTF export instead (see above), the equivalent
+step there is naming each **node/group** in Rhino's glTF export the same
+way; `wheel3d.js`'s `organizeMuscleGroups()` would need pointing at
+`GLTFLoader`'s result the same way it already reads `Rhino3dmLoader`'s.
+
+## Tuning the hover effect
+
+In `wheel3d.js`: `HOVER_SCALE` (how much bigger a hovered part gets),
+`HOVER_EMISSIVE_INTENSITY` (how strong the glow is), and
+`MUSCLE_GLOW_COLOR` (the glow's tint per muscle — currently matches this
+app's `MUSCLE_COLORS` palette in `index.html`, kept in sync by hand since
+`wheel3d.js` is a separate module and can't import from the non-module
+main script).
