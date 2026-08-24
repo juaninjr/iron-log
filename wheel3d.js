@@ -40,6 +40,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Rhino3dmLoader } from "three/addons/loaders/3DMLoader.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const GLTF_MODEL_URL = "models/muscle-select.glb";
 const RHINO_MODEL_URL = "models/human.3dm";
@@ -112,13 +113,16 @@ function clearMessage(el){
 // for the hover effect grows it around its own middle, not the model's
 // origin or the world origin.
 //
-// Matches on the mesh's own Name first; if that doesn't hit, falls back
-// to the mesh's Rhino Layer name (Rhino3dmLoader stores each mesh's full
-// Rhino attributes — including layerIndex — in `.userData.attributes`,
-// and the root object's `.userData.layers` has the layer name list; see
-// models/README.md). This only applies when loading the .3dm — a glTF
-// export has no equivalent "layer" concept, so for that path only the
-// node/mesh Name matters.
+// Matches, in order: the mesh's own Name; any ANCESTOR node's Name, all
+// the way up to `root` (this is what actually carries a Rhino Layer
+// through a glTF export — Rhino's glTF exporter turns each layer into a
+// named parent Group wrapping that layer's objects, rather than naming
+// the meshes themselves, which are often auto-split into many small
+// unnamed primitives); and finally, .3dm-only, the mesh's Rhino Layer
+// name directly (Rhino3dmLoader stores each mesh's full Rhino attributes
+// — including layerIndex — in `.userData.attributes`, and the root
+// object's `.userData.layers` has the layer name list). See
+// models/README.md.
 function organizeMuscleGroups(root){
   const layers = root.userData && root.userData.layers;
 
@@ -130,13 +134,23 @@ function organizeMuscleGroups(root){
     return layer && layer.name ? layer.name : "";
   }
 
+  function ancestorNameMatch(obj){
+    let p = obj;
+    while(p && p !== root.parent){
+      const lname = (p.name || "").toLowerCase();
+      const key = MUSCLE_KEYS.find(k => lname.includes(k));
+      if(key) return key;
+      p = p.parent;
+    }
+    return null;
+  }
+
   const buckets = {};
   MUSCLE_KEYS.forEach(k => { buckets[k] = []; });
 
   root.traverse(obj => {
     if(!obj.isMesh) return;
-    const lname = (obj.name || "").toLowerCase();
-    let key = MUSCLE_KEYS.find(k => lname.includes(k));
+    let key = ancestorNameMatch(obj);
     if(!key){
       const llayer = layerNameFor(obj).toLowerCase();
       if(llayer) key = MUSCLE_KEYS.find(k => llayer.includes(k));
@@ -144,29 +158,62 @@ function organizeMuscleGroups(root){
     if(key) buckets[key].push(obj);
   });
 
+  root.updateMatrixWorld(true);
+
   MUSCLE_KEYS.forEach(key => {
     const meshes = buckets[key];
     if(meshes.length === 0) return;
 
-    // Clone each mesh's material before it's ever mutated — Rhino/glTF
-    // exports commonly share one material instance across many objects
-    // (e.g. one uniform body-color material for the whole figure), so
-    // without this, highlighting one muscle group's emissive color would
-    // bleed into every other mesh using that same shared material.
+    // Merge every fragment into a single mesh per muscle group. Rhino/
+    // glTF exports commonly fragment one logical body part into hundreds
+    // or thousands of tiny mesh primitives (this app has seen a model
+    // with 4000+ pieces total) — raycasting against that many individual
+    // objects on every pointer move is far too slow for interactive
+    // hover (measured: ~1s per raycast, making the model unusably
+    // laggy), and it's also needlessly many draw calls per frame. World
+    // transforms are baked into each piece's geometry before merging, so
+    // the combined result doesn't depend on the original (now-discarded)
+    // mesh hierarchy.
+    const pieceGeometries = meshes.map(m => {
+      const g = m.geometry.clone();
+      g.applyMatrix4(m.matrixWorld);
+      // Merge only needs position + normal — drop anything else so
+      // pieces with mismatched attribute sets (e.g. some with UVs, some
+      // without) can still merge instead of silently failing.
+      Object.keys(g.attributes).forEach(name => {
+        if(name !== "position" && name !== "normal") g.deleteAttribute(name);
+      });
+      if(!g.attributes.normal) g.computeVertexNormals();
+      return g;
+    });
+    const merged = mergeGeometries(pieceGeometries, false);
+    pieceGeometries.forEach(g => g.dispose());
+
+    const baseMaterial = Array.isArray(meshes[0].material) ? meshes[0].material[0] : meshes[0].material;
+    const material = baseMaterial.clone();
+
+    // The originals are now fully represented by `merged` — remove them
+    // so they're not still rendered (and raycastable) alongside it.
     meshes.forEach(m => {
-      if(Array.isArray(m.material)) m.material = m.material.map(mat => mat.clone());
-      else if(m.material) m.material = m.material.clone();
+      if(m.parent) m.parent.remove(m);
+      m.geometry.dispose();
     });
 
-    const box = new THREE.Box3();
-    meshes.forEach(m => box.expandByObject(m));
-    const center = box.getCenter(new THREE.Vector3());
+    // Recenter the merged geometry on its own bounding-box center (data
+    // is already in world space from applyMatrix4 above), then park the
+    // wrapping group at that center — this is what makes the hover
+    // scale-up grow the part around its own middle rather than the
+    // model's or world origin.
+    merged.computeBoundingBox();
+    const center = merged.boundingBox.getCenter(new THREE.Vector3());
+    merged.translate(-center.x, -center.y, -center.z);
 
+    const mesh = new THREE.Mesh(merged, material);
     const group = new THREE.Group();
     group.name = "muscle-group-" + key;
     group.position.copy(center);
+    group.add(mesh);
     scene.add(group);
-    meshes.forEach(m => group.attach(m));
 
     muscleGroups[key] = group;
   });
@@ -233,8 +280,44 @@ function raycastAt(clientX, clientY){
   return hits.length > 0 ? muscleKeyForMesh(hits[0].object) : null;
 }
 
-function onModelReady(el, object){
+// Rhino's own glTF exporter is expected to convert its native Z-up scene
+// into glTF's required Y-up convention, but in practice (this app's own
+// export) it doesn't — the model comes in lying down, as if the Z-up
+// data were reinterpreted as Y-up without rotating it. The .3dm path
+// (Rhino3dmLoader) doesn't have this problem. Rather than guess forever,
+// this is one fixed correction applied only to the glTF path; if a
+// different export ever comes in right-side-up on its own, drop this to
+// 0.
+const GLTF_ROTATE_X_DEG = 90;
+
+// Rhino's glTF export sometimes leaves objects with no material
+// explicitly assigned, which comes through as a black, fully-metallic
+// PBR material — under this scene's simple two-light setup that reflects
+// almost no light back to the camera, rendering as a solid black
+// silhouette instead of the neutral grey seen via the .3dm path. Swap
+// that specific degenerate case for a sensible default; anything with an
+// actual assigned color/material is left untouched.
+function sanitizeMaterials(root){
+  const seen = new Set();
+  root.traverse(obj => {
+    if(!obj.isMesh || !obj.material) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach(mat => {
+      if(seen.has(mat) || !mat.color) return;
+      seen.add(mat);
+      const isBlack = mat.color.r < 0.08 && mat.color.g < 0.08 && mat.color.b < 0.08;
+      if(isBlack && (mat.metalness ?? 0) >= 0.9){
+        mat.color.setHex(0x9a9a9a);
+        mat.metalness = 0;
+        mat.roughness = 0.6;
+      }
+    });
+  });
+}
+
+function onModelReady(el, object, rotateXDeg){
   model = object;
+  if(rotateXDeg) model.rotation.x = rotateXDeg * Math.PI / 180;
   // Scale first, then recompute the box and recenter — position is
   // applied in the *scaled* object's parent space, so centering with a
   // pre-scale box's center would offset it by the wrong amount
@@ -246,6 +329,7 @@ function onModelReady(el, object){
   const scaledBox = new THREE.Box3().setFromObject(model);
   model.position.sub(scaledBox.getCenter(new THREE.Vector3()));
   scene.add(model);
+  sanitizeMaterials(model);
   organizeMuscleGroups(model);
   clearMessage(el);
 }
@@ -288,7 +372,7 @@ function ensureScene(el){
   // case until one's been exported, not a real error.
   new GLTFLoader().load(
     GLTF_MODEL_URL,
-    (gltf) => onModelReady(el, gltf.scene),
+    (gltf) => onModelReady(el, gltf.scene, GLTF_ROTATE_X_DEG),
     undefined,
     () => loadRhino(el)
   );

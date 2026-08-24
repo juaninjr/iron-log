@@ -146,56 +146,76 @@ straight back to showing everything.
 
 **The muscle-select stage's 3D model** (`wheel3d.js`, a separate ES module
 — see "What this is" above) tries `models/muscle-select.glb` first via
-`GLTFLoader` — the fast path, small file, no extra decoder download — and
-silently falls back to `models/human.3dm`, the raw Rhino file, loaded via
-Three.js's `Rhino3dmLoader` (backed by the `rhino3dm` WASM decoder,
-pulled from a CDN at runtime, not vendored) if no `.glb` exists yet.
-Either way the result feeds into `onModelReady()`, which centers and
-scales it to a consistent size regardless of the source model's
-units/pivot, and spins it in response to drag (with a small idle
-auto-spin when left alone) via a `requestAnimationFrame` loop. It exposes
-exactly three methods on `window.IronLogWheel3D` — `show(container)`,
-`hide()`, `resize()` — so the main IIFE can drive it without being a
-module itself: `show()` lazily creates the renderer/scene on first call
-and is otherwise idempotent (safe to call every time `enterMuscleGate()`
-runs), `hide()` just cancels the animation frame loop (called from
-`leaveMuscleGate()`) so it isn't burning battery while off-screen, and
-`resize()` is wired into the existing window `resize` listener. If
-neither model file exists, `wheel3d.js` renders a placeholder message
-instead of a blank canvas. **`models/human.3dm` is ~70MB** — see
-`models/README.md` for why that makes the first load slow and how
-dropping in `models/muscle-select.glb` fixes it automatically (no code
-changes — `wheel3d.js` already checks for it first on every load).
+`GLTFLoader` — the fast path, small file, no extra decoder download, and
+what's currently in place — and silently falls back to `models/human.3dm`,
+the raw Rhino file, loaded via Three.js's `Rhino3dmLoader` (backed by the
+`rhino3dm` WASM decoder, pulled from a CDN at runtime, not vendored) if
+no `.glb` exists. Either way the result feeds into `onModelReady()`,
+which optionally rotates it (see below), centers and scales it to a
+consistent size regardless of the source model's units/pivot, runs
+`sanitizeMaterials()` (see below), and spins it in response to drag (with
+a small idle auto-spin when left alone) via a `requestAnimationFrame`
+loop. It exposes exactly three methods on `window.IronLogWheel3D` —
+`show(container)`, `hide()`, `resize()` — so the main IIFE can drive it
+without being a module itself: `show()` lazily creates the renderer/scene
+on first call and is otherwise idempotent (safe to call every time
+`enterMuscleGate()` runs), `hide()` just cancels the animation frame loop
+(called from `leaveMuscleGate()`) so it isn't burning battery while
+off-screen, and `resize()` is wired into the existing window `resize`
+listener. If neither model file exists, `wheel3d.js` renders a
+placeholder message instead of a blank canvas.
 
-**Individual parts of the 3D model are hoverable/clickable**, keyed off
-each mesh's `.name` — both loaders carry the source object's Name through
-(Rhino3dmLoader from the Rhino object's own Name property), so any
-SubD/mesh object named (or containing) `chest`, `back`, `shoulders`,
-`arms`, `core`, or `legs` gets picked up by `organizeMuscleGroups()` at
-load time and reparented (via `Group.attach()`, which preserves world
-transform) into a per-muscle `THREE.Group` positioned at that bucket's
-own combined bounding-box center — so the hover effect (`setHighlighted()`:
-scale up + emissive glow, color from `MUSCLE_GLOW_COLOR`, a
-hand-kept-in-sync duplicate of `MUSCLE_COLORS`) grows each part around
-its own middle, not the model's origin. On the `.3dm` path specifically,
-if an object's own Name doesn't match, `organizeMuscleGroups()` also
-checks the object's Rhino **Layer** name as a fallback (via
-`.userData.attributes.layerIndex` into the root's `.userData.layers`,
-both of which `Rhino3dmLoader` populates) — so grouping by layer instead
-of renaming every individual object works too; this fallback has no glTF
-equivalent. `raycastAt()` drives both true hover (desktop mousemove) and
-touch (a raycast seeded at `pointerdown`, since touch has no
-hover-before-touch); a release that wasn't a drag on a currently-hovered
-part dispatches a `musclepick` CustomEvent on `#wheel3dContainer`
-(`detail.muscle`), which `index.html` listens for once in `init()` and
-forwards straight into `confirmMuscleSelection()` — same effect as
-clicking the button row, which stays wired up as a fallback for parts
-that don't hover cleanly or touch devices where precision taps are
-harder. Naming instructions (and how to tune
+**Two glTF-export-specific fixups live in `wheel3d.js`, both discovered
+by actually loading this app's own exported file** (`models/README.md`
+has the reasoning): `GLTF_ROTATE_X_DEG` (currently `90`) corrects Rhino's
+glTF exporter not actually converting its native Z-up scene to glTF's
+required Y-up, applied only on the glTF path, never the `.3dm` one; and
+`sanitizeMaterials()` detects Rhino's "no material assigned" default —
+which exports as pure black + fully metallic, rendering as a solid black
+silhouette under this scene's simple lighting — and swaps in a neutral
+grey non-metallic default, leaving any genuinely-assigned material alone.
+Both are one-time corrections for this specific export, not universal
+glTF handling; revisit them if a future export already comes in
+right-side-up or with real materials.
+
+**Individual parts of the 3D model are hoverable/clickable**, matched (in
+order, for every mesh) against the mesh's own Name, then **any ancestor
+node's Name** walking up to the model root, then (`.3dm`-only) the mesh's
+Rhino Layer name read via `Rhino3dmLoader`'s per-mesh `.userData.attributes.layerIndex`
+into the root's `.userData.layers`. The ancestor-walk is what actually
+matters for a glTF export: Rhino's glTF exporter turns each **Layer**
+into a named parent Group wrapping that layer's objects, while the
+individual mesh primitives underneath get auto-split into many small,
+generically-named pieces (thousands, for this app's model) — so it's the
+*layer name showing up as an ancestor* that carries the muscle name
+through, not the leaf meshes' own names. `organizeMuscleGroups()` buckets
+matched meshes by muscle key, then **merges each bucket's fragments into
+a single combined mesh** via `BufferGeometryUtils.mergeGeometries()`
+(baking in each fragment's `matrixWorld` first) — raycasting against
+thousands of individual tiny meshes on every pointer move measured at
+roughly 1 second per hover check before this, unusably laggy; merged, it's
+sub-millisecond. Each merged mesh's material is cloned before the hover
+effect ever touches it (`setHighlighted()`/`applyHighlight()`: scale up +
+emissive glow, color from `MUSCLE_GLOW_COLOR`, a hand-kept-in-sync
+duplicate of `MUSCLE_COLORS`) — Rhino/glTF exports commonly share one
+material instance across many objects, so mutating it in place would leak
+the glow onto unrelated parts (this actually happened before the clone
+was added). The merged geometry is also recentered on its own
+bounding-box center, with the wrapping `THREE.Group` parked at that
+center in world space, so the hover scale-up grows each part around its
+own middle, not the model's origin. `raycastAt()` drives both true hover
+(desktop mousemove) and touch (a raycast seeded at `pointerdown`, since
+touch has no hover-before-touch); a release that wasn't a drag on a
+currently-hovered part dispatches a `musclepick` CustomEvent on
+`#wheel3dContainer` (`detail.muscle`), which `index.html` listens for
+once in `init()` and forwards straight into `confirmMuscleSelection()` —
+same effect as clicking the button row, which stays wired up as a
+fallback for parts that don't hover cleanly or touch devices where
+precision taps are harder. Naming instructions (and how to tune
 `HOVER_SCALE`/`HOVER_EMISSIVE_INTENSITY`/`MUSCLE_GLOW_COLOR`) are in
-`models/README.md`. Unnamed or unmatched geometry renders normally
-but is inert — this degrades gracefully, so a model with no named parts
-at all (as originally dropped in) just isn't interactive yet, not broken.
+`models/README.md`. Unnamed or unmatched geometry renders normally but is
+inert — this degrades gracefully, so a model with no recognized parts at
+all just isn't interactive yet, not broken.
 
 **The main nav is a hamburger dropdown, not a tab bar.** `#navToggle` (the
 three-bar button in the header's corner) toggles an `.open` class on
