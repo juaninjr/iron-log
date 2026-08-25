@@ -76,10 +76,21 @@ alter table public.diana_qa enable row level security;
 -- questions/answers via the table editor or your own `update` statement
 -- once you're ready (matched case-insensitively, trimmed, by the Edge
 -- Function — see supabase/functions/diana-qa/index.ts).
-insert into public.diana_qa (question, answer) values
+--
+-- `id` is auto-generated (serial), so a plain `on conflict do nothing`
+-- can never actually detect a conflict here — re-running the insert would
+-- just add a second pair of placeholder rows every time, including
+-- alongside real questions you'd already swapped in. Gating on "the table
+-- is still empty" instead (same pattern this app's own loadExercises()
+-- uses to seed defaults) makes this genuinely safe to re-run: it seeds
+-- once, and never again once anything — placeholder or real — exists.
+insert into public.diana_qa (question, answer)
+select v.question, v.answer
+from (values
   ('PLACEHOLDER — replace with a real question', 'placeholder-answer-1'),
   ('PLACEHOLDER — replace with a second real question', 'placeholder-answer-2')
-on conflict do nothing;
+) as v(question, answer)
+where not exists (select 1 from public.diana_qa);
 
 -- Server-side rate limiting for the Q&A step, independent of the
 -- figurine grid's own cooldown (figurine_attempts) since it's a
