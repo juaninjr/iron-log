@@ -233,6 +233,20 @@ function enterApp(profile) {
   $("#gateScreen").hidden = true;
   $(".wrap").hidden = false;
   init();
+  if (profile === "diana") showLoginGreeting();
+}
+
+// A one-time "Hola Di!" toast right as her gate unlocks — not shown on a
+// plain page reload of an already-unlocked session (bootstrap()'s
+// return-visit branches call init() directly, never this function), just
+// the actual login moment. The fade-out is a pure CSS animation
+// (.login-greeting, style.css); this just re-hides the element once it's
+// done so it doesn't linger in the a11y tree.
+function showLoginGreeting() {
+  const el = $("#loginGreeting");
+  if (!el) return;
+  el.hidden = false;
+  setTimeout(() => { el.hidden = true; }, 3600);
 }
 
 // ---------- Diana's gate-enabled toggle (diana_gate_settings) ----------

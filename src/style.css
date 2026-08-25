@@ -699,6 +699,32 @@
   .group-edit-head .edit-date{max-width:160px;}
   .group-edit-head .edit-exercise{max-width:220px;}
 
+  /* Diana's one-time login greeting (#loginGreeting, shown by
+     showLoginGreeting() in gate.js) — fades in, holds, fades out on its
+     own via the animation; JS just re-hides the element once it's done
+     so it doesn't sit in the a11y tree. */
+  .login-greeting{
+    position:fixed;
+    top:20px;
+    left:50%;
+    z-index:200;
+    background:var(--ink);
+    color:#fff;
+    font-weight:800;
+    font-size:1.1rem;
+    padding:10px 22px;
+    border-radius:30px;
+    box-shadow:var(--shadow);
+    pointer-events:none;
+    animation:login-greeting-fade 3.5s ease forwards;
+  }
+  @keyframes login-greeting-fade{
+    0%{opacity:0;transform:translate(-50%,-10px);}
+    12%{opacity:1;transform:translate(-50%,0);}
+    80%{opacity:1;}
+    100%{opacity:0;}
+  }
+
   /* Gate: figurine grid + stranger auth */
   .gate-screen{
     position:fixed;inset:0;z-index:100;
