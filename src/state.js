@@ -131,6 +131,8 @@ export const PROFILES = {
     muscleLabels: OWNER_MUSCLE_LABELS,
     muscleColors: OWNER_MUSCLE_COLORS,
     defaultExercises: DEFAULT_EXERCISES,
+    modelGlb: "/models/muscle-select.glb",
+    modelRhino: "/models/human.3dm",
     // Identity mapping — these keys ARE the 3D model's own named Rhino
     // layers (see models/README.md), so each just matches itself.
     modelLayerAliases: { chest: ["chest"], back: ["back"], shoulders: ["shoulders"], arms: ["arms"], core: ["core"], legs: ["legs"] },
@@ -145,15 +147,20 @@ export const PROFILES = {
     // palette (blue/amber/red/purple), just 4 of them instead of 6.
     muscleColors: { upper: "#2a78d6", glutes: "#eda100", legs: "#e34948", core: "#4a3aa7" },
     defaultExercises: DIANA_DEFAULT_EXERCISES,
-    // The shared 3D model (see CLAUDE.md — Diana doesn't have her own
-    // female_human.3dm yet) only has chest/back/shoulders/arms/core/legs
-    // layers. "upper" is the union of the 4 upper-body ones; "legs" maps
-    // directly. "glutes" has no dedicated geometry in this model at all,
-    // so it's deliberately left out here — buildMusclePickRow() (log-
-    // tab.js) reads .muscles, not this map, so "Glutes" still works as a
-    // button-row pick; it just never highlights on the 3D model until a
-    // real female_human.3dm with its own glutes layer replaces this.
-    modelLayerAliases: { upper: ["chest", "back", "shoulders", "arms"], legs: ["legs"], core: ["core"] },
+    // Her own model now (was the owner's, temporarily, before this
+    // existed) — public/models/diana-muscle-select.glb (the fast path)/
+    // diana-human.3dm, from models/female.glb/female_human.3dm.
+    modelGlb: "/models/diana-muscle-select.glb",
+    modelRhino: "/models/diana-human.3dm",
+    // This model's own Rhino layers are "Core"/"Legs"/"Glutes" (each
+    // wrapping one named body part) plus one default, unnamed-by-the-
+    // artist layer ("Layer 01" — glTF export names it after Rhino's
+    // default-layer convention) holding everything else: the whole upper
+    // body, unsplit, exactly matching Diana's single "Upper Body
+    // (general)" category rather than the owner's 4-way chest/back/
+    // shoulders/arms breakdown. Confirmed by inspecting female.glb's own
+    // node names directly — see CLAUDE.md.
+    modelLayerAliases: { upper: ["layer 01"], glutes: ["glutes"], legs: ["legs"], core: ["core"] },
   },
 };
 

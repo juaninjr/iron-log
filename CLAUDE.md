@@ -145,22 +145,40 @@ called any time `state.activeProfile` changes; every real call site
 (`enterApp()`, both `bootstrap()` unlock branches) already does this — if
 you add a new one, call it too.
 
-**Diana's muscle categories don't match the shared 3D model's named
-layers.** She doesn't have her own `female_human.3dm` yet (a known
-follow-up — reusing the owner's model was an explicit, temporary choice),
-and that model's parts are only named chest/back/shoulders/arms/core/legs.
-Each profile's `modelLayerAliases` (`state.js`) maps its *own* muscle keys
-onto the model's actual layer-name substrings — for the owner this is the
-identity mapping; for Diana, `"upper"` aliases the union of all four
-upper-body layers (hovering "Upper Body" highlights the whole upper body
-at once), `"legs"` maps directly, and `"glutes"` is *not* in the map at
-all, on purpose — she still gets a "Glutes" button (`buildMusclePickRow()`
-reads `.muscles`, not this map) and it still works for logging, it just
-never lights up on the 3D model. `wheel3d.js`'s `organizeMuscleGroups()`
-reads this map instead of a flat key list now, so it had to start
-importing `state.js` (it deliberately didn't before — not worth plumbing
-for 6 static hex codes — but that stopped being true with two real,
-differently-shaped profiles).
+**Each profile has its own 3D model now** — `modelGlb`/`modelRhino`
+(`PROFILES`, `state.js`) point `wheel3d.js` at the right pair of files:
+the owner's `public/models/muscle-select.glb`/`human.3dm`, Diana's
+`public/models/diana-muscle-select.glb`/`diana-human.3dm` (from
+`models/female.glb`/`female_human.3dm` — the repo-root `models/` folder,
+documentation/staging only, is where dropped-in source files land before
+being copied into `public/models/` under their real runtime names). **Only
+Diana's `.glb` is actually committed** — her `.3dm` is ~101MB, just over
+GitHub's 100MB-per-file push limit (a real rejected push, not a
+theoretical concern — see `models/README.md`), so it exists locally but
+isn't in the deployed build; her `.glb` (the fast path, and what actually
+loads in practice) is unaffected. `ensureScene()`/`loadRhino()` read
+`activeProfile().modelGlb`/`.modelRhino` instead of a flat constant; safe
+to read once, since the scene is only ever built once per page load
+(`if(renderer) return;`) and
+the active profile is already fixed for the session by then.
+
+**Each profile's `modelLayerAliases` (`state.js`) maps its *own* muscle
+keys onto its *own* model's actual layer-name substrings** — for the
+owner this is the identity mapping (chest/back/shoulders/arms/core/legs
+are literally the model's own Rhino layer names). Diana's model has real
+`Core`/`Legs`/`Glutes` layers (confirmed by parsing `female.glb`'s glTF
+JSON chunk directly — no Rhino needed, it's an open, inspectable format)
+plus one default, artist-unnamed layer ("Layer 01," Rhino's fallback name
+for anything not assigned to a real layer) holding everything else — the
+whole upper body, unsplit, which happens to match her single "Upper Body
+(general)" category exactly. So `modelLayerAliases: { upper: ["layer
+01"], glutes: ["glutes"], legs: ["legs"], core: ["core"] }` — all four of
+her categories now have real 3D geometry, including glutes, which the
+earlier shared-model version deliberately couldn't offer.
+`wheel3d.js`'s `organizeMuscleGroups()` reads this map instead of a flat
+key list, so it had to start importing `state.js` (it deliberately didn't
+before — not worth plumbing for 6 static hex codes — but that stopped
+being true once there were two real, differently-shaped profiles).
 
 **Diana's page has a second factor the owner's doesn't**: after her
 figurine cell is verified (see "The gate" below), a security-question
@@ -708,12 +726,30 @@ cross-contamination between the two profiles' data.
   - The real figurine-cell → Q&A → unlock round trip against production
     Supabase hasn't been (and can't safely be) exercised by Claude — walk
     through it once deployed.
-  - Diana's 3D model still reuses the owner's `human.3dm`/
-    `muscle-select.glb` — her "glutes" category has no dedicated geometry
-    and never highlights on the model (button-row picking still works
-    fine). Swapping in a real `female_human.3dm` later is a known,
-    not-yet-started follow-up — see "Profiles: the owner and Diana" above
-    for exactly what `modelLayerAliases` would need to change.
+  - Diana's own model (`public/models/diana-muscle-select.glb`, plus
+    `diana-human.3dm` locally — see below) has replaced the earlier
+    shared-owner's-model stand-in — all 4 of her categories, including
+    glutes, now have real 3D geometry and hover/highlight correctly.
+    Verified visually (two-way hover on "Glutes" specifically, plus a
+    full rotate-and-inspect pass on the model itself) against a
+    throwaway copy defaulted to `state.activeProfile = "diana"`. The
+    model's own pose (limbs bent, mid-motion, not a neutral standing pose
+    like the owner's) is intentional on the artist's part, confirmed by
+    rotating the camera around it — not an orientation bug;
+    `GLTF_ROTATE_X_DEG` (`wheel3d.js`) needed no per-profile change, same
+    `90` works for both exports.
+  - `diana-human.3dm` (~101MB) is over GitHub's 100MB-per-file push
+    limit — `git push` rejected it outright the first time (the commit
+    had to be redone with that one file unstaged, via `git reset --soft
+    HEAD~1` since the rejected push never reached the remote, nothing
+    shared was touched). It's still present locally, un-tracked, so local
+    dev has the full owner-equivalent fast-path+fallback setup, but the
+    deployed build only has Diana's `.glb`. Not currently a functional
+    problem (the `.glb` is the one that actually loads), but means her
+    setup has no `.3dm` safety net server-side if that ever changes —
+    see `models/README.md` for the fix options (shrink the file in Rhino
+    below 100MB, or Git LFS, deliberately not set up without checking
+    with the user first).
 - The "Knife" rebrand (wordmark + ghost-vibrate title, Geist Sans, the
   quick-log stage, two-way wheel/button hover, the house/knives hover
   icon, the gate's figurine art) is done — see "Brand: the 'Knife'

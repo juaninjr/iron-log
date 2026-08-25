@@ -3,16 +3,39 @@
 The app this model lives in is also branded/known as **Knife**
 (kknniiffee.com) in its own UI.
 
-`wheel3d.js` (`src/wheel3d.js`) tries `/models/muscle-select.glb` first
-(the fast path, and what's currently in place); if that doesn't exist, it
-falls back to `/models/human.3dm`, the raw Rhino file, loaded directly via
-Three.js's `Rhino3dmLoader` (backed by the `rhino3dm` WASM decoder, pulled
-from a CDN at runtime) — no export step needed for that path. Both files
-live in `public/models/` (this repo-root `models/` folder is
-documentation only, not deployed — see CLAUDE.md's "Module map").
-Replacing either file in `public/models/` is all it takes to change the
-model; no code changes needed. Until one of them exists, you'll see a
-placeholder message on the page instead of a broken/blank canvas.
+There are two models now, one per profile — the owner and Diana each have
+their own (`PROFILES.owner.modelGlb`/`.modelRhino` and
+`PROFILES.diana.modelGlb`/`.modelRhino` in `src/state.js`), and
+`wheel3d.js` (`src/wheel3d.js`) reads whichever pair belongs to
+`activeProfile()`. For each pair, it tries the `.glb` first (the fast
+path); if that doesn't exist, it falls back to the `.3dm`, the raw Rhino
+file, loaded directly via Three.js's `Rhino3dmLoader` (backed by the
+`rhino3dm` WASM decoder, pulled from a CDN at runtime) — no export step
+needed for that path. This repo-root `models/` folder is documentation
+*and* the staging area dropped-in source files land in before being
+copied into `public/models/` under their real runtime names (not deployed
+itself — see CLAUDE.md's "Module map"). Replacing a file in
+`public/models/` is all it takes to change that profile's model; no code
+changes needed unless its layer names differ from what
+`modelLayerAliases` already expects (see "Making parts clickable" below).
+Until a profile's files exist, you'll see a placeholder message on the
+page instead of a broken/blank canvas.
+
+**The owner's pair is fully committed**
+(`public/models/muscle-select.glb`/`human.3dm`, both under GitHub's
+100MB-per-file hard limit). **Diana's `.glb`
+(`public/models/diana-muscle-select.glb`, ~33MB) is committed too, but
+her `.3dm` isn't** — `diana-human.3dm` is ~101MB, just over that limit,
+so `git push` rejects it outright (this happened for real; the commit had
+to be redone without it). It still exists locally (copied from
+`models/female_human.3dm` the same as everything else) and the app finds
+it fine in local dev, but it isn't in the deployed build — if her `.glb`
+ever failed to load in production, there'd be no `.3dm` fallback to catch
+it, unlike the owner's setup. Fixing this for real needs one of: Git LFS
+(a bigger, deliberate infra change — don't set this up without checking
+with the user first, since it changes how the whole repo is stored and
+has its own storage/bandwidth quotas), or shrinking the file below 100MB
+in Rhino first (`Purge` + "Save small," see below) and replacing it.
 
 ## Loading speed
 
@@ -25,7 +48,11 @@ parse the whole thing.
 `public/models/muscle-select.glb` (currently ~11MB) fixes this —
 `wheel3d.js` already checks for it first on every load and uses it
 automatically, falling back to the `.3dm` only if it's missing. No code
-changes needed either way.
+changes needed either way. Diana's `.glb` (~33MB) is meaningfully heavier
+than the owner's — same fast-path behavior, but everything below about
+shrinking a model applies more to hers if load time on her page ever
+becomes worth trimming (doubly so for her `.3dm`, at ~101MB not even
+committed to the repo — see above).
 
 **The other big lever is polygon count**, independent of file format:
 the current model has ~2 million triangles, and two single pieces account
@@ -37,9 +64,12 @@ format substantially further, and also speeds up in-browser rendering,
 independent of load time.
 
 Secondary wins if working from the `.3dm`: Rhino's `Purge` command and
-saving with "Save small" checked can shrink it without changing format.
-Committing `human.3dm` also bakes ~70MB into git history permanently even
-after it's replaced — worth keeping in mind either way.
+saving with "Save small" checked can shrink it without changing format —
+worth doing for `diana-human.3dm` regardless of the git-history point
+below, since it needs to drop under GitHub's 100MB file limit just to be
+committable at all (see above). Committing a `.3dm` also bakes its full
+size into git history permanently even after it's replaced — `human.3dm`
+(~70MB) did this; worth keeping in mind for any future model too.
 
 ## Sizing / orientation / material quirks (glTF export)
 
@@ -91,12 +121,29 @@ every mesh in the model:
    Rhino3dmLoader's attributes (no ancestor-node equivalent on that path).
 
 To make a part recognized: in Rhino, get every SubD/mesh object for one
-muscle group onto a Layer (or set each object's own Name) called one of
-`chest`, `back`, `shoulders`, `arms`, `core`, `legs` — case-insensitive,
-and only needs to *contain* the word (`"Chest_L"`, `"chest-01"`, etc. all
+muscle group onto a Layer (or set each object's own Name), then tell the
+app which raw layer-name substrings map to which of that profile's own
+muscle keys — `modelLayerAliases` in `PROFILES.owner`/`PROFILES.diana`
+(`src/state.js`). For the owner this is the identity mapping (his
+model's own layers are literally named `chest`/`back`/`shoulders`/`arms`/
+`core`/`legs`); Diana's model has real `Core`/`Legs`/`Glutes` layers plus
+one artist-default layer ("Layer 01," Rhino's fallback name for anything
+not assigned a real layer) that turned out to hold her whole upper body
+unsplit — so her map is `{ upper: ["layer 01"], glutes: ["glutes"],
+legs: ["legs"], core: ["core"] }`. Matching is case-insensitive and only
+needs to *contain* the alias string (`"Chest_L"`, `"chest-01"`, etc. all
 match `"chest"`). Anything left unmatched still renders normally, it's
-just not hoverable/clickable. Re-export/re-save and replace whichever
-model file you're using in `public/models/` — no code changes needed.
+just not hoverable/clickable.
+
+**Figuring out a new model's actual layer names doesn't need Rhino** — a
+`.glb` is just JSON plus a binary buffer, an open, fully-documented
+format; reading its node names directly (e.g. a short Python/Node script
+parsing the 12-byte glTF header, then the JSON chunk that follows) shows
+exactly what Rhino's exporter named each layer group, without guessing or
+needing rhino3dm installed. Re-export/re-save and replace whichever model
+file you're using in `public/models/` under its existing runtime name —
+no code changes needed unless the layer names themselves changed, in
+which case update that profile's `modelLayerAliases` to match.
 
 **Performance note**: a glTF export commonly fragments one logical body
 part into hundreds or thousands of tiny mesh primitives (see above).
@@ -114,8 +161,10 @@ thousands might need it revisited).
 Hovering a part changes its color only (no size change — an earlier
 scale-up version made parts visibly shift position, since a part's own
 "center" isn't always where it visually looks centered). In `wheel3d.js`:
-`HOVER_EMISSIVE_INTENSITY` (how strong the glow is) and
-`MUSCLE_GLOW_COLOR` (the glow's tint per muscle — currently matches this
-app's `MUSCLE_COLORS` palette in `src/state.js`, kept in sync by hand
-since `wheel3d.js` doesn't import from `state.js`, to keep it a
-self-contained module with no dependency on the rest of the app's state).
+`HOVER_EMISSIVE_INTENSITY` (how strong the glow is, one constant for
+both profiles) and the glow's tint per muscle, which now comes straight
+from `activeProfile().muscleColors` (`state.js`, the same colors the rest
+of the app's UI uses for that profile) rather than a separate hardcoded
+map — `wheel3d.js` imports `state.js` for this (and for
+`modelLayerAliases` above), which it deliberately didn't back when there
+was only one profile's 6 static hex codes to duplicate.

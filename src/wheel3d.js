@@ -51,8 +51,6 @@ import { Rhino3dmLoader } from "three/addons/loaders/3DMLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { activeProfile } from "./state.js";
 
-const GLTF_MODEL_URL = "/models/muscle-select.glb";
-const RHINO_MODEL_URL = "/models/human.3dm";
 // Pinned to the version the three.js r160 examples document as
 // compatible with this loader — a mismatched rhino3dm version can throw
 // binding errors on load (e.g. SubD mesh conversion) for models that use
@@ -372,15 +370,16 @@ function onModelReady(el, object, rotateXDeg){
 }
 
 function loadRhino(el){
+  const rhinoUrl = activeProfile().modelRhino;
   const loader = new Rhino3dmLoader();
   loader.setLibraryPath(RHINO3DM_LIBRARY_PATH);
   loader.load(
-    RHINO_MODEL_URL,
+    rhinoUrl,
     (object) => onModelReady(el, object),
     undefined,
     (err) => {
-      console.error("IronLogWheel3D: could not load", RHINO_MODEL_URL, err);
-      setMessage(el, "3D model failed to load — check public/models/human.3dm or public/models/muscle-select.glb exist (see models/README.md).");
+      console.error("IronLogWheel3D: could not load", rhinoUrl, err);
+      setMessage(el, "3D model failed to load — check the active profile's model files exist under public/models/ (see models/README.md).");
     }
   );
 }
@@ -406,9 +405,12 @@ function ensureScene(el){
   // Fast path first: a glTF export, if one exists, loads in a fraction
   // of the time (small binary file, no rhino3dm WASM download). Falls
   // back to the raw Rhino file silently — a missing .glb is the expected
-  // case until one's been exported, not a real error.
+  // case until one's been exported, not a real error. Whichever profile
+  // is active by the time this first runs (scene build is a one-time,
+  // per-page-load thing — see the guard above) picks the file: each
+  // profile's own modelGlb/modelRhino, state.js.
   new GLTFLoader().load(
-    GLTF_MODEL_URL,
+    activeProfile().modelGlb,
     (gltf) => onModelReady(el, gltf.scene, GLTF_ROTATE_X_DEG),
     undefined,
     () => loadRhino(el)
