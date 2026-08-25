@@ -78,7 +78,7 @@ export const EXERCISE_BACKUPS_STORAGE_KEY = "ironlog:deletedExerciseBackups";
 // screen already got past the app's own gate). Change this directly in
 // code for a different code; deleting an exercise with zero logged sets
 // skips this entirely (see deleteExerciseFlow(), exercises-tab.js).
-export const EXERCISE_DELETE_PIN = "482913";
+export const EXERCISE_DELETE_PIN = "879651";
 
 // ---------- Database config (Supabase) ----------
 // Fill these in after creating a Supabase project and running supabase/schema.sql.
