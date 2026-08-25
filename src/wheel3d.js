@@ -519,11 +519,4 @@ function hoverMuscle(key){
   setHoveredKey(key);
 }
 
-// Current drag/momentum speed, used by log-tab.js to scale the wheel
-// backdrop title's vibration amplitude — the harder the model's being
-// twisted, the more it jitters.
-function getTwistIntensity(){
-  return Math.abs(velocity);
-}
-
-window.IronLogWheel3D = { show, hide, resize, hoverMuscle, getTwistIntensity };
+window.IronLogWheel3D = { show, hide, resize, hoverMuscle };

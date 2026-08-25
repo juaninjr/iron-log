@@ -212,7 +212,6 @@
      morphing into the other rather than a plain icon swap. */
   .skip-to-log-btn{
     position:relative;
-    z-index:1;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -225,18 +224,22 @@
     cursor:pointer;
   }
   .skip-to-log-btn svg{fill:currentColor;display:block;}
-  .skip-to-log-btn .house-icon, .skip-to-log-btn .knives-icon svg{
+  .skip-to-log-btn .house-icon, .skip-to-log-btn .knives-icon{
     position:absolute;inset:0;margin:auto;
     transition:opacity 0.2s ease, transform 0.2s ease;
   }
   .skip-to-log-btn .house-icon{opacity:1;transform:rotate(0deg);}
-  .skip-to-log-btn .knives-icon svg{opacity:0;transform:rotate(-20deg) scale(0.8);width:22px;height:22px;}
+  .skip-to-log-btn .knives-icon{opacity:0;transform:rotate(-20deg) scale(0.8);width:22px;height:22px;}
+  /* Two copies of the same knife image, pre-rotated ±45° to form an X —
+     same technique the SVG version used (two <g transform="rotate(...)">
+     copies of one path), just with an <img> in place of the inline path. */
+  .skip-to-log-btn .knives-icon img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+  .skip-to-log-btn .knives-icon .knife-a{transform:rotate(45deg);}
+  .skip-to-log-btn .knives-icon .knife-b{transform:rotate(-45deg);}
   .skip-to-log-btn:hover .house-icon, .skip-to-log-btn:focus-visible .house-icon{opacity:0;transform:rotate(20deg);}
-  .skip-to-log-btn:hover .knives-icon svg, .skip-to-log-btn:focus-visible .knives-icon svg{opacity:1;transform:rotate(0deg) scale(1);}
-  #muscleSelectStage{position:relative;}
+  .skip-to-log-btn:hover .knives-icon, .skip-to-log-btn:focus-visible .knives-icon{opacity:1;transform:rotate(0deg) scale(1);}
   .wheel3d-wrap{
     position:relative;
-    z-index:1;
     height:min(58vh, 520px);
     min-height:300px;
     touch-action:none;
@@ -244,28 +247,7 @@
   }
   .wheel3d-wrap:active{cursor:grabbing;}
   .wheel3d-wrap canvas{display:block;width:100%;height:100%;}
-  /* The low-opacity "Knife" wordmark behind the 3D model — its vibration
-     amplitude (--vibrate-amp) is driven from log-tab.js, scaling with how
-     hard the model is currently being twisted. */
-  .wheel-bg-title{
-    position:absolute;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    pointer-events:none;
-    z-index:0;
-    overflow:hidden;
-  }
-  .knife-logo--bg{
-    font-size:clamp(4rem, 20vw, 9rem);
-    font-weight:800;
-    color:var(--ink);
-    opacity:0.08;
-  }
   .muscle-pick-row{
-    position:relative;
-    z-index:1;
     display:flex;
     flex-wrap:wrap;
     justify-content:center;
@@ -450,6 +432,12 @@
   }
   .tool-btn:hover{border-color:var(--steel);color:var(--steel);}
   .tool-btn.danger:hover{border-color:var(--plate);color:var(--plate);}
+  /* Diana's gate toggle (header, next to the hamburger) — solid when the
+     gate is required, outlined when it's off, same on/off convention as
+     .tab-btn.active elsewhere in this file. */
+  .diana-gate-toggle{flex:none;}
+  .diana-gate-toggle.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .diana-gate-toggle.active:hover{background:var(--ink);color:#fff;border-color:var(--ink);}
 
   table{
     width:100%;
@@ -754,8 +742,8 @@
     cursor:pointer;
   }
   .figurine-cell:hover{background:var(--paper);}
-  .figurine-cell svg{width:100%;height:100%;transition:transform 0.3s ease;}
-  .figurine-cell:hover svg{transform:rotate(360deg);}
+  .figurine-cell svg, .figurine-cell img{width:100%;height:100%;object-fit:contain;transition:transform 0.3s ease;}
+  .figurine-cell:hover svg, .figurine-cell:hover img{transform:rotate(360deg);}
   .figurine-cell:disabled{cursor:default;opacity:0.55;}
   .gate-cooldown{
     margin-top:16px;

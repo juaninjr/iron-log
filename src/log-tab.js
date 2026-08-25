@@ -4,7 +4,6 @@ import { saveEntries, deleteEntries } from "./persistence.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
 import { renderSuggested } from "./suggested-tab.js";
-import { renderKnifeTitle } from "./brand.js";
 
 // Rebuilds the three muscle-scoped Set filters (state.js) off the active
 // profile's own muscle list — those Sets are built once at module-load
@@ -104,7 +103,6 @@ function showFullLogChrome() {
 // page; both of these are the only ways back to full chrome.
 export function leaveMuscleGate() {
   showFullLogChrome();
-  stopBgTitleVibration();
   if (window.IronLogWheel3D) window.IronLogWheel3D.hide();
 }
 
@@ -120,7 +118,6 @@ export function enterQuickLog(m) {
   $("#mainTabs").hidden = true;
   document.body.classList.remove("muscle-gate-active");
   document.body.classList.add("quick-log-active");
-  stopBgTitleVibration();
   if (window.IronLogWheel3D) window.IronLogWheel3D.hide();
   $("#quickLogTitle").textContent = activeProfile().muscleLabels[m];
   buildExerciseBlocks("#quickLogExerciseBlocks");
@@ -158,7 +155,6 @@ export function enterMuscleGate() {
   document.body.classList.remove("quick-log-active");
   document.body.classList.add("muscle-gate-active");
   buildMusclePickRow();
-  ensureBgTitle();
   if (window.IronLogWheel3D) window.IronLogWheel3D.show($("#wheel3dContainer"));
   // Model → button direction of the two-way hover — bound once per
   // #wheel3dContainer element, harmless to no-op re-add since the
@@ -172,42 +168,6 @@ export function enterMuscleGate() {
       });
     });
   }
-  startBgTitleVibration();
-}
-
-// ---------- Wheel-page backdrop title ----------
-// A huge, low-opacity "Knife" wordmark sitting behind the 3D model
-// (#wheelBgTitle, populated once here) — its vibration amplitude
-// (--vibrate-amp, read by the knife-vibrate keyframes in style.css) is
-// driven every frame from the model's current twist speed
-// (wheel3d.js's getTwistIntensity()) while the wheel stage is visible, so
-// it jitters harder the more the model is being dragged. The multiplier
-// and cap below keep it legible even at full twist speed.
-const VIBRATE_INTENSITY_SCALE = 8;
-const VIBRATE_AMP_MAX = 3;
-let bgTitleRaf = null;
-
-function ensureBgTitle() {
-  const el = $("#wheelBgTitle");
-  if (el && !el.innerHTML) el.innerHTML = renderKnifeTitle("bg");
-}
-
-function startBgTitleVibration() {
-  if (bgTitleRaf) return;
-  const el = $("#wheelBgTitle");
-  if (!el) return;
-  const tick = () => {
-    const intensity = window.IronLogWheel3D ? window.IronLogWheel3D.getTwistIntensity() : 0;
-    const amp = 1 + Math.min(intensity * VIBRATE_INTENSITY_SCALE, VIBRATE_AMP_MAX);
-    el.style.setProperty("--vibrate-amp", amp.toFixed(2));
-    bgTitleRaf = requestAnimationFrame(tick);
-  };
-  bgTitleRaf = requestAnimationFrame(tick);
-}
-
-function stopBgTitleVibration() {
-  if (bgTitleRaf) cancelAnimationFrame(bgTitleRaf);
-  bgTitleRaf = null;
 }
 
 // ---------- Exercise blocks / logging ----------

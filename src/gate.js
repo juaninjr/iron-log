@@ -14,15 +14,16 @@ import { resetProfileFilters } from "./log-tab.js";
 let dianaQaId = null;
 
 function figurineImg(src) {
-  return `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:contain;" loading="lazy">`;
+  return `<img src="${src}" alt="" loading="lazy">`;
 }
 
-// Swap the gate's decorative art to PNGs later by just filling in
-// FIGURINE_IMAGES (state.js) — this picks a random one and renders an
-// <img> instead of the knife glyph. onFigurineClick() only ever sees the
+// FIGURINE_IMAGES (state.js) is the gate's actual decorative art — this
+// picks a random entry and renders an <img>, in that image's own natural
+// color (no per-cell recoloring). Falls back to the hand-rolled,
+// randomly-colored knife glyph (knifeGlyphSvg, brand.js) only if
+// FIGURINE_IMAGES is ever emptied. onFigurineClick() only ever sees the
 // cell's grid index, never how it was drawn, so this is the only thing
-// to touch. The knife glyph itself (knifeGlyphSvg, brand.js) is shared
-// with the crossed-knives hover icon on #skipToLogBtn — one glyph, reused.
+// to touch.
 function renderFigurineCell() {
   if (FIGURINE_IMAGES.length > 0) {
     const src = FIGURINE_IMAGES[Math.floor(Math.random() * FIGURINE_IMAGES.length)];
@@ -284,6 +285,34 @@ export async function setDianaGateSetting(enabled) {
     alert("Could not save the setting.");
     return false;
   }
+}
+
+// The toggle itself lives in the header (#dianaGateToggle, next to the
+// hamburger), not the Exercises tab — it's set once per session, since
+// activeProfile() never changes mid-session, so there's no need to
+// re-render it on every tab switch the way tab-scoped UI does. Called
+// once from main.js's init(); no-ops (stays hidden) for anyone who isn't
+// the owner, or when the gate mechanism doesn't apply at all.
+export async function wireDianaGateToggle() {
+  const btn = $("#dianaGateToggle");
+  if (!btn) return;
+  if (!useSupabase || !GATE_ENABLED || activeProfile().key !== "owner") {
+    btn.hidden = true;
+    return;
+  }
+  btn.hidden = false;
+  await loadDianaGateSetting();
+  syncDianaGateToggleVisual(btn);
+  btn.addEventListener("click", async () => {
+    const desired = !state.dianaGateEnabled;
+    const ok = await setDianaGateSetting(desired);
+    if (ok) syncDianaGateToggleVisual(btn);
+  });
+}
+
+function syncDianaGateToggleVisual(btn) {
+  btn.classList.toggle("active", state.dianaGateEnabled);
+  btn.setAttribute("aria-pressed", String(state.dianaGateEnabled));
 }
 
 function wireGateEvents() {

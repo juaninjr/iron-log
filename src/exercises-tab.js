@@ -1,9 +1,8 @@
-import { state, activeProfile, useSupabase, GATE_ENABLED } from "./state.js";
+import { state, activeProfile } from "./state.js";
 import { $, $all, exerciseSort } from "./dom-utils.js";
 import { saveExercise, renameExercise } from "./persistence.js";
 import { buildExerciseBlocks, render } from "./log-tab.js";
 import { renderSuggested } from "./suggested-tab.js";
-import { loadDianaGateSetting, setDianaGateSetting } from "./gate.js";
 
 // The "Add exercise" muscle-group <select> can't be hardcoded in
 // index.html the way it used to be — the owner and Diana have different
@@ -15,34 +14,12 @@ function populateMuscleSelect() {
   select.innerHTML = muscles.map(m => `<option value="${m}">${muscleLabels[m]}</option>`).join("");
 }
 
-// Owner-only: lets the owner flip Diana's security-question gate on/off
-// from their own session — Diana can't see or control her own gate, so
-// this section only renders when the logged-in profile is the owner (and
-// only when the whole gate mechanism applies at all).
-async function renderDianaGateSection() {
-  const section = $("#dianaGateSection");
-  if (!section) return;
-  if (!useSupabase || !GATE_ENABLED || activeProfile().key !== "owner") {
-    section.hidden = true;
-    return;
-  }
-  section.hidden = false;
-  const toggle = $("#dianaGateToggle");
-  if (!toggle.dataset.wired) {
-    toggle.dataset.wired = "true";
-    toggle.addEventListener("change", async (evt) => {
-      const desired = evt.target.checked;
-      const ok = await setDianaGateSetting(desired);
-      if (!ok) evt.target.checked = !desired; // revert the UI on failure
-    });
-    await loadDianaGateSetting(); // first render only — populates state.dianaGateEnabled
-  }
-  toggle.checked = state.dianaGateEnabled;
-}
+// Diana's gate on/off toggle lives in the header now (wireDianaGateToggle(),
+// gate.js) — visible on every page for the owner's own session, not just
+// here — see that function for why.
 
 export function renderExerciseManage() {
   populateMuscleSelect();
-  renderDianaGateSection();
 
   const container = $("#exerciseManageList");
   container.innerHTML = "";

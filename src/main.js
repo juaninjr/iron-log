@@ -13,15 +13,15 @@ import { renderCalendar } from "./calendar-tab.js";
 import { addExercise } from "./exercises-tab.js";
 import { downloadPDF, exportBackup, importBackup, clearAllData } from "./export.js";
 import { toggleNavMenu, setView } from "./nav.js";
-import { logOut, bootstrap } from "./gate.js";
-import { renderKnifeTitle, crossedKnivesSvg } from "./brand.js";
+import { logOut, bootstrap, wireDianaGateToggle } from "./gate.js";
+import { renderKnifeTitle } from "./brand.js";
 
 // ---------- Wire up ----------
 export async function init() {
   $("#workoutDate").value = todayISO();
 
   $("#headerLogoSlot").innerHTML = renderKnifeTitle("brand") + `<p class="knife-desc">A training log platform.</p>`;
-  $("#skipBtnKnivesIcon").innerHTML = crossedKnivesSvg("currentColor");
+  wireDianaGateToggle();
 
   $("#pdfBtn").addEventListener("click", downloadPDF);
   $("#exportBtn").addEventListener("click", exportBackup);

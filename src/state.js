@@ -154,16 +154,19 @@ export const VIEW_IDS = {
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
 
-// Colors the figurine grid's knife glyph (src/brand.js's knifeGlyphSvg)
-// is randomly recolored with, one per cell each load — decorative only,
-// unrelated to which cell is correct (the client never learns that).
+// Only used as a fallback if FIGURINE_IMAGES is ever emptied again — the
+// grid now shows the real knife logo (below), same black on every cell,
+// not recolored. Colors the hand-rolled knife glyph (src/brand.js's
+// knifeGlyphSvg) would be randomly recolored with, one per cell each
+// load, if it were in use.
 export const FIGURINE_COLORS = ["#cc382a", "#e8574a", "#a62d21", "#b4e5c8", "#7fcda0", "#3fa876", "#2a2a2a", "#8a8a8a"];
-// Swap the gate's decorative art to PNGs later by just filling this in
-// (e.g. ["/images/figurines/1.png", ...]) — renderFigurineCell() (gate.js)
-// picks a random one and renders an <img> instead of the knife glyph.
-// onFigurineClick() only ever sees the cell's grid index, never how it
-// was drawn, so this is the only thing to touch.
-export const FIGURINE_IMAGES = [];
+// The gate's decorative art — every cell renders the same image, in its
+// own natural color (no per-cell recoloring, unlike the SVG fallback
+// above). renderFigurineCell() (gate.js) picks a random entry — with one
+// entry that's just "always this one" — and renders an <img> instead of
+// the knife glyph. onFigurineClick() only ever sees the cell's grid
+// index, never how it was drawn, so this is the only thing to touch.
+export const FIGURINE_IMAGES = ["/images/knife-logo.png"];
 
 // ---------- Mutable app state ----------
 const calMonth = new Date();

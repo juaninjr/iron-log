@@ -1,9 +1,7 @@
 // The "Knife" brand — this app's shared wordmark and knife glyph. One
-// module since both the gate screen, the main header, the wheel page's
-// backdrop title, the figurine grid, and the skip-to-log button's hover
-// state all need the same two pieces of markup, not five copies of it.
-// See CLAUDE.md ("What this is") for why the app is also branded/known as
-// Knife (kknniiffee.com).
+// module since both the gate screen and the main header need the same
+// wordmark markup, not two copies of it. See CLAUDE.md ("What this is")
+// for why the app is also branded/known as Knife (kknniiffee.com).
 
 export const SITE_NAME = "Knife";
 
@@ -25,22 +23,13 @@ export function renderKnifeTitle(modifier) {
   `;
 }
 
-// One small hand-rolled knife glyph (blade + handle) — the shape both
-// the gate's figurine cells and the crossed-knives icon are built from.
-function knifeGlyphPath() {
-  return `<path d="M20 80 L62 38" stroke="currentColor" stroke-width="9" stroke-linecap="round" fill="none"/>
-    <path d="M58 34 L82 18 A7 7 0 0 1 90 26 L74 50 Z" fill="currentColor"/>`;
-}
-
-// A single knife, colorable — used for the gate's figurine cells.
+// A hand-rolled knife glyph (blade + handle), colorable — only used as a
+// fallback for the gate's figurine cells if FIGURINE_IMAGES (state.js) is
+// ever emptied; the grid normally shows the real knife logo PNG instead
+// (public/images/knife-logo.png), same black on every cell.
 export function knifeGlyphSvg(color) {
-  return `<svg viewBox="0 0 100 100" style="color:${color}" aria-hidden="true">${knifeGlyphPath()}</svg>`;
-}
-
-// Two knives crossed into an X — used for #skipToLogBtn's hover state.
-export function crossedKnivesSvg(color) {
-  return `<svg viewBox="0 0 100 100" aria-hidden="true">
-    <g transform="rotate(45 50 50)" style="color:${color}">${knifeGlyphPath()}</g>
-    <g transform="rotate(-45 50 50)" style="color:${color}">${knifeGlyphPath()}</g>
+  return `<svg viewBox="0 0 100 100" style="color:${color}" aria-hidden="true">
+    <path d="M20 80 L62 38" stroke="currentColor" stroke-width="9" stroke-linecap="round" fill="none"/>
+    <path d="M58 34 L82 18 A7 7 0 0 1 90 26 L74 50 Z" fill="currentColor"/>
   </svg>`;
 }

@@ -65,6 +65,11 @@
     <div class="brand-block" id="headerLogoSlot"></div>
     <div class="nav-wrap">
       <button type="button" class="tool-btn" id="logOutBtn" hidden>Log out</button>
+      <!-- Owner-only (wireDianaGateToggle(), gate.js) — set once per
+           session, since the logged-in profile never changes mid-session;
+           hidden by default until that confirms this is the owner. -->
+      <button type="button" class="tool-btn diana-gate-toggle" id="dianaGateToggle" hidden
+              title="Require a security question to access Diana's page" aria-pressed="false">Diana's gate</button>
       <button type="button" class="nav-toggle" id="navToggle" aria-haspopup="true" aria-expanded="false" aria-label="Open menu">
         <span></span><span></span><span></span>
       </button>
@@ -83,9 +88,11 @@
     <div id="muscleSelectStage">
       <button type="button" class="skip-to-log-btn" id="skipToLogBtn" title="Go to exercise logging" aria-label="Go to exercise logging">
         <svg class="house-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
-        <span class="knives-icon" id="skipBtnKnivesIcon"></span>
+        <span class="knives-icon" aria-hidden="true">
+          <img class="knife-a" src="/images/knife-logo.png" alt="">
+          <img class="knife-b" src="/images/knife-logo.png" alt="">
+        </span>
       </button>
-      <div class="wheel-bg-title" id="wheelBgTitle" aria-hidden="true"></div>
       <div class="wheel3d-wrap" id="wheel3dContainer" aria-hidden="true"></div>
       <div class="muscle-pick-row" id="musclePickRow" role="group" aria-label="Muscle group picker"></div>
     </div>
@@ -238,17 +245,6 @@
       <h2>All exercises <span class="count" id="exercisesCount"></span></h2>
       <p class="empty-note" style="padding:0 0 12px;">Backbone exercises are the pool the Suggested tab draws from.</p>
       <div id="exerciseManageList"></div>
-    </section>
-
-    <!-- Owner-only (renderDianaGateSection(), exercises-tab.js) — lets
-         the owner flip Diana's security-question gate on/off. Hidden by
-         default; JS un-hides it only for the owner's own session. -->
-    <section id="dianaGateSection" hidden>
-      <h2>Diana's gate</h2>
-      <label class="ex-backbone-toggle" style="font-size:0.82rem;">
-        <input type="checkbox" id="dianaGateToggle">
-        Require a security question to access Diana's page
-      </label>
     </section>
 
   </div>

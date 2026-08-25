@@ -58,8 +58,8 @@ src/
   nav.js                 toggleNavMenu, setView — the hamburger dropdown
                         and cross-tab view switching
   brand.js               the "Knife" wordmark (ghost-vibrate title) and
-                        the shared knife glyph SVG — see "Brand: Knife"
-                        below. Imported by gate.js, log-tab.js, main.js.
+                        an SVG knife-glyph fallback — see "Brand: Knife"
+                        below. Imported by gate.js, main.js.
   log-tab.js             the muscle-select stage, the quick-log stage,
                         exercise blocks, logWorkout, grouped-row editing,
                         and render() (the central re-render dispatcher —
@@ -69,9 +69,9 @@ src/
   suggested-tab.js        Suggested-tab ranking + jumpToExercise
   exercises-tab.js        add/rename/toggle-backbone exercise management
   export.js              PDF export, JSON backup export/import, clear-all
-  gate.js                 figurine grid (now a spinning knife glyph, not
+  gate.js                 figurine grid (now the real knife logo PNG, not
                         the old alien-blob art) + Diana's Q&A gate step +
-                        stranger auth + bootstrap()
+                        her header toggle + stranger auth + bootstrap()
   wheel3d.js              the 3D muscle-select model (Three.js) — see
                         "The muscle-select stage's 3D model" below
 public/                 static assets served as-is at the site root —
@@ -171,9 +171,13 @@ this step runs at all is a single boolean the owner controls from their
 own session — `diana_gate_settings.gate_enabled`, read/written directly
 by the anon-key client (`loadDianaGateSetting()`/`setDianaGateSetting()`,
 `gate.js`) since the owner has no real Supabase Auth account to gate a
-write behind — surfaced as a checkbox in the Exercises tab
-(`renderDianaGateSection()`, `exercises-tab.js`), rendered only when
-`activeProfile().key === "owner"` so Diana can't see or flip her own gate.
+write behind — surfaced as a button in the header, next to the hamburger
+(`#dianaGateToggle`, wired once by `wireDianaGateToggle()` in `gate.js`,
+called from `main.js`'s `init()`), visible on every page for the rest of
+that session rather than being tab-scoped, since `activeProfile()` never
+changes mid-session. Solid/outlined mirrors its on/off state; it only
+renders at all when `activeProfile().key === "owner"`, so Diana can't see
+or flip her own gate.
 
 ## Architecture
 
@@ -341,10 +345,10 @@ pulled from a CDN at runtime — unlike the rest of Three.js, which is a
 real npm dependency here, `rhino3dm` isn't, since it's loaded as a WASM
 binary via `setLibraryPath()` at runtime, not imported as a module) if no
 `.glb` exists. Both files are served from `public/models/` — see "Module
-map" above. It exposes five methods on `window.IronLogWheel3D` — `show
-(container)`, `hide()`, `resize()`, `hoverMuscle(key)`,
-`getTwistIntensity()` — a plain global rather than an ES export, since
-it's the one piece of the app driving a raw WebGL canvas instead of the
+map" above. It exposes four methods on `window.IronLogWheel3D` — `show
+(container)`, `hide()`, `resize()`, `hoverMuscle(key)` — a plain global
+rather than an ES export, since it's the one piece of the app driving a
+raw WebGL canvas instead of the
 `state.js`-backed DOM: `show()` lazily creates the
 renderer/scene on first call and is otherwise idempotent (safe to call
 every time `enterMuscleGate()` runs), `hide()` just cancels the animation
@@ -440,12 +444,6 @@ through one function, there's no separate "external hover" state to keep
 in sync — a real pointer hover simply wins on the next raycast tick if
 one is in progress, same as before this existed.
 
-`getTwistIntensity()` returns the model's current `|velocity|` (drag
-speed / momentum decay, tracked internally regardless of who's reading
-it) — used by `log-tab.js` to scale the wheel-page backdrop title's
-vibration (see "Brand: the 'Knife' wordmark" above); safe to poll from
-anywhere, it's a plain read of existing state.
-
 **The main nav is a hamburger dropdown, not a tab bar** (`nav.js`).
 `#navToggle` (the three-bar button in the header's corner) toggles an
 `.open` class on `#mainTabs` via `toggleNavMenu()`; the panel itself is
@@ -464,29 +462,23 @@ builds the two-layer markup: a solid base `<span>` plus an absolutely-
 positioned 30%-opacity "ghost" `<span>` that jitters via the
 `knife-vibrate` CSS keyframes (`src/style.css`) — ported from a sibling
 site, ffoorrkk.com's own "fork" title animation (fast ±1px diagonal
-jitter per ~30ms step, not a rotation-based wobble). Three call sites,
-each via a `.knife-logo--<modifier>` size class: the gate screen and the
-main header both use `--brand` (injected by `gate.js`'s `bootstrap()` and
-`main.js`'s `init()` respectively, each paired with a static
+jitter per ~30ms step, not a rotation-based wobble). Two call sites, both
+via the `--brand` `.knife-logo--<modifier>` size class: the gate screen
+and the main header (injected by `gate.js`'s `bootstrap()` and
+`main.js`'s `init()` respectively), each paired with a static
 `.knife-desc` tagline — "A training log platform." — replacing what used
-to be the dynamic fun-fact subtitle, see below); the wheel page's backdrop
-title (`#wheelBgTitle`, injected once by `log-tab.js`'s `enterMuscleGate()`
-→ `ensureBgTitle()`) uses `--bg`, huge and low-opacity, sitting behind
-`#wheel3dContainer`. `brand.js` also exports `knifeGlyphSvg()`/
-`crossedKnivesSvg()` — one hand-rolled knife shape (blade + handle),
-reused as-is for the gate's figurine cells and rendered twice
-(pre-rotated ±45°) to form `#skipToLogBtn`'s crossed-knives hover icon.
-
-**The wheel page's backdrop title vibrates harder the more the 3D model
-is twisted** — `--vibrate-amp`, a CSS custom property the `knife-vibrate`
-keyframes multiply their jitter distance by (default `1`), is written
-every animation frame by a small `requestAnimationFrame` loop in
-`log-tab.js` (`startBgTitleVibration()`/`stopBgTitleVibration()`, started
-in `enterMuscleGate()`, stopped in `leaveMuscleGate()`/`enterQuickLog()`)
-reading `window.IronLogWheel3D.getTwistIntensity()` — the model's current
-drag/momentum speed (`wheel3d.js`) — each frame, scaled and capped
-(`VIBRATE_INTENSITY_SCALE`/`VIBRATE_AMP_MAX`) so it stays legible even at
-full twist speed rather than jittering the text unreadable.
+to be the dynamic fun-fact subtitle, see below. There used to be a third
+site, a huge low-opacity copy sitting behind the 3D model on the wheel
+page that vibrated harder the more the model was twisted — removed; the
+wheel page has no text behind the model anymore. `brand.js` also exports
+`knifeGlyphSvg()` — a hand-rolled knife shape (blade + handle) kept only
+as the figurine grid's fallback if `FIGURINE_IMAGES` (`state.js`) is ever
+emptied; the grid and `#skipToLogBtn`'s crossed-knives hover icon both use
+the real knife logo now (`public/images/knife-logo.png`) instead —
+`#skipToLogBtn` stacks two `<img>` copies of it, pre-rotated ±45° via CSS
+(same technique the SVG version used, just an image instead of an inline
+path) to form the X, crossfading with the house icon on hover/focus. See
+"The gate" below for the figurine grid.
 
 There used to be a dynamic "curiosity" fun fact as the header's subtitle
 (`src/fun-fact.js`, since removed) — `renderFunFact()` picked a random
@@ -500,12 +492,16 @@ default in this repo — see the note in "What this is" about disabling it
 before a public deploy): when on, `bootstrap()` (not `init()`, in
 `main.js`) is the
 `DOMContentLoaded` entry point. It shows `#gateScreen` — a single 20×20
-grid of decorative figurine buttons, each a randomly-colored knife glyph
-(`knifeGlyphSvg()`, `brand.js`) that spins 360° on hover (purely
-cosmetic; the glyph replaced the original alien-blob art during the
-Knife rebrand, nothing about the verify/click logic below changed) — one
-grid serving *both* the owner and Diana, since a cell's meaning is
-resolved server-side, not by anything the client picks in advance. It
+grid of decorative figurine buttons, every cell the same real knife logo
+(`public/images/knife-logo.png`, via `FIGURINE_IMAGES` in `state.js`,
+same natural black on every cell, not recolored) that spins 360° on hover
+(purely cosmetic; the image replaced the original alien-blob SVG art
+during the Knife rebrand, nothing about the verify/click logic below
+changed) — one grid serving *both* the owner and Diana, since a cell's
+meaning is resolved server-side, not by anything the client picks in
+advance. `renderFigurineCell()` (`gate.js`) still falls back to a
+hand-rolled, randomly-colored SVG knife glyph (`knifeGlyphSvg()`,
+`brand.js`) if `FIGURINE_IMAGES` is ever emptied. It
 stays showing until either `ironlog:ownerUnlocked`/`ironlog:dianaUnlocked`
 (`OWNER_UNLOCK_KEY`/`DIANA_UNLOCK_KEY`, `state.js`) or an active Supabase
 Auth session is present, then hides the gate and calls `init()`.
@@ -653,11 +649,26 @@ cross-contamination between the two profiles' data.
     for exactly what `modelLayerAliases` would need to change.
 - The "Knife" rebrand (wordmark + ghost-vibrate title, Geist Sans, the
   quick-log stage, two-way wheel/button hover, the house/knives hover
-  icon, the gate's knife-glyph figurine art) is done — see "Brand: the
-  'Knife' wordmark", the updated "Logging a workout…" section, and the
-  updated "The muscle-select stage's 3D model" section above for the
-  details. `src/fun-fact.js` was removed as part of this; nothing else
-  was restructured beyond the new `src/brand.js` module.
+  icon, the gate's figurine art) is done — see "Brand: the 'Knife'
+  wordmark", the updated "Logging a workout…" section, and the updated
+  "The muscle-select stage's 3D model" section above for the details.
+  `src/fun-fact.js` was removed as part of this; nothing else was
+  restructured beyond the new `src/brand.js` module.
+- A follow-up pass after the initial rebrand: the wheel page's vibrating
+  low-opacity backdrop title was removed entirely (nothing sits behind
+  the 3D model now) — `getTwistIntensity()` (`wheel3d.js`) went with it,
+  since scaling that vibration was its only caller. The figurine grid and
+  `#skipToLogBtn`'s crossed-knives hover icon both switched from the
+  hand-rolled SVG knife glyph to a real logo file dropped in by the user
+  (`public/images/knife-logo.png`, via `FIGURINE_IMAGES`, `state.js`) —
+  the SVG glyph (`knifeGlyphSvg()`, `brand.js`) survives only as
+  `renderFigurineCell()`'s fallback if that array's ever emptied.
+  `crossedKnivesSvg()` was deleted outright (no fallback need — replaced
+  by two `<img>` copies in `index.html` directly). Diana's gate toggle
+  moved from a section at the bottom of the Exercises tab to a button in
+  the header next to the hamburger (`#dianaGateToggle`, wired once by
+  `wireDianaGateToggle()`, `gate.js`, from `main.js`'s `init()`) — visible
+  on every page for the rest of the owner's session, not just that tab.
 - The full `index.html` → Vite/ES-modules reorg described throughout this
   file is done and pushed to `main` (commit `e75b82d`): hover-scale bug
   fixed (color-only now), the two spin bugs fixed (wrong axis + only
