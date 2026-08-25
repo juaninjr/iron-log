@@ -81,11 +81,20 @@ wrong again after a re-export:
 
 - **Orientation**: the exported glTF came in lying down (Rhino's exporter
   is supposed to convert its native Z-up scene to glTF's required Y-up,
-  but didn't, in practice, for this export). Fixed with a flat +90°
-  X-axis rotation applied only on the glTF load path (`GLTF_ROTATE_X_DEG`
-  in `wheel3d.js`) — the `.3dm` path doesn't have this problem and isn't
-  rotated. If a future export comes in already upright, set that constant
-  back to `0`.
+  but didn't, in practice, for this export). Fixed with a +90° X-axis
+  rotation applied only on the glTF load path — the `.3dm` path doesn't
+  have this problem and isn't rotated. This is now a **per-profile**
+  value (`modelGltfRotateXDeg` in each `PROFILES` entry, `src/state.js`),
+  not one shared constant — Diana's own export needed +180°, not +90°:
+  90° alone produced a clean, well-formed pose, just one lying on her
+  back looking up rather than standing upright, so a second +90° was
+  needed on top. Found by live-testing candidate rotation values with the
+  model's centering *recomputed at each one* — changing rotation after
+  the model's one-time centering step leaves the old centering stale, so
+  every value except the original looked cropped/broken until recentering
+  was added to the test loop; only then did it become clear 180° (not 90°
+  or -90°) was actually correct. If a future export for either profile
+  comes in already upright, set that profile's value back to `0`.
 - **Material**: parts with no material explicitly assigned in Rhino
   exported as pure black + fully metallic, which reflects almost no light
   under this scene's simple lighting and rendered as a solid black
@@ -126,11 +135,16 @@ app which raw layer-name substrings map to which of that profile's own
 muscle keys — `modelLayerAliases` in `PROFILES.owner`/`PROFILES.diana`
 (`src/state.js`). For the owner this is the identity mapping (his
 model's own layers are literally named `chest`/`back`/`shoulders`/`arms`/
-`core`/`legs`); Diana's model has real `Core`/`Legs`/`Glutes` layers plus
-one artist-default layer ("Layer 01," Rhino's fallback name for anything
-not assigned a real layer) that turned out to hold her whole upper body
-unsplit — so her map is `{ upper: ["layer 01"], glutes: ["glutes"],
-legs: ["legs"], core: ["core"] }`. Matching is case-insensitive and only
+`core`/`legs`); Diana's updated model has real `Core`/`Legs`/`Glutes`/
+`Upper Body` layers — so her map is `{ upper: ["upper body"],
+glutes: ["glutes"], legs: ["legs"], core: ["core"] }`. Her export also
+still has a "Layer 01" node (Rhino's fallback name for anything not
+assigned a real layer) — in the earlier version of her model this held
+her whole unsplit upper body and was the thing `modelLayerAliases`
+matched against, but the updated export moved that geometry onto its own
+explicit "Upper Body" layer, so "Layer 01" now likely just holds the head
+and is deliberately left unmatched (unmatched geometry still renders
+normally, it's just not hoverable). Matching is case-insensitive and only
 needs to *contain* the alias string (`"Chest_L"`, `"chest-01"`, etc. all
 match `"chest"`). Anything left unmatched still renders normally, it's
 just not hoverable/clickable.

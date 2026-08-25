@@ -166,19 +166,34 @@ the active profile is already fixed for the session by then.
 keys onto its *own* model's actual layer-name substrings** — for the
 owner this is the identity mapping (chest/back/shoulders/arms/core/legs
 are literally the model's own Rhino layer names). Diana's model has real
-`Core`/`Legs`/`Glutes` layers (confirmed by parsing `female.glb`'s glTF
-JSON chunk directly — no Rhino needed, it's an open, inspectable format)
-plus one default, artist-unnamed layer ("Layer 01," Rhino's fallback name
-for anything not assigned to a real layer) holding everything else — the
-whole upper body, unsplit, which happens to match her single "Upper Body
-(general)" category exactly. So `modelLayerAliases: { upper: ["layer
-01"], glutes: ["glutes"], legs: ["legs"], core: ["core"] }` — all four of
-her categories now have real 3D geometry, including glutes, which the
-earlier shared-model version deliberately couldn't offer.
+`Core`/`Legs`/`Glutes`/`Upper Body` layers (confirmed by parsing
+`female.glb`'s glTF JSON chunk directly — no Rhino needed, it's an open,
+inspectable format), so `modelLayerAliases: { upper: ["upper body"],
+glutes: ["glutes"], legs: ["legs"], core: ["core"] }` — all four of her
+categories have real 3D geometry, including glutes, which the earlier
+shared-model version deliberately couldn't offer. (An earlier export of
+her model didn't have a dedicated upper-body layer — everything not
+assigned a real layer landed on Rhino's fallback "Layer 01," which
+happened to be her whole unsplit upper body, so the map briefly read
+`upper: ["layer 01"]` — the artist re-exported with a proper "Upper Body"
+layer, and "Layer 01" now likely just holds the head, left unmatched.)
 `wheel3d.js`'s `organizeMuscleGroups()` reads this map instead of a flat
 key list, so it had to start importing `state.js` (it deliberately didn't
 before — not worth plumbing for 6 static hex codes — but that stopped
 being true once there were two real, differently-shaped profiles).
+
+**Each profile also has its own `modelGltfRotateXDeg`** (`state.js`), the
+one-time Z-up→Y-up correction Rhino's glTF exporter needs (see
+`models/README.md`'s "Sizing / orientation / material quirks" for the
+full story) — no longer a single flat constant in `wheel3d.js`, since the
+two profiles' exports needed different values: the owner's is 90°;
+Diana's own export needed 180° — 90° alone left her lying on her back
+looking up rather than standing upright, both well-formed poses, just the
+wrong one. Confirmed by live-testing rotation values with the model's
+centering recomputed at each candidate (naively changing rotation without
+recentering leaves the old centering stale and makes every value except
+the original look broken/cropped, which is misleading if you don't
+recenter before judging the result).
 
 **Diana's page has a second factor the owner's doesn't**: after her
 figurine cell is verified (see "The gate" below), a security-question
@@ -430,10 +445,11 @@ spun).
 
 **Two glTF-export-specific fixups live in `wheel3d.js`, both discovered
 by actually loading this app's own exported file** (`models/README.md`
-has the reasoning): `GLTF_ROTATE_X_DEG` (currently `90`) corrects Rhino's
-glTF exporter not actually converting its native Z-up scene to glTF's
-required Y-up, applied only to `content` on the glTF path, never the
-`.3dm` one; and `sanitizeMaterials()` detects Rhino's "no material
+has the reasoning): each profile's `modelGltfRotateXDeg` (`state.js` —
+owner `90`, Diana `180`, see the "Profiles" section above) corrects
+Rhino's glTF exporter not actually converting its native Z-up scene to
+glTF's required Y-up, applied only to `content` on the glTF path, never
+the `.3dm` one; and `sanitizeMaterials()` detects Rhino's "no material
 assigned" default — which exports as pure black + fully metallic,
 rendering as a solid black silhouette under this scene's simple lighting
 — and swaps in a neutral grey non-metallic default, leaving any
@@ -735,9 +751,15 @@ cross-contamination between the two profiles' data.
     throwaway copy defaulted to `state.activeProfile = "diana"`. The
     model's own pose (limbs bent, mid-motion, not a neutral standing pose
     like the owner's) is intentional on the artist's part, confirmed by
-    rotating the camera around it — not an orientation bug;
-    `GLTF_ROTATE_X_DEG` (`wheel3d.js`) needed no per-profile change, same
-    `90` works for both exports.
+    rotating the camera around it — not an orientation bug. Her export
+    *did* need its own rotation value though: the shared flat
+    `GLTF_ROTATE_X_DEG` constant is gone, replaced by a per-profile
+    `modelGltfRotateXDeg` (`state.js`) — owner `90`, Diana `180` (90°
+    alone left her lying on her back looking up; a second +90° stands her
+    upright). The artist also re-exported her model with an explicit
+    "Upper Body" layer (replacing the earlier catch-all "Layer 01"
+    mapping), so `modelLayerAliases.diana.upper` now reads `["upper
+    body"]` — see the "Profiles" section above for both.
   - `diana-human.3dm` (~101MB) is over GitHub's 100MB-per-file push
     limit — `git push` rejected it outright the first time (the commit
     had to be redone with that one file unstaged, via `git reset --soft

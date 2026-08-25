@@ -298,13 +298,18 @@ function raycastAt(clientX, clientY){
 
 // Rhino's own glTF exporter is expected to convert its native Z-up scene
 // into glTF's required Y-up convention, but in practice (this app's own
-// export) it doesn't — the model comes in lying down, as if the Z-up
+// exports) it doesn't — the model comes in lying down, as if the Z-up
 // data were reinterpreted as Y-up without rotating it. The .3dm path
-// (Rhino3dmLoader) doesn't have this problem. Rather than guess forever,
-// this is one fixed correction applied only to the glTF path; if a
-// different export ever comes in right-side-up on its own, drop this to
-// 0.
-const GLTF_ROTATE_X_DEG = 90;
+// (Rhino3dmLoader) doesn't have this problem. This is a one-time
+// correction applied only to the glTF path, per profile
+// (`activeProfile().modelGltfRotateXDeg`, `state.js`) rather than one
+// shared constant — the owner's export needs 90°, but Diana's needed
+// 180° (90° wasn't wrong exactly, it produced a coherent, well-formed
+// pose, just one where she read as lying on her back looking up rather
+// than upright — confirmed by live-testing rotation values with the
+// model's centering recomputed at each one, not just eyeballing the
+// unrotated default). If a future export ever comes in right-side-up on
+// its own, that profile's value can drop to 0.
 
 // Neither export path assigns the body a real material: Rhino's glTF
 // export leaves objects with no material explicitly assigned, which
@@ -411,7 +416,7 @@ function ensureScene(el){
   // profile's own modelGlb/modelRhino, state.js.
   new GLTFLoader().load(
     activeProfile().modelGlb,
-    (gltf) => onModelReady(el, gltf.scene, GLTF_ROTATE_X_DEG),
+    (gltf) => onModelReady(el, gltf.scene, activeProfile().modelGltfRotateXDeg),
     undefined,
     () => loadRhino(el)
   );
