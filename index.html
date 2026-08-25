@@ -37,8 +37,12 @@
     <div class="stranger-auth" id="dianaQaView" hidden>
       <p class="qa-question" id="dianaQaQuestion"></p>
       <form id="dianaQaForm">
-        <label for="dianaQaAnswer">Answer</label>
-        <input type="text" id="dianaQaAnswer" autocomplete="off" required>
+        <!-- diana-qa (Edge Function) already compares trimmed + lowercased,
+             so case never actually breaks a correct answer — this is just
+             a visible reminder so a legitimate answer doesn't feel like it
+             failed for the wrong reason. -->
+        <label for="dianaQaAnswer">Answer (use lowercase)</label>
+        <input type="text" id="dianaQaAnswer" autocomplete="off" placeholder="lowercase" required>
         <button type="submit" class="primary-btn" id="dianaQaSubmitBtn">Submit</button>
       </form>
       <p class="gate-error" id="dianaQaError" hidden></p>
