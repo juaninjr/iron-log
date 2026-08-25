@@ -177,6 +177,34 @@ assigned a real layer landed on Rhino's fallback "Layer 01," which
 happened to be her whole unsplit upper body, so the map briefly read
 `upper: ["layer 01"]` — the artist re-exported with a proper "Upper Body"
 layer, and "Layer 01" now likely just holds the head, left unmatched.)
+
+**A real bug shipped with that "Upper Body" layer, since fixed**:
+`organizeMuscleGroups()`'s matching (`keyForName()`, `wheel3d.js`) is a
+plain substring check against each ancestor node's lowercased `.name`,
+but Three.js's `GLTFLoader` sanitizes multi-word node names at load
+time — Rhino's "Upper Body" layer (confirmed via the raw glTF JSON: the
+source file's own `name` field really does say `"Upper Body"`, with a
+space) comes through at *runtime* as `"Upper_Body"`, an underscore in
+place of the space. `"upper_body".includes("upper body")` is false, so
+every one of that layer's ~4780 mesh fragments silently fell through as
+unmatched — the button-row hover for "Upper Body" lit up (button-side
+hover doesn't need a matched 3D group to work), but the model itself
+never glowed, which is what actually surfaced this: found by directly
+raycast-hovering the model (worked — but turned out to be hitting the
+*Core* region, not Upper Body, a red herring at first) versus calling
+`window.IronLogWheel3D.hoverMuscle('upper')` on a fresh load (didn't glow
+anything at all), then confirmed by a one-off `console.log` of each
+match bucket's size inside `organizeMuscleGroups()` in a throwaway copy
+(`upper: 0`, `unmatched: 4781`) and of one unmatched mesh's actual
+ancestor-name chain, which read `"Upper_Body"` where the static file said
+`"Upper Body"`. Every other layer name in both models (Core, Legs,
+Glutes, chest, back, shoulders, arms) is a single word, so this never
+came up before Diana's first two-word layer. `keyForName()` now
+normalizes by replacing underscores with spaces before matching, so
+`modelLayerAliases` can keep being written the readable way (`"upper
+body"`) regardless of how any future multi-word layer name gets
+sanitized at load time.
+
 `wheel3d.js`'s `organizeMuscleGroups()` reads this map instead of a flat
 key list, so it had to start importing `state.js` (it deliberately didn't
 before — not worth plumbing for 6 static hex codes — but that stopped
@@ -350,9 +378,13 @@ of Diana's own categories (see "Profiles" above), just not backed by this
 PNG.
 
 **Logging a workout is a plan-then-log flow, not one page**: pick
-exercises first (no inputs), then log sets for just what you picked. All
-three stages below are siblings inside `#viewLog` (`log-tab.js`), only
-one visible at a time via `hidden`.
+exercises first (no inputs required), then log sets for whatever you
+picked, on one page that still shows the full exercise roster (this
+matches the app's original single-full-page design — a first version of
+this flow split picking into its own separate all-exercises stage, but
+that stage was removed as redundant once picking moved directly onto
+`#logMainStage` itself). All three stages below are siblings inside
+`#viewLog` (`log-tab.js`), only one visible at a time via `hidden`.
 
 `#muscleSelectStage` (the wheel — shown by default and every time you
 navigate back to the Log tab, see `setView()`) has a 3D model
@@ -367,44 +399,62 @@ all) filled the wheel's role before the 3D model existed; its code
 (written for the pre-Vite single-`index.html` layout, so the paste-back
 instructions are stale, but the logic itself is still valid) is preserved
 in `legacy/muscle-wheel-2d-backup.md` in case it's ever needed again. The
-house/knives-hover icon above the model, now labeled "Create Plan"
-(`#skipToLogBtn` → `enterAllExercisePicker()`), opens the exercise picker
-unfiltered — every exercise, not scoped to one muscle.
+house/knives-hover icon above the model, labeled "Create Plan"
+(`#skipToLogBtn` → `showTodayWorkoutPage()`), jumps straight to
+`#logMainStage` — the "old logic" full page, which already lists every
+exercise (see below), so there's no separate unfiltered-picker stage to
+land on anymore.
 
-Clicking a muscle (button row, or tapping a recognized 3D part) instead
-calls `confirmMuscleSelection(m)`, which opens the same picker
-(`#quickLogStage`) scoped to just that muscle's exercises. Either way the
-picker (`buildPickerList()`) renders one plain add/remove button per
-exercise — no weight/reps inputs here — that toggles the exercise's
+Clicking a muscle instead (button row, or tapping a recognized 3D part)
+calls `confirmMuscleSelection(m)`, which opens a *scoped* picker
+(`#quickLogStage`) — a quick shortcut limited to just that one muscle's
+exercises, not the only way to reach everything else. It renders one
+plain add/remove button per exercise via `buildPickerList(containerSel,
+exercises)` — no weight/reps inputs here — that toggles the exercise's
 membership in `state.todayPlan` (see "Today's Workout plan" below) via
 `addToTodayPlan()`/`removeFromTodayPlan()`; an already-added exercise
-reads "Added ✓" and re-clicking it removes it. `#quickLogStage`'s "Train
-more" button (`#trainMorePickerBtn`) returns to the wheel to add
-exercises from another muscle group; its small back icon
-(`#quickLogBackBtn` → `showTodayWorkoutPage()`) reaches `#logMainStage`.
+reads "Added ✓" and re-clicking it removes it. Both `#quickLogStage`'s
+"Train more" button (`#trainMorePickerBtn`) and its small back icon
+(`#quickLogBackBtn`) call `showTodayWorkoutPage()` — "Train more"
+deliberately does *not* return to the wheel (an earlier version did; the
+user found spinning the wheel again, just to add one more exercise from a
+different muscle, tedious when the full list was one tap away on the main
+page anyway).
 
 `#logMainStage` — now titled "Today's Workout" (see "Header title" below,
-not "Log a workout") — is where sets actually get logged: stats/tables/
-toolbar, plus one `.exercise-block` (weight/reps inputs, same as before)
-per exercise currently in `state.todayPlan`, via `buildExerciseBlocks()`.
-It no longer has a muscle filter chip row — the block list is already a
-small, curated plan, not the full roster, so filtering it further doesn't
-make sense — but it does have its own "Train more" button
-(`#trainMoreMainBtn`) alongside the picker's, since Q2's answer said
-"Train more" should be reachable from everywhere. `logWorkout()` batches
-every filled row in `#exerciseBlocks` into one save, same as before
-(nothing saved per-keystroke or per-row) — it and `buildExerciseBlocks()`
-both dropped the old `containerSel` parameter, since the picker no longer
-renders exercise blocks at all (only `#logMainStage` ever does now).
-Logging a set does **not** remove that exercise from the plan or the
-page — filtering is plan-*membership*, not log-*status*, so you can keep
-adding sets to the same exercise later in the day; each block also has a
-small "×" remove button that does take it out of the plan (and off the
-page), independent of whatever's already logged for it.
-`jumpToExercise()` (`suggested-tab.js`) now adds its target to the plan
-first (`addToTodayPlan()`, if not already there) before jumping to
-`#logMainStage` and flashing the block, since that page only ever shows
-plan exercises.
+not "Log a workout") — has three parts, top to bottom:
+1. **The gray "Today's Workout" box** (`#todayWorkoutBox`, `.today-workout-box`
+   in `style.css`) — sits where stats used to, one `.exercise-block`
+   (real weight/reps inputs, same as always) per exercise currently in
+   `state.todayPlan`, via `buildExerciseBlocks()`, plus the date input and
+   `#logWorkoutBtn`. Adding an exercise here needs no reps/weight up
+   front — it just appears as an empty block, ready to fill in whenever.
+   `logWorkout()` batches every filled row into one save, same as
+   before — it and `buildExerciseBlocks()` dropped the old `containerSel`
+   parameter, since exercise blocks only ever render into `#exerciseBlocks`
+   now (the picker renders `.plan-pick-item`s instead, a different, input-
+   less markup — see above). Logging a set does **not** remove that
+   exercise from the plan or the page — filtering is plan-*membership*,
+   not log-*status*, so you can keep adding sets to the same exercise
+   later in the day; each block also has a small "×" remove button that
+   does take it out of the plan (and off the page), independent of
+   whatever's already logged for it.
+2. **Stats**, collapsed by default in a plain `<details>`/`<summary>`
+   (`.stats-dropdown`) — no longer prime real estate now that the gray box
+   sits above it, but still one click away, not gone.
+3. **"All exercises"** (`#allExercisesList`, `buildAllExercisesList()`) —
+   every exercise, same `buildPickerList()` renderer and Add/Added ✓
+   toggle buttons as the wheel's scoped picker (just called with
+   `state.EXERCISES` unfiltered instead of one muscle's subset) — this is
+   what makes `#logMainStage` itself the "old logic" full list again, and
+   what "Create Plan"/"Train more"/the picker's back icon all now lead to
+   rather than a separate stage.
+
+`jumpToExercise()` (`suggested-tab.js`) adds its target to the plan first
+(`addToTodayPlan()`, if not already there) before calling
+`showTodayWorkoutPage()` and flashing the block, since the gray box only
+ever shows plan exercises (the "All exercises" list further down would
+still have the target too, just not scrolled-to/flashed).
 
 **The Today's Workout plan** (`state.todayPlan`, an array of exercise
 names — same name-as-identity convention `entries.exercise` already
@@ -843,18 +893,37 @@ cross-contamination between the two profiles' data.
   the deploy log if the user reports something looks off post-deploy.
 - **The Create Plan / Today's Workout plan-then-log flow** (see "Logging a
   workout is a plan-then-log flow" above) is implemented and verified
-  end-to-end against the localStorage fallback in a throwaway copy:
-  hover-color match (button row now agrees with the 3D model's own
-  per-muscle glow instead of one flat brand red), the wheel → picker →
-  Today's Workout round trip across two muscle groups plus "Create Plan"'s
-  unfiltered picker, logging a set and confirming the block stays on the
-  page afterward, plan persistence across a reload, and the header title
-  swap (both directions, across tab switches). `jumpToExercise()`
-  (Suggested tab) was re-verified too. Still outstanding: run
-  `supabase/today_plan_schema.sql` against the real database (the
-  `today_plans` table doesn't exist until then, so `saveTodayPlan()` will
-  fail closed with an alert and the plan just won't persist server-side —
-  same fail-safe direction as the exercise-backups table).
+  end-to-end against the localStorage fallback in a throwaway copy, across
+  two rounds — the first had "Create Plan" and the wheel's muscle-taps
+  both open dedicated, input-less picker *stages*, separate from
+  `#logMainStage`; the user asked for the "old logic" back (one page that
+  always lists everything) plus a gray "Today's Workout" box in place of
+  stats, so the standalone all-exercises picker stage was removed and its
+  job folded directly into `#logMainStage`'s new "All exercises" list —
+  the version now described above and the one actually verified last.
+  Checked: hover-color match (button row agrees with the 3D model's own
+  per-muscle glow), "Create Plan" and the muscle-scoped picker's "Train
+  more" both landing on `#logMainStage` (not the wheel), adding exercises
+  from the "All exercises" list and watching them appear in the gray box
+  with no reps/weight required, logging a set and confirming the block
+  stays on the page afterward with the entry showing up correctly in
+  "Latest by exercise", plan persistence across a reload, and the header
+  title swap across tab switches. `jumpToExercise()` (Suggested tab) was
+  re-verified too. Still outstanding: run `supabase/today_plan_schema.sql`
+  against the real database (the `today_plans` table doesn't exist until
+  then, so `saveTodayPlan()` will fail closed with an alert and the plan
+  just won't persist server-side — same fail-safe direction as the
+  exercise-backups table).
+- **A real hover bug in Diana's model, found while investigating the
+  above and now fixed** (see "A real bug shipped with that 'Upper Body'
+  layer" above): her "Upper Body" layer never lit up on hover — not a
+  regression from this session's other changes, it silently never worked
+  since that layer was added. Root cause: Three.js's `GLTFLoader`
+  sanitizes multi-word node names, turning "Upper Body" into "Upper_Body"
+  at runtime, which never matched the `"upper body"` alias. Verified fixed
+  live (forced `state.activeProfile = "diana"` in a throwaway copy,
+  confirmed the torso/shoulders/arms region now glows blue on hover, both
+  via direct `hoverMuscle('upper')` calls and the button row).
 - **The mobile first-load zoom bug** (page/model/text reading zoomed in
   right after a fresh reload on mobile) could **not** be conclusively
   reproduced or fixed with certainty in this environment — the browser

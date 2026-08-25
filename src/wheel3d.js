@@ -130,7 +130,19 @@ function organizeMuscleGroups(root){
   const profileKeys = Object.keys(aliasMap);
 
   function keyForName(lname){
-    return profileKeys.find(k => aliasMap[k].some(alias => lname.includes(alias)));
+    // Three.js's GLTFLoader sanitizes multi-word node names for use as
+    // animation-track paths — Rhino's "Upper Body" layer comes through at
+    // runtime as "Upper_Body" (space replaced with underscore), even
+    // though the source glTF file's own JSON still says "Upper Body" —
+    // confirmed by parsing the .glb's JSON chunk directly and comparing
+    // it to what this function actually receives at runtime. Single-word
+    // layer names (Core, Legs, Glutes, chest, back, …) were never
+    // affected, which is why this went unnoticed until Diana's first
+    // multi-word layer. Normalizing underscores back to spaces before
+    // matching means aliases can still be written the readable way
+    // ("upper body") without needing to predict the sanitized form.
+    const normalized = lname.replace(/_/g, " ");
+    return profileKeys.find(k => aliasMap[k].some(alias => normalized.includes(alias)));
   }
 
   function layerNameFor(obj){

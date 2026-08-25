@@ -163,6 +163,46 @@
     letter-spacing:0;
   }
 
+  /* Today's Workout box — sits where stats used to (top of #logMainStage),
+     a distinct gray "tray" so today's picked exercises read as a separate,
+     working area from the rest of the page; individual .exercise-blocks
+     inside keep their own lighter card background for contrast. */
+  .today-workout-box{
+    background:#e3e3e3;
+    border:1px solid var(--line-strong);
+    border-radius:var(--radius);
+    padding:20px;
+    margin-bottom:22px;
+  }
+  .today-workout-box > h2{
+    font-size:1.5rem;
+    margin-bottom:14px;
+    padding-bottom:10px;
+    border-bottom:2px solid var(--ink);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  .today-workout-box .exercise-block{background:var(--paper-raised);}
+
+  /* Stats, collapsed by default now that the gray box above is the main
+     focus of this page — a plain <details>/<summary>, same section-card
+     look as everything else. */
+  .stats-dropdown{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 20px;
+    margin-bottom:22px;
+    box-shadow:var(--shadow);
+  }
+  .stats-dropdown summary{
+    cursor:pointer;
+    font-weight:800;
+    font-size:1.1rem;
+  }
+  .stats-dropdown .stats{margin:14px 0 0;}
+
   label{
     font-weight:600;
     font-size:0.72rem;
@@ -457,8 +497,6 @@
 
   .picker-actions{display:flex;gap:8px;margin-top:10px;}
   .picker-actions .tool-btn{flex:1;text-align:center;}
-
-  .train-more-row{margin-bottom:12px;}
 
   .primary-btn{
     background:var(--plate);

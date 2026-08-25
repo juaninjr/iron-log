@@ -5,8 +5,8 @@ import { state, GATE_ENABLED } from "./state.js";
 import { $, $all, todayISO, triggerHaptic } from "./dom-utils.js";
 import { loadEntries, loadExercises, loadTodayPlan } from "./persistence.js";
 import {
-  logWorkout, enterMuscleGate, enterAllExercisePicker, confirmMuscleSelection,
-  showTodayWorkoutPage, setHeaderTitle, buildExerciseBlocks, render,
+  logWorkout, enterMuscleGate, confirmMuscleSelection,
+  showTodayWorkoutPage, setHeaderTitle, buildExerciseBlocks, buildAllExercisesList, render,
 } from "./log-tab.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
@@ -55,13 +55,15 @@ export async function init() {
   });
   $("#addExerciseBtn").addEventListener("click", addExercise);
   $("#logWorkoutBtn").addEventListener("click", () => logWorkout());
-  // "Create Plan" — every exercise, unfiltered by muscle.
-  $("#skipToLogBtn").addEventListener("click", enterAllExercisePicker);
-  // The picker's back icon and both "Train more" buttons — the latter
-  // always returns to the wheel to add exercises from another muscle.
+  // "Create Plan" — straight to the Today's Workout main page, which
+  // already lists every exercise (see "All exercises", buildAllExercisesList()).
+  $("#skipToLogBtn").addEventListener("click", showTodayWorkoutPage);
+  // The picker's back icon and its "Train more" button both take you to
+  // that same full list, instead of "Train more" bouncing back to the
+  // wheel — the wheel's muscle-scoped picker is a shortcut, not the only
+  // way to see everything else.
   $("#quickLogBackBtn").addEventListener("click", showTodayWorkoutPage);
-  $("#trainMorePickerBtn").addEventListener("click", enterMuscleGate);
-  $("#trainMoreMainBtn").addEventListener("click", enterMuscleGate);
+  $("#trainMorePickerBtn").addEventListener("click", showTodayWorkoutPage);
   // Tapping a recognized (hoverable/highlighted) part of the 3D model
   // picks that muscle directly — wheel3d.js dispatches this once per
   // tap-that-hits-a-part. The button row stays as a fallback.
@@ -108,6 +110,7 @@ export async function init() {
   await loadExercises();
   await loadTodayPlan();
   buildExerciseBlocks();
+  buildAllExercisesList();
 
   await loadEntries();
   render();

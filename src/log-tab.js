@@ -41,7 +41,7 @@ export async function addToTodayPlan(name) {
   if (!state.todayPlanDate) state.todayPlanDate = todayISO();
   await saveTodayPlan();
   rebuildCurrentPicker();
-  if (!$("#logMainStage").hidden) { buildExerciseBlocks(); render(); }
+  if (!$("#logMainStage").hidden) { buildExerciseBlocks(); buildAllExercisesList(); render(); }
 }
 
 export async function removeFromTodayPlan(name) {
@@ -49,7 +49,7 @@ export async function removeFromTodayPlan(name) {
   state.todayPlan = state.todayPlan.filter(n => n !== name);
   await saveTodayPlan();
   rebuildCurrentPicker();
-  if (!$("#logMainStage").hidden) { buildExerciseBlocks(); render(); }
+  if (!$("#logMainStage").hidden) { buildExerciseBlocks(); buildAllExercisesList(); render(); }
 }
 
 // ---------- Muscle-select stage (the gate in front of the Log page) ----------
@@ -108,28 +108,26 @@ export function leaveMuscleGate() {
   if (window.IronLogWheel3D) window.IronLogWheel3D.hide();
 }
 
-// ---------- Exercise picker (Create Plan / wheel taps) ----------
-// Which exercises the picker currently showing is scoped to — null while
-// no picker is showing, "all" for Create Plan, or a muscle key for a
-// wheel tap. Re-derived from state.EXERCISES on every render rather than
-// snapshotting a list, so it can't go stale if exercises change.
-let currentPickerFilter = null;
-
-function pickerExercises() {
-  if (currentPickerFilter === "all") return state.EXERCISES;
-  return state.EXERCISES.filter(ex => ex.muscle === currentPickerFilter);
-}
+// ---------- Exercise picker (wheel taps) ----------
+// Which muscle the #quickLogStage picker currently showing is scoped to —
+// null while it isn't showing. Re-derived from state.EXERCISES on every
+// rebuild rather than snapshotting a list, so it can't go stale if
+// exercises change.
+let currentPickerMuscle = null;
 
 function rebuildCurrentPicker() {
-  if (currentPickerFilter === null) return;
-  buildPickerList(pickerExercises());
+  if (currentPickerMuscle === null) return;
+  buildPickerList("#quickLogPickerList", state.EXERCISES.filter(ex => ex.muscle === currentPickerMuscle));
 }
 
 // Plain add/remove buttons, no weight/reps inputs — actual logging
-// happens later, on the Today's Workout main page. Each button toggles
-// membership in state.todayPlan directly.
-function buildPickerList(exercises) {
-  const container = $("#quickLogPickerList");
+// happens on the Today's Workout main page instead. Each button toggles
+// membership in state.todayPlan directly. Shared by the wheel's
+// muscle-scoped picker (#quickLogPickerList) and the main page's own
+// unfiltered "All exercises" list (#allExercisesList) — same rendering
+// either way, just a different container and exercise list.
+function buildPickerList(containerSel, exercises) {
+  const container = $(containerSel);
   if (!container) return;
   container.innerHTML = "";
 
@@ -164,6 +162,14 @@ function buildPickerList(exercises) {
   });
 }
 
+// The main page's own unfiltered exercise list — every exercise, same
+// add/remove toggle buttons as the wheel's picker. This is what actually
+// builds "Today's Workout" (buildExerciseBlocks()) up: adding here just
+// marks membership, no reps/weight needed yet.
+export function buildAllExercisesList() {
+  buildPickerList("#allExercisesList", state.EXERCISES);
+}
+
 function showPickerStage() {
   $("#muscleSelectStage").hidden = true;
   $("#logMainStage").hidden = true;
@@ -176,36 +182,32 @@ function showPickerStage() {
 }
 
 // Tapping a muscle on the wheel (or clicking its button-row fallback)
-// opens that one muscle's exercise picker.
+// opens that one muscle's exercise picker — a quick shortcut; every
+// exercise is always reachable from the main page's own "All exercises"
+// list too (see showTodayWorkoutPage()/buildAllExercisesList() above).
 export function confirmMuscleSelection(m) {
-  currentPickerFilter = m;
+  currentPickerMuscle = m;
   $("#quickLogTitle").textContent = activeProfile().muscleLabels[m];
   showPickerStage();
-  buildPickerList(pickerExercises());
+  rebuildCurrentPicker();
 }
 
-// "Create Plan" (the wheel page's house/knives button) — every exercise,
-// unfiltered by muscle.
-export function enterAllExercisePicker() {
-  currentPickerFilter = "all";
-  $("#quickLogTitle").textContent = "All Exercises";
-  showPickerStage();
-  buildPickerList(pickerExercises());
-}
-
-// The picker's back icon, and jumpToExercise() (suggested-tab.js) — shows
-// the Today's Workout main page: stats/tables plus one exercise block per
-// exercise currently in the plan, ready for weight/reps input.
+// The picker's back icon, "Train more", "Create Plan" (the wheel page's
+// house/knives button), and jumpToExercise() (suggested-tab.js) all land
+// here — the Today's Workout main page: the gray Today's Workout box
+// (today's plan, with real inputs), stats (collapsed by default), and the
+// full "All exercises" add list below.
 export function showTodayWorkoutPage() {
-  currentPickerFilter = null;
+  currentPickerMuscle = null;
   leaveMuscleGate();
   setHeaderTitle(true);
   buildExerciseBlocks();
+  buildAllExercisesList();
   render();
 }
 
 export function enterMuscleGate() {
-  currentPickerFilter = null;
+  currentPickerMuscle = null;
   $("#muscleSelectStage").hidden = false;
   $("#logMainStage").hidden = true;
   $("#quickLogStage").hidden = true;

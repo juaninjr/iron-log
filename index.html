@@ -115,18 +115,25 @@
 
     <div id="logMainStage" hidden>
 
-      <div class="stats">
-        <div class="stat"><div class="label">Total weight lifted</div><div class="value" id="statVolume">0 kg</div></div>
-        <div class="stat"><div class="label">Days trained</div><div class="value" id="statDays">0</div></div>
-        <div class="stat steel"><div class="label">Last session</div><div class="value" id="statLast">—</div></div>
-        <div class="stat"><div class="label">Total pushups</div><div class="value" id="statPushups">0</div></div>
-      </div>
-
-      <section>
+      <div class="today-workout-box" id="todayWorkoutBox">
         <h2>Today's Workout<input type="date" id="workoutDate" class="date-inline" aria-label="Date"></h2>
-        <div class="train-more-row"><button type="button" class="tool-btn" id="trainMoreMainBtn">Train more</button></div>
         <div id="exerciseBlocks"></div>
         <button class="primary-btn" id="logWorkoutBtn">Log workout</button>
+      </div>
+
+      <details class="stats-dropdown">
+        <summary>Stats</summary>
+        <div class="stats">
+          <div class="stat"><div class="label">Total weight lifted</div><div class="value" id="statVolume">0 kg</div></div>
+          <div class="stat"><div class="label">Days trained</div><div class="value" id="statDays">0</div></div>
+          <div class="stat steel"><div class="label">Last session</div><div class="value" id="statLast">—</div></div>
+          <div class="stat"><div class="label">Total pushups</div><div class="value" id="statPushups">0</div></div>
+        </div>
+      </details>
+
+      <section>
+        <h2>All exercises</h2>
+        <div id="allExercisesList"></div>
       </section>
 
       <section>
