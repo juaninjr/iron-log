@@ -1,4 +1,4 @@
-import { state, MUSCLES, MUSCLE_LABELS, MUSCLE_COLORS, SVG_NS } from "./state.js";
+import { state, activeProfile, SVG_NS } from "./state.js";
 import { $, fmtDate, fmtDateShort } from "./dom-utils.js";
 
 // Best (max) value per date for each exercise: weight for weighted lifts,
@@ -8,7 +8,8 @@ import { $, fmtDate, fmtDateShort } from "./dom-utils.js";
 // reps-only exercises — kept as a separate chart since it's a different
 // unit (see the single-axis rule).
 function muscleVolumeSeries(kind) {
-  return MUSCLES.map(m => {
+  const { muscles, muscleLabels, muscleColors } = activeProfile();
+  return muscles.map(m => {
     const byDate = {};
     state.entries.forEach(e => {
       const ex = state.EXERCISES.find(x => x.name === e.exercise);
@@ -22,7 +23,7 @@ function muscleVolumeSeries(kind) {
       }
     });
     const points = Object.keys(byDate).sort().map(date => ({ date, value: byDate[date] }));
-    return { key: m, label: MUSCLE_LABELS[m], color: MUSCLE_COLORS[m], points };
+    return { key: m, label: muscleLabels[m], color: muscleColors[m], points };
   });
 }
 

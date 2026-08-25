@@ -21,7 +21,7 @@ export function downloadPDF() {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text("Iron Log", 14, 18);
+  doc.text("Knife", 14, 18);
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text(`Exported ${fmtDate(todayISO())}`, 14, 25);
@@ -59,7 +59,7 @@ export function downloadPDF() {
     styles: { fontSize: 8 },
   });
 
-  doc.save(`iron-log-${todayISO()}.pdf`);
+  doc.save(`knife-${todayISO()}.pdf`);
 }
 
 // ---------- Backup export/import ----------
@@ -68,7 +68,7 @@ export function exportBackup() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `iron-log-backup-${todayISO()}.json`;
+  a.download = `knife-backup-${todayISO()}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -94,7 +94,7 @@ export function importBackup(file) {
       render();
       alert(`Imported ${toAdd.length} new set${toAdd.length === 1 ? "" : "s"}.`);
     } catch (err) {
-      alert("Could not read that file — make sure it's an Iron Log backup JSON.");
+      alert("Could not read that file — make sure it's a Knife backup JSON.");
     }
   };
   reader.readAsText(file);

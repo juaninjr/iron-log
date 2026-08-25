@@ -1,5 +1,8 @@
 # 2D muscle-select wheel — backup
 
+The app this backup belongs to is also branded/known as **Knife**
+(kknniiffee.com) in its own UI.
+
 This is the full 2D "spinning dial" muscle-select picker that used to live
 in `#muscleSelectStage`, before it was replaced by a 3D model
 (`wheel3d.js`) plus a row of muscle-group buttons. Saved here in case the

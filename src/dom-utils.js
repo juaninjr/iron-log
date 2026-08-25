@@ -1,4 +1,4 @@
-import { MUSCLES } from "./state.js";
+import { activeProfile } from "./state.js";
 
 export const $ = (sel, root) => (root || document).querySelector(sel);
 export const $all = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -8,7 +8,8 @@ export function clamp(v, min, max) {
 }
 
 export function exerciseSort(a, b) {
-  const ma = MUSCLES.indexOf(a.muscle), mb = MUSCLES.indexOf(b.muscle);
+  const muscles = activeProfile().muscles;
+  const ma = muscles.indexOf(a.muscle), mb = muscles.indexOf(b.muscle);
   if (ma !== mb) return ma - mb;
   return a.name.localeCompare(b.name);
 }

@@ -1,38 +1,51 @@
-import { state, MUSCLES, MUSCLE_LABELS, MUSCLE_COLORS } from "./state.js";
+import { state, activeProfile } from "./state.js";
 import { $, $all, fmtDate, cssEscape, triggerHaptic } from "./dom-utils.js";
 import { saveEntries, deleteEntries } from "./persistence.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
 import { renderSuggested } from "./suggested-tab.js";
+import { renderKnifeTitle } from "./brand.js";
+
+// Rebuilds the three muscle-scoped Set filters (state.js) off the active
+// profile's own muscle list — those Sets are built once at module-load
+// time (always off the owner's list, since no profile is chosen yet at
+// that point), so a non-owner profile needs them rebuilt right after
+// gate.js picks it, before init() renders anything.
+export function resetProfileFilters() {
+  state.weightFilterSelected = new Set(activeProfile().muscles);
+  state.repsFilterSelected = new Set(activeProfile().muscles);
+  state.logMuscleFilter = new Set(activeProfile().muscles);
+}
 
 // ---------- Build the log form ----------
 export function buildMuscleFilterRow() {
   const row = $("#muscleFilterRow");
   if (!row) return;
   row.innerHTML = "";
+  const { muscles, muscleLabels } = activeProfile();
 
   const allBtn = document.createElement("button");
   allBtn.type = "button";
-  allBtn.className = "muscle-chip muscle-chip-all" + (state.logMuscleFilter.size === MUSCLES.length ? "" : " inactive");
+  allBtn.className = "muscle-chip muscle-chip-all" + (state.logMuscleFilter.size === muscles.length ? "" : " inactive");
   allBtn.textContent = "All";
   allBtn.addEventListener("click", () => {
-    state.logMuscleFilter = new Set(MUSCLES);
+    state.logMuscleFilter = new Set(muscles);
     buildMuscleFilterRow();
     buildExerciseBlocks();
   });
   row.appendChild(allBtn);
 
-  MUSCLES.forEach(m => {
+  muscles.forEach(m => {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "muscle-chip" + (state.logMuscleFilter.has(m) ? "" : " inactive");
-    chip.textContent = MUSCLE_LABELS[m];
+    chip.textContent = muscleLabels[m];
     chip.addEventListener("click", () => {
       // Starting from "All": clicking a muscle isolates it. From then on,
       // clicking another muscle adds it to the selection; re-clicking an
       // already-active one toggles it back off. The "All" chip is the
       // only way to jump straight back to showing everything at once.
-      if (state.logMuscleFilter.size === MUSCLES.length) state.logMuscleFilter = new Set([m]);
+      if (state.logMuscleFilter.size === muscles.length) state.logMuscleFilter = new Set([m]);
       else if (state.logMuscleFilter.has(m)) state.logMuscleFilter.delete(m);
       else state.logMuscleFilter.add(m);
       buildMuscleFilterRow();
@@ -43,19 +56,27 @@ export function buildMuscleFilterRow() {
 }
 
 // ---------- Muscle-select stage (the gate in front of the Log page) ----------
-// The 3D model (wheel3d.js) is purely decorative here — it spins for
-// feel but doesn't drive selection. Picking a muscle happens through
-// this row of buttons instead; see legacy/muscle-wheel-2d-backup.md for
-// the old spinning-dial-as-picker version this replaced.
+// The 3D model (wheel3d.js) spins for feel and is fully hoverable/tappable
+// (see wheel3d.js); this row of buttons is both a fallback picker for
+// parts that don't hover cleanly (or touch devices) and, via the
+// mouseenter/mouseleave pair below, the button side of a two-way hover
+// with the model — hovering a button highlights the matching 3D part, and
+// vice versa (the "musclehover" listener in enterMuscleGate()). See
+// legacy/muscle-wheel-2d-backup.md for the old spinning-dial-as-picker
+// version this replaced.
 export function buildMusclePickRow() {
   const row = $("#musclePickRow");
   if (!row) return;
   row.innerHTML = "";
-  MUSCLES.forEach(m => {
+  const { muscles, muscleLabels } = activeProfile();
+  muscles.forEach(m => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "muscle-pick-btn";
-    btn.textContent = MUSCLE_LABELS[m];
+    btn.textContent = muscleLabels[m];
+    btn.dataset.muscle = m;
+    btn.addEventListener("mouseenter", () => { if (window.IronLogWheel3D) window.IronLogWheel3D.hoverMuscle(m); });
+    btn.addEventListener("mouseleave", () => { if (window.IronLogWheel3D) window.IronLogWheel3D.hoverMuscle(null); });
     btn.addEventListener("click", () => {
       triggerHaptic();
       confirmMuscleSelection(m);
@@ -64,27 +85,64 @@ export function buildMusclePickRow() {
   });
 }
 
-// The muscle-select stage hides the header/nav for a fully minimal
-// page; both of these are the only ways back to full chrome.
-export function leaveMuscleGate() {
+// Three stages share #viewLog, only one visible at a time: the wheel
+// (#muscleSelectStage) → picking a muscle lands on a single-group
+// quick-log page (#quickLogStage) → its back icon (goToGeneralLog) or the
+// wheel's own house/knives icon (skipToLogPage) reach the full,
+// unfiltered log (#logMainStage). This helper shows the full log's
+// header/nav chrome, shared by both of those exits.
+function showFullLogChrome() {
   $("#muscleSelectStage").hidden = true;
+  $("#quickLogStage").hidden = true;
   $("#logMainStage").hidden = false;
   $("header.top").hidden = false;
   $("#mainTabs").hidden = false;
-  document.body.classList.remove("muscle-gate-active");
+  document.body.classList.remove("muscle-gate-active", "quick-log-active");
+}
+
+// The muscle-select stage hides the header/nav for a fully minimal
+// page; both of these are the only ways back to full chrome.
+export function leaveMuscleGate() {
+  showFullLogChrome();
+  stopBgTitleVibration();
   if (window.IronLogWheel3D) window.IronLogWheel3D.hide();
 }
 
-export function confirmMuscleSelection(m) {
+// Shown after picking a muscle (wheel tap or button click) — just that
+// group's exercise blocks, no stats/tables/toolbar. Same minimal-chrome
+// treatment as the wheel stage; the only way out is goToGeneralLog().
+export function enterQuickLog(m) {
   state.logMuscleFilter = new Set([m]);
-  leaveMuscleGate();
+  $("#muscleSelectStage").hidden = true;
+  $("#logMainStage").hidden = true;
+  $("#quickLogStage").hidden = false;
+  $("header.top").hidden = true;
+  $("#mainTabs").hidden = true;
+  document.body.classList.remove("muscle-gate-active");
+  document.body.classList.add("quick-log-active");
+  stopBgTitleVibration();
+  if (window.IronLogWheel3D) window.IronLogWheel3D.hide();
+  $("#quickLogTitle").textContent = activeProfile().muscleLabels[m];
+  buildExerciseBlocks("#quickLogExerciseBlocks");
+}
+
+// The quick-log page's small back icon — jumps straight to the full,
+// unfiltered log (same destination skipToLogPage() reaches from the
+// wheel).
+export function goToGeneralLog() {
+  state.logMuscleFilter = new Set(activeProfile().muscles);
+  showFullLogChrome();
   buildMuscleFilterRow();
   buildExerciseBlocks();
   render();
 }
 
+export function confirmMuscleSelection(m) {
+  enterQuickLog(m);
+}
+
 export function skipToLogPage() {
-  state.logMuscleFilter = new Set(MUSCLES);
+  state.logMuscleFilter = new Set(activeProfile().muscles);
   leaveMuscleGate();
   buildMuscleFilterRow();
   buildExerciseBlocks();
@@ -94,16 +152,72 @@ export function skipToLogPage() {
 export function enterMuscleGate() {
   $("#muscleSelectStage").hidden = false;
   $("#logMainStage").hidden = true;
+  $("#quickLogStage").hidden = true;
   $("header.top").hidden = true;
   $("#mainTabs").hidden = true;
+  document.body.classList.remove("quick-log-active");
   document.body.classList.add("muscle-gate-active");
   buildMusclePickRow();
+  ensureBgTitle();
   if (window.IronLogWheel3D) window.IronLogWheel3D.show($("#wheel3dContainer"));
+  // Model → button direction of the two-way hover — bound once per
+  // #wheel3dContainer element, harmless to no-op re-add since the
+  // container itself is never recreated.
+  const wheelEl = $("#wheel3dContainer");
+  if (wheelEl && !wheelEl.dataset.hoverWired) {
+    wheelEl.dataset.hoverWired = "true";
+    wheelEl.addEventListener("musclehover", (evt) => {
+      $all(".muscle-pick-btn", $("#musclePickRow")).forEach(btn => {
+        btn.classList.toggle("hovered", btn.dataset.muscle === evt.detail.muscle);
+      });
+    });
+  }
+  startBgTitleVibration();
+}
+
+// ---------- Wheel-page backdrop title ----------
+// A huge, low-opacity "Knife" wordmark sitting behind the 3D model
+// (#wheelBgTitle, populated once here) — its vibration amplitude
+// (--vibrate-amp, read by the knife-vibrate keyframes in style.css) is
+// driven every frame from the model's current twist speed
+// (wheel3d.js's getTwistIntensity()) while the wheel stage is visible, so
+// it jitters harder the more the model is being dragged. The multiplier
+// and cap below keep it legible even at full twist speed.
+const VIBRATE_INTENSITY_SCALE = 8;
+const VIBRATE_AMP_MAX = 3;
+let bgTitleRaf = null;
+
+function ensureBgTitle() {
+  const el = $("#wheelBgTitle");
+  if (el && !el.innerHTML) el.innerHTML = renderKnifeTitle("bg");
+}
+
+function startBgTitleVibration() {
+  if (bgTitleRaf) return;
+  const el = $("#wheelBgTitle");
+  if (!el) return;
+  const tick = () => {
+    const intensity = window.IronLogWheel3D ? window.IronLogWheel3D.getTwistIntensity() : 0;
+    const amp = 1 + Math.min(intensity * VIBRATE_INTENSITY_SCALE, VIBRATE_AMP_MAX);
+    el.style.setProperty("--vibrate-amp", amp.toFixed(2));
+    bgTitleRaf = requestAnimationFrame(tick);
+  };
+  bgTitleRaf = requestAnimationFrame(tick);
+}
+
+function stopBgTitleVibration() {
+  if (bgTitleRaf) cancelAnimationFrame(bgTitleRaf);
+  bgTitleRaf = null;
 }
 
 // ---------- Exercise blocks / logging ----------
-export function buildExerciseBlocks() {
-  const container = $("#exerciseBlocks");
+// `containerSel` lets both the quick-log stage (#quickLogExerciseBlocks)
+// and the full log stage (#exerciseBlocks) build/read their own blocks
+// without colliding — only one of the two is ever populated for a given
+// pick, but scoping every query to the container keeps it correct even
+// if that changes.
+export function buildExerciseBlocks(containerSel = "#exerciseBlocks") {
+  const container = $(containerSel);
   if (!container) return;
   container.innerHTML = "";
   const visible = state.EXERCISES.filter(ex => state.logMuscleFilter.has(ex.muscle));
@@ -117,7 +231,7 @@ export function buildExerciseBlocks() {
     const block = document.createElement("div");
     block.className = "exercise-block";
     block.dataset.exercise = ex.name;
-    block.style.setProperty("--ex-muscle-color", MUSCLE_COLORS[ex.muscle]);
+    block.style.setProperty("--ex-muscle-color", activeProfile().muscleColors[ex.muscle]);
 
     const head = document.createElement("div");
     head.className = "ex-head";
@@ -189,19 +303,20 @@ export function addSetRow(rowsContainer, ex) {
   rowsContainer.appendChild(row);
 }
 
-export async function logWorkout() {
+export async function logWorkout(containerSel = "#exerciseBlocks") {
   const date = $("#workoutDate").value;
   if (!date) {
     alert("Pick a date first.");
     return;
   }
 
+  const container = $(containerSel);
   const newEntries = [];
   let offset = 0;
   const baseTime = Date.now();
 
   state.EXERCISES.forEach((ex) => {
-    const block = $(`.exercise-block[data-exercise="${cssEscape(ex.name)}"]`);
+    const block = container && $(`.exercise-block[data-exercise="${cssEscape(ex.name)}"]`, container);
     if (!block) return; // hidden by the muscle filter — nothing to read
     const rows = $all(".set-row", block);
     rows.forEach((row) => {
@@ -234,7 +349,7 @@ export async function logWorkout() {
 
   state.entries = state.entries.concat(newEntries);
   await saveEntries(newEntries);
-  buildExerciseBlocks();
+  buildExerciseBlocks(containerSel);
   $("#workoutDate").value = date;
   render();
 }

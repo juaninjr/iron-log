@@ -1,5 +1,8 @@
 # Iron Log
 
+Also branded/known as **Knife** (kknniiffee.com) in the app's own UI —
+this repo/project's name is unrelated to what users see.
+
 A gym workout tracker — log sets per exercise, see your most recent lift for
 each movement, export a PDF, and back up your data as JSON.
 

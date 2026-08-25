@@ -1,4 +1,4 @@
-// Iron Log — the muscle-select stage's 3D model. A separate module (its
+// Knife — the muscle-select stage's 3D model. A separate module (its
 // own file, imported by main.js) since a Three.js scene is sizable and
 // self-contained enough to be clearer split out on its own. Exposes
 // window.IronLogWheel3D so log-tab.js — a plain global, since this is the
@@ -35,16 +35,21 @@
 // share the same name; a Layer name works too as a fallback, see
 // organizeMuscleGroups() below). Rhino3dmLoader/GLTFLoader both carry
 // that Name into the resulting Mesh's `.name`; organizeMuscleGroups()
-// buckets meshes by matching MUSCLE_KEYS against `.name` (case-
-// insensitive substring match, so "Chest_L"/"chest-01"/etc. all still
-// match "chest"). Unnamed/unmatched geometry is left alone — it renders
-// normally but is neither hoverable nor clickable. See models/README.md
-// for the full naming walkthrough.
+// buckets meshes by matching, for each of the active profile's own
+// muscle keys, any of that key's modelLayerAliases (state.js) against
+// `.name` (case-insensitive substring match, so "Chest_L"/"chest-01"/etc.
+// all still match "chest"). For the owner every key aliases only itself;
+// Diana's profile maps several of the model's actual layers onto one
+// logical key (or, for "glutes", onto none at all — see state.js).
+// Unnamed/unmatched geometry is left alone — it renders normally but is
+// neither hoverable nor clickable. See models/README.md for the full
+// naming walkthrough.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Rhino3dmLoader } from "three/addons/loaders/3DMLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { activeProfile } from "./state.js";
 
 const GLTF_MODEL_URL = "/models/muscle-select.glb";
 const RHINO_MODEL_URL = "/models/human.3dm";
@@ -54,19 +59,11 @@ const RHINO_MODEL_URL = "/models/human.3dm";
 // features whose native binding signature changed between versions.
 const RHINO3DM_LIBRARY_PATH = "https://cdn.jsdelivr.net/npm/rhino3dm@8.0.1/";
 
-// Must match MUSCLES / MUSCLE_COLORS in index.html — duplicated here
-// (rather than imported) since wheel3d.js is a module and index.html's
-// IIFE isn't, and six short hex codes aren't worth a cross-boundary
-// plumbing mechanism.
-const MUSCLE_KEYS = ["chest", "back", "shoulders", "arms", "core", "legs"];
-const MUSCLE_GLOW_COLOR = {
-  chest: 0x2a78d6,
-  back: 0x1baf7a,
-  shoulders: 0xeda100,
-  arms: 0x008300,
-  core: 0x4a3aa7,
-  legs: 0xe34948,
-};
+// "#rrggbb" (activeProfile().muscleColors, shared with the rest of the
+// app's CSS) → Three's numeric 0xrrggbb color form.
+function hexToInt(hex) {
+  return parseInt(hex.slice(1), 16);
+}
 
 const HOVER_EMISSIVE_INTENSITY = 0.7;
 const DRAG_CANCEL_PX = 6;
@@ -128,6 +125,15 @@ function clearMessage(el){
 // models/README.md.
 function organizeMuscleGroups(root){
   const layers = root.userData && root.userData.layers;
+  // { profileKey: [rawModelLayerSubstring, ...] } — for the owner every
+  // key aliases only itself; Diana's profile maps several of the model's
+  // actual layers onto one logical key (see state.js's PROFILES).
+  const aliasMap = activeProfile().modelLayerAliases;
+  const profileKeys = Object.keys(aliasMap);
+
+  function keyForName(lname){
+    return profileKeys.find(k => aliasMap[k].some(alias => lname.includes(alias)));
+  }
 
   function layerNameFor(obj){
     if(!layers) return "";
@@ -141,7 +147,7 @@ function organizeMuscleGroups(root){
     let p = obj;
     while(p && p !== root.parent){
       const lname = (p.name || "").toLowerCase();
-      const key = MUSCLE_KEYS.find(k => lname.includes(k));
+      const key = keyForName(lname);
       if(key) return key;
       p = p.parent;
     }
@@ -149,14 +155,14 @@ function organizeMuscleGroups(root){
   }
 
   const buckets = {};
-  MUSCLE_KEYS.forEach(k => { buckets[k] = []; });
+  profileKeys.forEach(k => { buckets[k] = []; });
 
   root.traverse(obj => {
     if(!obj.isMesh) return;
     let key = ancestorNameMatch(obj);
     if(!key){
       const llayer = layerNameFor(obj).toLowerCase();
-      if(llayer) key = MUSCLE_KEYS.find(k => llayer.includes(k));
+      if(llayer) key = keyForName(llayer);
     }
     if(key) buckets[key].push(obj);
   });
@@ -170,7 +176,7 @@ function organizeMuscleGroups(root){
   // with `root` at all, since they'd sit outside its hierarchy).
   const rootInverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
 
-  MUSCLE_KEYS.forEach(key => {
+  profileKeys.forEach(key => {
     const meshes = buckets[key];
     if(meshes.length === 0) return;
 
@@ -250,7 +256,8 @@ function applyHighlight(mat, key, on){
     mat.userData.baseEmissiveIntensity = mat.emissiveIntensity ?? 1;
   }
   if(on){
-    mat.emissive.setHex(MUSCLE_GLOW_COLOR[key] ?? 0xffffff);
+    const hex = activeProfile().muscleColors[key];
+    mat.emissive.setHex(hex ? hexToInt(hex) : 0xffffff);
     mat.emissiveIntensity = HOVER_EMISSIVE_INTENSITY;
   } else {
     mat.emissive.copy(mat.userData.baseEmissive);
@@ -274,6 +281,10 @@ function setHoveredKey(key){
   hoveredKey = key;
   if(hoveredKey) setHighlighted(hoveredKey, true);
   if(container) container.style.cursor = hoveredKey ? "pointer" : "grab";
+  // Mirrors "musclepick" below — log-tab.js listens for this to highlight
+  // the matching muscle-pick-row button (model → button direction); the
+  // reverse direction is hoverMuscle(), exported below.
+  if(container) container.dispatchEvent(new CustomEvent("musclehover", { detail: { muscle: hoveredKey }, bubbles: true }));
 }
 
 function raycastAt(clientX, clientY){
@@ -499,4 +510,20 @@ function resize(){
   doResize();
 }
 
-window.IronLogWheel3D = { show, hide, resize };
+// Button → model direction of the two-way hover (log-tab.js's
+// buildMusclePickRow() calls this on mouseenter/mouseleave). Just routes
+// through the same setHoveredKey() the raycast-driven pointer hover uses,
+// so it's safe to call any time — a no-op if nothing's loaded yet or the
+// key has no matching group.
+function hoverMuscle(key){
+  setHoveredKey(key);
+}
+
+// Current drag/momentum speed, used by log-tab.js to scale the wheel
+// backdrop title's vibration amplitude — the harder the model's being
+// twisted, the more it jitters.
+function getTwistIntensity(){
+  return Math.abs(velocity);
+}
+
+window.IronLogWheel3D = { show, hide, resize, hoverMuscle, getTwistIntensity };

@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Iron Log</title>
+<title>Knife</title>
 <script type="module" src="/src/main.js"></script>
 </head>
 <body>
 
 <div class="gate-screen" id="gateScreen" hidden>
   <div class="gate-inner">
-    <h1 class="gate-logo">Iron Log</h1>
+    <div class="brand-block" id="gateLogoSlot"></div>
 
     <div id="gateGridView">
       <button type="button" class="tool-btn" id="strangerBtn">I'm a stranger</button>
@@ -33,16 +33,25 @@
       <p class="gate-error" id="strangerError" hidden></p>
       <button type="button" class="tool-btn" id="strangerBackBtn">Back</button>
     </div>
+
+    <div class="stranger-auth" id="dianaQaView" hidden>
+      <p class="qa-question" id="dianaQaQuestion"></p>
+      <form id="dianaQaForm">
+        <label for="dianaQaAnswer">Answer</label>
+        <input type="text" id="dianaQaAnswer" autocomplete="off" required>
+        <button type="submit" class="primary-btn" id="dianaQaSubmitBtn">Submit</button>
+      </form>
+      <p class="gate-error" id="dianaQaError" hidden></p>
+      <p class="gate-cooldown" id="dianaQaCooldown" hidden></p>
+      <button type="button" class="tool-btn" id="dianaQaBackBtn">Back</button>
+    </div>
   </div>
 </div>
 
 <div class="wrap">
 
   <header class="top">
-    <div>
-      <h1>Iron Log</h1>
-      <div class="sub" id="funFact"></div>
-    </div>
+    <div class="brand-block" id="headerLogoSlot"></div>
     <div class="nav-wrap">
       <button type="button" class="tool-btn" id="logOutBtn" hidden>Log out</button>
       <button type="button" class="nav-toggle" id="navToggle" aria-haspopup="true" aria-expanded="false" aria-label="Open menu">
@@ -62,10 +71,23 @@
 
     <div id="muscleSelectStage">
       <button type="button" class="skip-to-log-btn" id="skipToLogBtn" title="Go to exercise logging" aria-label="Go to exercise logging">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
+        <svg class="house-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
+        <span class="knives-icon" id="skipBtnKnivesIcon"></span>
       </button>
+      <div class="wheel-bg-title" id="wheelBgTitle" aria-hidden="true"></div>
       <div class="wheel3d-wrap" id="wheel3dContainer" aria-hidden="true"></div>
       <div class="muscle-pick-row" id="musclePickRow" role="group" aria-label="Muscle group picker"></div>
+    </div>
+
+    <div id="quickLogStage" hidden>
+      <div class="quick-log-head">
+        <h2 id="quickLogTitle"></h2>
+        <button type="button" class="icon-btn" id="quickLogBackBtn" title="Back to full log" aria-label="Back to full log">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M11 4 4 12l7 8 1.4-1.4L7.8 13H20v-2H7.8l4.6-5.6z"/></svg>
+        </button>
+      </div>
+      <div id="quickLogExerciseBlocks"></div>
+      <button class="primary-btn" id="quickLogWorkoutBtn">Log workout</button>
     </div>
 
     <div id="logMainStage" hidden>
@@ -187,14 +209,11 @@
         </div>
         <div>
           <label for="newExMuscle">Muscle group</label>
-          <select id="newExMuscle">
-            <option value="chest">Chest</option>
-            <option value="back">Back</option>
-            <option value="shoulders">Shoulders</option>
-            <option value="arms">Arms</option>
-            <option value="core">Core</option>
-            <option value="legs">Legs</option>
-          </select>
+          <!-- Populated from the active profile's own muscle categories
+               (populateMuscleSelect(), exercises-tab.js) — the owner and
+               Diana have different category sets, so this can't be a
+               fixed list here. -->
+          <select id="newExMuscle"></select>
         </div>
         <div class="add-ex-checks">
           <label><input type="checkbox" id="newExPerHand"> Per hand</label>
@@ -208,6 +227,17 @@
       <h2>All exercises <span class="count" id="exercisesCount"></span></h2>
       <p class="empty-note" style="padding:0 0 12px;">Backbone exercises are the pool the Suggested tab draws from.</p>
       <div id="exerciseManageList"></div>
+    </section>
+
+    <!-- Owner-only (renderDianaGateSection(), exercises-tab.js) — lets
+         the owner flip Diana's security-question gate on/off. Hidden by
+         default; JS un-hides it only for the owner's own session. -->
+    <section id="dianaGateSection" hidden>
+      <h2>Diana's gate</h2>
+      <label class="ex-backbone-toggle" style="font-size:0.82rem;">
+        <input type="checkbox" id="dianaGateToggle">
+        Require a security question to access Diana's page
+      </label>
     </section>
 
   </div>
@@ -224,4 +254,3 @@
 
 </body>
 </html>
-1

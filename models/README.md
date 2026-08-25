@@ -1,5 +1,8 @@
 # 3D model for the muscle-select stage
 
+The app this model lives in is also branded/known as **Knife**
+(kknniiffee.com) in its own UI.
+
 `wheel3d.js` (`src/wheel3d.js`) tries `/models/muscle-select.glb` first
 (the fast path, and what's currently in place); if that doesn't exist, it
 falls back to `/models/human.3dm`, the raw Rhino file, loaded directly via

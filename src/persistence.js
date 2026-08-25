@@ -4,12 +4,21 @@
 
 import {
   state, useSupabase, supabaseClient, STORAGE_KEY, EXERCISES_STORAGE_KEY,
-  DEFAULT_EXERCISES, OWNER_SENTINEL_ID,
+  activeProfile,
 } from "./state.js";
 import { exerciseSort } from "./dom-utils.js";
 
 export function currentUserId() {
-  return state.currentSession ? state.currentSession.user.id : OWNER_SENTINEL_ID;
+  return state.currentSession ? state.currentSession.user.id : activeProfile().sentinelId;
+}
+
+// The localStorage fallback keys stay unsuffixed for the owner (backward
+// compatible with data saved before Diana existed); Diana gets her own
+// suffixed key so the two profiles' localStorage-fallback data never mix
+// on the same browser. Only matters when useSupabase is false — the real
+// database is already scoped per-profile via currentUserId()/RLS.
+function profileScopedKey(base) {
+  return activeProfile().key === "owner" ? base : `${base}:${activeProfile().key}`;
 }
 
 function rowToEntry(row) {
@@ -79,7 +88,7 @@ export async function loadEntries() {
     return;
   }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(profileScopedKey(STORAGE_KEY));
     state.entries = raw ? JSON.parse(raw) : [];
   } catch (e) {
     state.entries = [];
@@ -106,7 +115,7 @@ export async function saveEntries(rows) {
     }
   }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries));
+    localStorage.setItem(profileScopedKey(STORAGE_KEY), JSON.stringify(state.entries));
     return true;
   } catch (e) {
     console.error("Storage error", e);
@@ -131,7 +140,7 @@ export async function deleteEntries(ids) {
     }
   }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries));
+    localStorage.setItem(profileScopedKey(STORAGE_KEY), JSON.stringify(state.entries));
     return true;
   } catch (e) {
     console.error("Storage error", e);
@@ -140,37 +149,38 @@ export async function deleteEntries(ids) {
   }
 }
 
-// Loads the exercise roster, seeding the database/localStorage with
-// DEFAULT_EXERCISES the first time there's nothing stored yet.
+// Loads the exercise roster, seeding the database/localStorage with the
+// active profile's default exercises the first time there's nothing
+// stored yet.
 export async function loadExercises() {
   if (useSupabase) {
     try {
       const { data, error } = await supabaseClient.from("exercises").select("*");
       if (error) throw error;
       if (data.length === 0) {
-        const seedRows = DEFAULT_EXERCISES.map(exerciseToRow);
+        const seedRows = activeProfile().defaultExercises.map(exerciseToRow);
         const { error: seedError } = await supabaseClient.from("exercises").insert(seedRows);
         if (seedError) throw seedError;
-        state.EXERCISES = DEFAULT_EXERCISES.map(ex => ({ ...ex }));
+        state.EXERCISES = activeProfile().defaultExercises.map(ex => ({ ...ex }));
       } else {
         state.EXERCISES = data.map(rowToExercise);
       }
     } catch (e) {
       console.error("Supabase exercises load error", e);
       alert("Could not load exercises from the database.");
-      state.EXERCISES = DEFAULT_EXERCISES.map(ex => ({ ...ex }));
+      state.EXERCISES = activeProfile().defaultExercises.map(ex => ({ ...ex }));
     }
   } else {
     try {
-      const raw = localStorage.getItem(EXERCISES_STORAGE_KEY);
+      const raw = localStorage.getItem(profileScopedKey(EXERCISES_STORAGE_KEY));
       if (raw) {
         state.EXERCISES = JSON.parse(raw);
       } else {
-        state.EXERCISES = DEFAULT_EXERCISES.map(ex => ({ ...ex }));
-        localStorage.setItem(EXERCISES_STORAGE_KEY, JSON.stringify(state.EXERCISES));
+        state.EXERCISES = activeProfile().defaultExercises.map(ex => ({ ...ex }));
+        localStorage.setItem(profileScopedKey(EXERCISES_STORAGE_KEY), JSON.stringify(state.EXERCISES));
       }
     } catch (e) {
-      state.EXERCISES = DEFAULT_EXERCISES.map(ex => ({ ...ex }));
+      state.EXERCISES = activeProfile().defaultExercises.map(ex => ({ ...ex }));
     }
   }
   state.EXERCISES.sort(exerciseSort);
@@ -192,7 +202,7 @@ export async function saveExercise(ex) {
     }
   }
   try {
-    localStorage.setItem(EXERCISES_STORAGE_KEY, JSON.stringify(state.EXERCISES));
+    localStorage.setItem(profileScopedKey(EXERCISES_STORAGE_KEY), JSON.stringify(state.EXERCISES));
     return true;
   } catch (e) {
     console.error("Storage error", e);
@@ -226,8 +236,8 @@ export async function renameExercise(ex, newName) {
 
   if (!useSupabase) {
     try {
-      localStorage.setItem(EXERCISES_STORAGE_KEY, JSON.stringify(state.EXERCISES));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries));
+      localStorage.setItem(profileScopedKey(EXERCISES_STORAGE_KEY), JSON.stringify(state.EXERCISES));
+      localStorage.setItem(profileScopedKey(STORAGE_KEY), JSON.stringify(state.entries));
     } catch (e) {
       console.error("Storage error", e);
       alert("Could not save the rename.");

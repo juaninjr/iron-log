@@ -6,19 +6,22 @@ import { $, $all, todayISO, triggerHaptic } from "./dom-utils.js";
 import { loadEntries, loadExercises } from "./persistence.js";
 import {
   buildMuscleFilterRow, buildExerciseBlocks, logWorkout, enterMuscleGate,
-  skipToLogPage, confirmMuscleSelection, render,
+  skipToLogPage, confirmMuscleSelection, goToGeneralLog, render,
 } from "./log-tab.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
 import { addExercise } from "./exercises-tab.js";
 import { downloadPDF, exportBackup, importBackup, clearAllData } from "./export.js";
-import { loadComparisons, renderFunFact } from "./fun-fact.js";
 import { toggleNavMenu, setView } from "./nav.js";
 import { logOut, bootstrap } from "./gate.js";
+import { renderKnifeTitle, crossedKnivesSvg } from "./brand.js";
 
 // ---------- Wire up ----------
 export async function init() {
   $("#workoutDate").value = todayISO();
+
+  $("#headerLogoSlot").innerHTML = renderKnifeTitle("brand") + `<p class="knife-desc">A training log platform.</p>`;
+  $("#skipBtnKnivesIcon").innerHTML = crossedKnivesSvg("currentColor");
 
   $("#pdfBtn").addEventListener("click", downloadPDF);
   $("#exportBtn").addEventListener("click", exportBackup);
@@ -52,8 +55,10 @@ export async function init() {
     renderCalendar();
   });
   $("#addExerciseBtn").addEventListener("click", addExercise);
-  $("#logWorkoutBtn").addEventListener("click", logWorkout);
+  $("#logWorkoutBtn").addEventListener("click", () => logWorkout());
   $("#skipToLogBtn").addEventListener("click", skipToLogPage);
+  $("#quickLogBackBtn").addEventListener("click", goToGeneralLog);
+  $("#quickLogWorkoutBtn").addEventListener("click", () => logWorkout("#quickLogExerciseBlocks"));
   // Tapping a recognized (hoverable/highlighted) part of the 3D model
   // picks that muscle directly — wheel3d.js dispatches this once per
   // tap-that-hits-a-part. The button row stays as a fallback.
@@ -83,9 +88,6 @@ export async function init() {
 
   await loadEntries();
   render();
-
-  await loadComparisons();
-  renderFunFact();
 }
 
 document.addEventListener("DOMContentLoaded", bootstrap);

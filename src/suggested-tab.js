@@ -1,4 +1,4 @@
-import { state, MUSCLES, MUSCLE_LABELS, MUSCLE_COLORS } from "./state.js";
+import { state, activeProfile } from "./state.js";
 import { $, fmtDate, cssEscape } from "./dom-utils.js";
 import { leaveMuscleGate, buildMuscleFilterRow, buildExerciseBlocks } from "./log-tab.js";
 import { setView } from "./nav.js";
@@ -6,7 +6,7 @@ import { setView } from "./nav.js";
 // Most recent date any exercise in each muscle group was logged.
 function muscleLastTrained() {
   const last = {};
-  MUSCLES.forEach(m => { last[m] = null; });
+  activeProfile().muscles.forEach(m => { last[m] = null; });
   state.entries.forEach(e => {
     const ex = state.EXERCISES.find(x => x.name === e.exercise);
     if (!ex) return;
@@ -28,7 +28,7 @@ export function jumpToExercise(name) {
   // Jumping straight to an exercise skips the muscle-select gate.
   leaveMuscleGate();
   // Guarantee the target is visible regardless of the current muscle filter.
-  state.logMuscleFilter = new Set(MUSCLES);
+  state.logMuscleFilter = new Set(activeProfile().muscles);
   buildMuscleFilterRow();
   buildExerciseBlocks();
   requestAnimationFrame(() => {
@@ -41,12 +41,13 @@ export function jumpToExercise(name) {
 }
 
 export function renderSuggested() {
+  const { muscles, muscleLabels, muscleColors } = activeProfile();
   const last = muscleLastTrained();
   const backboneByMuscle = {};
-  MUSCLES.forEach(m => { backboneByMuscle[m] = state.EXERCISES.filter(ex => ex.muscle === m && ex.backbone); });
+  muscles.forEach(m => { backboneByMuscle[m] = state.EXERCISES.filter(ex => ex.muscle === m && ex.backbone); });
 
   // Never-trained muscles rank first, then oldest last-trained date first.
-  const ranked = MUSCLES.slice().sort((a, b) => {
+  const ranked = muscles.slice().sort((a, b) => {
     const da = last[a], db = last[b];
     if (da === db) return 0;
     if (!da) return -1;
@@ -71,7 +72,7 @@ export function renderSuggested() {
 
     primary.innerHTML = `
       <div class="suggest-card">
-        <div class="suggest-muscle" style="color:${MUSCLE_COLORS[target]};">${MUSCLE_LABELS[target]}</div>
+        <div class="suggest-muscle" style="color:${muscleColors[target]};">${muscleLabels[target]}</div>
         <div class="suggest-sub">Last trained ${lastStr}</div>
         <div class="suggest-chips" id="suggestChips"></div>
       </div>
@@ -81,7 +82,7 @@ export function renderSuggested() {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "suggest-chip";
-      chip.style.background = MUSCLE_COLORS[target];
+      chip.style.background = muscleColors[target];
       chip.textContent = ex.name;
       chip.addEventListener("click", () => jumpToExercise(ex.name));
       chipsWrap.appendChild(chip);
@@ -95,7 +96,7 @@ export function renderSuggested() {
     if (m === target) tr.classList.add("highlight");
     const names = backboneByMuscle[m].map(ex => ex.name).join(", ") || "—";
     tr.innerHTML = `
-      <td style="color:${MUSCLE_COLORS[m]};font-weight:700;">${MUSCLE_LABELS[m]}</td>
+      <td style="color:${muscleColors[m]};font-weight:700;">${muscleLabels[m]}</td>
       <td>${last[m] ? fmtDate(last[m]) : "Never"}</td>
       <td>${names}</td>
     `;

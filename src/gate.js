@@ -1,27 +1,17 @@
-// ---------- Gate: figurine grid + stranger auth ----------
+// ---------- Gate: figurine grid + Diana's Q&A gate + stranger auth ----------
 import {
   state, useSupabase, supabaseClient, GATE_ENABLED, OWNER_UNLOCK_KEY,
-  FIGURINE_COLORS, FIGURINE_IMAGES,
+  DIANA_UNLOCK_KEY, FIGURINE_COLORS, FIGURINE_IMAGES, activeProfile,
 } from "./state.js";
 import { $, $all } from "./dom-utils.js";
 import { init } from "./main.js";
+import { renderKnifeTitle, knifeGlyphSvg } from "./brand.js";
+import { resetProfileFilters } from "./log-tab.js";
 
-function figurineSvg(shape, color) {
-  const decorations = [
-    "",
-    '<circle cx="50" cy="8" r="5" fill="currentColor"/>',
-    '<path d="M28,22 L20,10 M72,22 L80,10" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/>',
-    '<rect x="30" y="78" width="10" height="14" rx="5" fill="currentColor"/><rect x="60" y="78" width="10" height="14" rx="5" fill="currentColor"/>',
-  ];
-  return `<svg viewBox="0 0 100 100" width="100%" height="100%" style="color:${color}" aria-hidden="true">
-    <ellipse cx="50" cy="52" rx="34" ry="30" fill="currentColor"/>
-    ${decorations[shape % decorations.length]}
-    <circle cx="38" cy="46" r="6" fill="#fff"/>
-    <circle cx="62" cy="46" r="6" fill="#fff"/>
-    <circle cx="38" cy="46" r="2.5" fill="#222"/>
-    <circle cx="62" cy="46" r="2.5" fill="#222"/>
-  </svg>`;
-}
+// The id of the question currently shown in #dianaQaView — ephemeral UI
+// flow state, private to this module (never read elsewhere), so a plain
+// module-scoped variable rather than something on state.js.
+let dianaQaId = null;
 
 function figurineImg(src) {
   return `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:contain;" loading="lazy">`;
@@ -29,17 +19,17 @@ function figurineImg(src) {
 
 // Swap the gate's decorative art to PNGs later by just filling in
 // FIGURINE_IMAGES (state.js) — this picks a random one and renders an
-// <img> instead of generating SVG. onFigurineClick() only ever sees the
+// <img> instead of the knife glyph. onFigurineClick() only ever sees the
 // cell's grid index, never how it was drawn, so this is the only thing
-// to touch.
+// to touch. The knife glyph itself (knifeGlyphSvg, brand.js) is shared
+// with the crossed-knives hover icon on #skipToLogBtn — one glyph, reused.
 function renderFigurineCell() {
   if (FIGURINE_IMAGES.length > 0) {
     const src = FIGURINE_IMAGES[Math.floor(Math.random() * FIGURINE_IMAGES.length)];
     return figurineImg(src);
   }
-  const shape = Math.floor(Math.random() * 4);
   const color = FIGURINE_COLORS[Math.floor(Math.random() * FIGURINE_COLORS.length)];
-  return figurineSvg(shape, color);
+  return knifeGlyphSvg(color);
 }
 
 export function buildFigurineGrid() {
@@ -59,8 +49,9 @@ function setGridDisabled(disabled) {
   $all(".figurine-cell", $("#figurineGrid")).forEach(c => { c.disabled = disabled; });
 }
 
-function startGateCooldown() {
-  const el = $("#gateCooldown");
+// Shared 5s-countdown UI, reused by the grid and Diana's Q&A step — each
+// caller passes its own display element and what to do once it expires.
+function startCooldown(el, onExpire) {
   let remaining = 5;
   el.hidden = false;
   el.textContent = `Try again in ${remaining}s`;
@@ -69,14 +60,33 @@ function startGateCooldown() {
     if (remaining <= 0) {
       clearInterval(iv);
       el.hidden = true;
-      setGridDisabled(false);
-      state.gateLocked = false;
+      onExpire();
     } else {
       el.textContent = `Try again in ${remaining}s`;
     }
   }, 1000);
 }
 
+function startGateCooldown() {
+  startCooldown($("#gateCooldown"), () => {
+    setGridDisabled(false);
+    state.gateLocked = false;
+  });
+}
+
+function startDianaQaCooldown() {
+  $("#dianaQaAnswer").disabled = true;
+  startCooldown($("#dianaQaCooldown"), () => {
+    $("#dianaQaSubmitBtn").disabled = false;
+    $("#dianaQaAnswer").disabled = false;
+    state.dianaQaLocked = false;
+  });
+}
+
+// A clicked cell can unlock either profile — the server checks both
+// secrets and reports which one (if any) matched, so the client never has
+// to guess or pre-select a profile before clicking. See
+// supabase/functions/verify-figurine/index.ts.
 async function onFigurineClick(cell) {
   if (state.gateLocked) return;
   state.gateLocked = true;
@@ -85,14 +95,75 @@ async function onFigurineClick(cell) {
     const { data, error } = await supabaseClient.functions.invoke("verify-figurine", { body: { cell } });
     if (error) throw error;
     if (data && data.granted) {
-      localStorage.setItem(OWNER_UNLOCK_KEY, "true");
-      enterApp();
+      state.gateLocked = false;
+      setGridDisabled(false);
+      if (data.profile === "diana") {
+        await handleDianaGranted();
+      } else {
+        localStorage.setItem(OWNER_UNLOCK_KEY, "true");
+        enterApp("owner");
+      }
       return;
     }
   } catch (e) {
     console.error("Figurine verify error", e);
   }
   startGateCooldown();
+}
+
+// Diana's cell was correct — whether she still needs the security
+// question depends on the owner's toggle (diana_gate_settings, see
+// loadDianaGateSetting()/setDianaGateSetting() below).
+async function handleDianaGranted() {
+  const gateEnabled = await loadDianaGateSetting();
+  if (!gateEnabled) {
+    localStorage.setItem(DIANA_UNLOCK_KEY, "true");
+    enterApp("diana");
+    return;
+  }
+  showDianaQaView();
+  await fetchDianaQuestion();
+}
+
+async function fetchDianaQuestion() {
+  $("#dianaQaError").hidden = true;
+  try {
+    const { data, error } = await supabaseClient.functions.invoke("diana-qa", { body: {} });
+    if (error) throw error;
+    if (!data || !data.id || !data.question) throw new Error("no question returned");
+    dianaQaId = data.id;
+    $("#dianaQaQuestion").textContent = data.question;
+    $("#dianaQaAnswer").value = "";
+    $("#dianaQaAnswer").focus();
+  } catch (e) {
+    console.error("Diana question fetch error", e);
+    dianaQaId = null;
+    $("#dianaQaQuestion").textContent = "Could not load a question.";
+  }
+}
+
+async function handleDianaQaSubmit(evt) {
+  evt.preventDefault();
+  if (state.dianaQaLocked || !dianaQaId) return;
+  const answer = $("#dianaQaAnswer").value.trim();
+  if (!answer) return;
+  state.dianaQaLocked = true;
+  $("#dianaQaSubmitBtn").disabled = true;
+  try {
+    const { data, error } = await supabaseClient.functions.invoke("diana-qa", { body: { id: dianaQaId, answer } });
+    if (error) throw error;
+    if (data && data.granted) {
+      localStorage.setItem(DIANA_UNLOCK_KEY, "true");
+      enterApp("diana");
+      return;
+    }
+  } catch (e) {
+    console.error("Diana answer verify error", e);
+  }
+  $("#dianaQaError").textContent = "Not quite — try again.";
+  $("#dianaQaError").hidden = false;
+  startDianaQaCooldown(); // re-enables both the input and submit button when it expires
+  await fetchDianaQuestion(); // a fresh random question for the next attempt
 }
 
 function setStrangerMode(mode) {
@@ -104,10 +175,17 @@ function setStrangerMode(mode) {
 
 function showStrangerAuth() {
   $("#gateGridView").hidden = true;
+  $("#dianaQaView").hidden = true;
   $("#strangerAuth").hidden = false;
+}
+function showDianaQaView() {
+  $("#gateGridView").hidden = true;
+  $("#strangerAuth").hidden = true;
+  $("#dianaQaView").hidden = false;
 }
 function showFigurineGrid() {
   $("#strangerAuth").hidden = true;
+  $("#dianaQaView").hidden = true;
   $("#gateGridView").hidden = false;
 }
 
@@ -127,7 +205,11 @@ async function handleStrangerSubmit(evt) {
       return;
     }
     state.currentSession = data.session;
-    enterApp();
+    // A stranger isn't the owner or Diana, but reuses the owner's muscle
+    // taxonomy (Diana's is a curated profile for Diana specifically, not
+    // a generic template) — their data still stays fully isolated via
+    // auth.uid(), independent of activeProfile().
+    enterApp("owner");
   } catch (err) {
     errEl.textContent = (err && err.message) || "Something went wrong.";
     errEl.hidden = false;
@@ -136,14 +218,58 @@ async function handleStrangerSubmit(evt) {
 
 export async function logOut() {
   if (state.currentSession) await supabaseClient.auth.signOut();
-  localStorage.removeItem(OWNER_UNLOCK_KEY);
+  localStorage.removeItem(activeProfile().unlockKey);
   location.reload();
 }
 
-function enterApp() {
+// Commits which profile this session is gated into, before init() ever
+// renders anything — resetProfileFilters() (log-tab.js) rebuilds the
+// muscle-scoped filter Sets off that profile's own categories, since
+// they're otherwise still sitting at their owner-default, module-load-
+// time values.
+function enterApp(profile) {
+  state.activeProfile = profile;
+  resetProfileFilters();
   $("#gateScreen").hidden = true;
   $(".wrap").hidden = false;
   init();
+}
+
+// ---------- Diana's gate-enabled toggle (diana_gate_settings) ----------
+// A single settings row the owner's own session reads/writes directly via
+// the anon-key client — not a secret, just the on/off switch, and the
+// owner's session only ever has the anon key (no real Supabase Auth
+// account) to work with. See supabase/diana_schema.sql.
+export async function loadDianaGateSetting() {
+  try {
+    const { data, error } = await supabaseClient
+      .from("diana_gate_settings")
+      .select("gate_enabled")
+      .eq("id", 1)
+      .single();
+    if (error) throw error;
+    state.dianaGateEnabled = Boolean(data.gate_enabled);
+  } catch (e) {
+    console.error("Diana gate setting load error", e);
+    // Fail safe: if we can't confirm the gate is off, treat it as on.
+    state.dianaGateEnabled = true;
+  }
+  return state.dianaGateEnabled;
+}
+
+export async function setDianaGateSetting(enabled) {
+  try {
+    const { error } = await supabaseClient
+      .from("diana_gate_settings")
+      .upsert({ id: 1, gate_enabled: enabled }, { onConflict: "id" });
+    if (error) throw error;
+    state.dianaGateEnabled = enabled;
+    return true;
+  } catch (e) {
+    console.error("Diana gate setting save error", e);
+    alert("Could not save the setting.");
+    return false;
+  }
 }
 
 function wireGateEvents() {
@@ -152,6 +278,8 @@ function wireGateEvents() {
   $("#strangerSignInTab").addEventListener("click", () => setStrangerMode("signin"));
   $("#strangerSignUpTab").addEventListener("click", () => setStrangerMode("signup"));
   $("#strangerForm").addEventListener("submit", handleStrangerSubmit);
+  $("#dianaQaBackBtn").addEventListener("click", () => { dianaQaId = null; showFigurineGrid(); });
+  $("#dianaQaForm").addEventListener("submit", handleDianaQaSubmit);
 }
 
 export async function bootstrap() {
@@ -161,6 +289,14 @@ export async function bootstrap() {
   }
 
   if (localStorage.getItem(OWNER_UNLOCK_KEY) === "true") {
+    state.activeProfile = "owner";
+    resetProfileFilters();
+    await init();
+    return;
+  }
+  if (localStorage.getItem(DIANA_UNLOCK_KEY) === "true") {
+    state.activeProfile = "diana";
+    resetProfileFilters();
     await init();
     return;
   }
@@ -168,12 +304,15 @@ export async function bootstrap() {
   const { data } = await supabaseClient.auth.getSession();
   if (data.session) {
     state.currentSession = data.session;
+    state.activeProfile = "owner"; // see handleStrangerSubmit()'s enterApp("owner") for why
+    resetProfileFilters();
     await init();
     return;
   }
 
   $(".wrap").hidden = true;
   $("#gateScreen").hidden = false;
+  $("#gateLogoSlot").innerHTML = renderKnifeTitle("brand") + `<p class="knife-desc">A training log platform.</p>`;
   buildFigurineGrid();
   wireGateEvents();
 }

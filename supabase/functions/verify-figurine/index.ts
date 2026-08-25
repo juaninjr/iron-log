@@ -1,7 +1,13 @@
-// Iron Log — verifies a figurine-grid click server-side, never revealing
-// the correct cell to the client. Deploy via the Supabase dashboard
-// (Edge Functions > New function, paste this file) or `supabase functions
-// deploy verify-figurine` if you have the CLI linked to the project.
+// Knife (Iron Log) — verifies a figurine-grid click server-side, never
+// revealing the correct cell to the client. Deploy via the Supabase
+// dashboard (Edge Functions > New function, paste this file) or
+// `supabase functions deploy verify-figurine` if you have the CLI linked
+// to the project.
+//
+// Checks the clicked cell against every profile's secret (profile_secrets,
+// supabase/diana_schema.sql) in one query and reports which one (if any)
+// matched — the client never pre-selects or guesses which profile a cell
+// belongs to, it just clicks and finds out.
 //
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically by
 // the Supabase platform for every Edge Function — no manual secrets setup
@@ -63,21 +69,21 @@ Deno.serve(async (req) => {
       return json({ error: "cooldown" }, 429);
     }
 
-    const { data: secretRow, error: secretErr } = await supabaseAdmin
-      .from("owner_secret")
-      .select("correct_cell")
-      .eq("id", 1)
-      .single();
-    if (secretErr) throw secretErr;
+    const { data: matchRow, error: matchErr } = await supabaseAdmin
+      .from("profile_secrets")
+      .select("profile")
+      .eq("correct_cell", cell)
+      .maybeSingle();
+    if (matchErr) throw matchErr;
 
-    const granted = secretRow.correct_cell === cell;
+    const granted = Boolean(matchRow);
 
     const { error: insertErr } = await supabaseAdmin
       .from("figurine_attempts")
       .insert({ ip, success: granted });
     if (insertErr) throw insertErr;
 
-    return json({ granted });
+    return json(granted ? { granted: true, profile: matchRow!.profile } : { granted: false });
   } catch (e) {
     console.error("verify-figurine error", e);
     return json({ error: "server error" }, 500);

@@ -1,21 +1,61 @@
-import { state, MUSCLES, MUSCLE_LABELS, MUSCLE_COLORS } from "./state.js";
+import { state, activeProfile, useSupabase, GATE_ENABLED } from "./state.js";
 import { $, $all, exerciseSort } from "./dom-utils.js";
 import { saveExercise, renameExercise } from "./persistence.js";
 import { buildExerciseBlocks, render } from "./log-tab.js";
 import { renderSuggested } from "./suggested-tab.js";
+import { loadDianaGateSetting, setDianaGateSetting } from "./gate.js";
+
+// The "Add exercise" muscle-group <select> can't be hardcoded in
+// index.html the way it used to be — the owner and Diana have different
+// category sets — so it's filled from the active profile every render.
+function populateMuscleSelect() {
+  const select = $("#newExMuscle");
+  if (!select) return;
+  const { muscles, muscleLabels } = activeProfile();
+  select.innerHTML = muscles.map(m => `<option value="${m}">${muscleLabels[m]}</option>`).join("");
+}
+
+// Owner-only: lets the owner flip Diana's security-question gate on/off
+// from their own session — Diana can't see or control her own gate, so
+// this section only renders when the logged-in profile is the owner (and
+// only when the whole gate mechanism applies at all).
+async function renderDianaGateSection() {
+  const section = $("#dianaGateSection");
+  if (!section) return;
+  if (!useSupabase || !GATE_ENABLED || activeProfile().key !== "owner") {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  const toggle = $("#dianaGateToggle");
+  if (!toggle.dataset.wired) {
+    toggle.dataset.wired = "true";
+    toggle.addEventListener("change", async (evt) => {
+      const desired = evt.target.checked;
+      const ok = await setDianaGateSetting(desired);
+      if (!ok) evt.target.checked = !desired; // revert the UI on failure
+    });
+    await loadDianaGateSetting(); // first render only — populates state.dianaGateEnabled
+  }
+  toggle.checked = state.dianaGateEnabled;
+}
 
 export function renderExerciseManage() {
+  populateMuscleSelect();
+  renderDianaGateSection();
+
   const container = $("#exerciseManageList");
   container.innerHTML = "";
+  const { muscles, muscleLabels, muscleColors } = activeProfile();
 
-  MUSCLES.forEach(m => {
+  muscles.forEach(m => {
     const group = state.EXERCISES.filter(ex => ex.muscle === m);
     if (group.length === 0) return;
 
     const h = document.createElement("h3");
     h.className = "ex-group-title";
-    h.textContent = MUSCLE_LABELS[m];
-    h.style.color = MUSCLE_COLORS[m];
+    h.textContent = muscleLabels[m];
+    h.style.color = muscleColors[m];
     container.appendChild(h);
 
     group.forEach(ex => {
