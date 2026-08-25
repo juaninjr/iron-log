@@ -1,6 +1,22 @@
 // Supabase, with a localStorage fallback. Every function here branches on
 // `useSupabase` and implements both paths — when changing persistence
 // logic, update both branches.
+//
+// Every query against `exercises`/`workout_entries` MUST filter by
+// `.eq("user_id", currentUserId())` — RLS alone does NOT isolate the
+// owner from Diana, because both share the same public anon key (there's
+// no per-profile credential for Postgres to key off of); the anon-role
+// policy on those tables (supabase/diana_schema.sql) is deliberately an
+// OR across both sentinel UUIDs, not a single one, so it only bounds
+// which rows *any* anon request can touch, not which profile's rows a
+// *given* request should. A query missing this filter will silently
+// return/touch both profiles' rows — this happened for real (loadEntries,
+// loadExercises, renameExercise all shipped without it) and showed up as
+// exercises added under one profile appearing under the other. Writes are
+// still safe without an extra filter as long as the row's own `user_id`
+// is set to `currentUserId()` (entryToRow()/exerciseToRow() already do
+// this) — RLS's `with check` rejects anything else — it's reads,
+// updates, and un-id-scoped deletes that need the explicit `.eq()`.
 
 import {
   state, useSupabase, supabaseClient, STORAGE_KEY, EXERCISES_STORAGE_KEY,
@@ -77,6 +93,7 @@ export async function loadEntries() {
       const { data, error } = await supabaseClient
         .from("workout_entries")
         .select("*")
+        .eq("user_id", currentUserId())
         .order("logged_at", { ascending: true });
       if (error) throw error;
       state.entries = data.map(rowToEntry);
@@ -130,7 +147,7 @@ export async function deleteEntries(ids) {
   if (ids.length === 0) return true;
   if (useSupabase) {
     try {
-      const { error } = await supabaseClient.from("workout_entries").delete().in("id", ids);
+      const { error } = await supabaseClient.from("workout_entries").delete().eq("user_id", currentUserId()).in("id", ids);
       if (error) throw error;
       return true;
     } catch (e) {
@@ -155,7 +172,7 @@ export async function deleteEntries(ids) {
 export async function loadExercises() {
   if (useSupabase) {
     try {
-      const { data, error } = await supabaseClient.from("exercises").select("*");
+      const { data, error } = await supabaseClient.from("exercises").select("*").eq("user_id", currentUserId());
       if (error) throw error;
       if (data.length === 0) {
         const seedRows = activeProfile().defaultExercises.map(exerciseToRow);
@@ -219,10 +236,10 @@ export async function renameExercise(ex, newName) {
   if (useSupabase) {
     try {
       const { error: exErr } = await supabaseClient
-        .from("exercises").update({ name: newName }).eq("name", oldName);
+        .from("exercises").update({ name: newName }).eq("user_id", currentUserId()).eq("name", oldName);
       if (exErr) throw exErr;
       const { error: entErr } = await supabaseClient
-        .from("workout_entries").update({ exercise: newName }).eq("exercise", oldName);
+        .from("workout_entries").update({ exercise: newName }).eq("user_id", currentUserId()).eq("exercise", oldName);
       if (entErr) throw entErr;
     } catch (e) {
       console.error("Supabase rename error", e);

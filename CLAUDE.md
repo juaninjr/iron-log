@@ -192,7 +192,13 @@ transparently falls back to `localStorage` (keys `ironlog:entries` and
 `ironlog:exercises`). Every load/save function in `persistence.js`
 (`loadEntries`, `saveEntries`, `loadExercises`, `saveExercise`) branches
 on `useSupabase` and implements both paths — when changing persistence
-logic, update both branches. The Supabase schema (two tables:
+logic, update both branches, **and every Supabase query must filter by
+`.eq("user_id", currentUserId())`** — see `persistence.js`'s own header
+comment for why (RLS alone can't isolate the owner from Diana, since they
+share one public anon key); this exact class of bug shipped for real once
+already (`loadEntries`/`loadExercises`/`renameExercise` all missed it) and
+showed up as one profile's exercises appearing under the other. The
+Supabase schema (two tables:
 `workout_entries`, `exercises`) lives in `supabase/schema.sql`, written to
 be safely re-runnable (`create table if not exists`, `drop policy if
 exists` before `create policy`). If you change the data model, update
@@ -649,6 +655,28 @@ cross-contamination between the two profiles' data.
 
 ## Status notes (for Claude's reference — trim once stale)
 
+- **Fixed a real profile-isolation bug**: `loadEntries()`, `loadExercises()`,
+  and `renameExercise()` (`persistence.js`) queried `exercises`/
+  `workout_entries` without filtering by `user_id`, so once Diana's
+  profile widened the anon-role RLS policy to allow *either* sentinel
+  UUID through, those queries silently returned/touched both profiles'
+  rows — reported by the user as exercises added under Diana appearing
+  under the owner too. All now filter by `.eq("user_id",
+  currentUserId())`; `clearAllData()` (`export.js`) had the same issue in
+  a more dangerous form (`.delete().neq("id", "__none__")` = delete
+  everything, both profiles) and is fixed the same way. `deleteExercise()`
+  already had the filter (added when that feature shipped), which is why
+  deletion alone worked correctly while everything else didn't. Verified
+  by pulling the dev-served `persistence.js` source directly and
+  confirming the filter is present everywhere it needs to be — the actual
+  Supabase writes were never the problem (every write path already set
+  the correct `user_id` per row), only reads/updates/broad-deletes were
+  under-scoped, so **no known data was corrupted**, but it's worth
+  spot-checking the real `exercises`/`workout_entries` tables' `user_id`
+  column in the Supabase table editor once, since a rename made while a
+  same-named exercise existed under both profiles *would* have renamed
+  both — that specific scenario wasn't reported and may not have
+  occurred.
 - Exercise deletion (any profile, backup-then-cascade-delete, 6-digit
   code gated when there's logged history) is implemented and verified
   end-to-end against the localStorage fallback: no-log delete (plain

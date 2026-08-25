@@ -8,7 +8,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { state, useSupabase, supabaseClient } from "./state.js";
 import { todayISO, fmtDate } from "./dom-utils.js";
-import { saveEntries } from "./persistence.js";
+import { saveEntries, currentUserId } from "./persistence.js";
 import { latestByExercise, groupedFullLog, formatSetsText, render } from "./log-tab.js";
 
 // ---------- PDF export ----------
@@ -109,7 +109,7 @@ export async function clearAllData() {
   }
   if (useSupabase) {
     try {
-      const { error } = await supabaseClient.from("workout_entries").delete().neq("id", "__none__");
+      const { error } = await supabaseClient.from("workout_entries").delete().eq("user_id", currentUserId());
       if (error) throw error;
     } catch (e) {
       console.error("Supabase clear error", e);
