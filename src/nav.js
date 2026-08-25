@@ -1,6 +1,6 @@
 import { state, VIEW_IDS } from "./state.js";
 import { $, $all } from "./dom-utils.js";
-import { enterMuscleGate } from "./log-tab.js";
+import { enterMuscleGate, setHeaderTitle } from "./log-tab.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
 import { renderSuggested } from "./suggested-tab.js";
@@ -27,8 +27,12 @@ export function setView(view) {
   $all(".tab-btn", $("#mainTabs")).forEach(btn => {
     btn.classList.toggle("active", btn.dataset.view === view);
   });
-  // Re-entering Log always starts at the muscle-select gate.
+  // Re-entering Log always starts at the muscle-select gate. The header
+  // is hidden there anyway (enterMuscleGate()) — its title only matters
+  // again once showTodayWorkoutPage() (log-tab.js) un-hides it, which
+  // sets its own title, so every other tab just needs to restore "Knife".
   if (view === "log") enterMuscleGate();
+  else setHeaderTitle(false);
   if (view === "progress") renderCharts();
   if (view === "calendar") renderCalendar();
   if (view === "suggested") renderSuggested();

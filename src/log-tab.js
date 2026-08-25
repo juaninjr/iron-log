@@ -1,11 +1,12 @@
 import { state, activeProfile } from "./state.js";
-import { $, $all, fmtDate, cssEscape, triggerHaptic } from "./dom-utils.js";
-import { saveEntries, deleteEntries } from "./persistence.js";
+import { $, $all, fmtDate, cssEscape, triggerHaptic, todayISO } from "./dom-utils.js";
+import { saveEntries, deleteEntries, saveTodayPlan } from "./persistence.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
 import { renderSuggested } from "./suggested-tab.js";
+import { renderKnifeTitle } from "./brand.js";
 
-// Rebuilds the three muscle-scoped Set filters (state.js) off the active
+// Rebuilds the two muscle-scoped Set filters (state.js) off the active
 // profile's own muscle list — those Sets are built once at module-load
 // time (always off the owner's list, since no profile is chosen yet at
 // that point), so a non-owner profile needs them rebuilt right after
@@ -13,45 +14,42 @@ import { renderSuggested } from "./suggested-tab.js";
 export function resetProfileFilters() {
   state.weightFilterSelected = new Set(activeProfile().muscles);
   state.repsFilterSelected = new Set(activeProfile().muscles);
-  state.logMuscleFilter = new Set(activeProfile().muscles);
 }
 
-// ---------- Build the log form ----------
-export function buildMuscleFilterRow() {
-  const row = $("#muscleFilterRow");
-  if (!row) return;
-  row.innerHTML = "";
-  const { muscles, muscleLabels } = activeProfile();
+// ---------- Header title ----------
+// Swaps the header's brand slot between the "Knife" wordmark and a plain
+// "Today's Workout" heading (same size/weight, no ghost-vibrate — that
+// animation is the brand mark's own, not a generic page-title treatment).
+// The header is hidden entirely during #muscleSelectStage/#quickLogStage
+// (see below), so this only ever needs calling from the two places that
+// un-hide it: showTodayWorkoutPage() (below) and setView() (nav.js) for
+// every other tab.
+export function setHeaderTitle(showTodayWorkout) {
+  $("#headerLogoSlot").innerHTML = showTodayWorkout
+    ? `<span class="page-title--brand">Today's Workout</span>`
+    : renderKnifeTitle("brand") + `<p class="knife-desc">A training log platform.</p>`;
+}
 
-  const allBtn = document.createElement("button");
-  allBtn.type = "button";
-  allBtn.className = "muscle-chip muscle-chip-all" + (state.logMuscleFilter.size === muscles.length ? "" : " inactive");
-  allBtn.textContent = "All";
-  allBtn.addEventListener("click", () => {
-    state.logMuscleFilter = new Set(muscles);
-    buildMuscleFilterRow();
-    buildExerciseBlocks();
-  });
-  row.appendChild(allBtn);
+// ---------- Today's Workout plan ----------
+// Exercise names picked via the pickers below, before any sets are
+// actually logged for them — see state.js's todayPlan/todayPlanDate and
+// persistence.js's loadTodayPlan()/saveTodayPlan(). Standard "mutate
+// state first, then await persistence, then re-render" pattern.
+export async function addToTodayPlan(name) {
+  if (state.todayPlan.includes(name)) return;
+  state.todayPlan = state.todayPlan.concat(name);
+  if (!state.todayPlanDate) state.todayPlanDate = todayISO();
+  await saveTodayPlan();
+  rebuildCurrentPicker();
+  if (!$("#logMainStage").hidden) { buildExerciseBlocks(); render(); }
+}
 
-  muscles.forEach(m => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "muscle-chip" + (state.logMuscleFilter.has(m) ? "" : " inactive");
-    chip.textContent = muscleLabels[m];
-    chip.addEventListener("click", () => {
-      // Starting from "All": clicking a muscle isolates it. From then on,
-      // clicking another muscle adds it to the selection; re-clicking an
-      // already-active one toggles it back off. The "All" chip is the
-      // only way to jump straight back to showing everything at once.
-      if (state.logMuscleFilter.size === muscles.length) state.logMuscleFilter = new Set([m]);
-      else if (state.logMuscleFilter.has(m)) state.logMuscleFilter.delete(m);
-      else state.logMuscleFilter.add(m);
-      buildMuscleFilterRow();
-      buildExerciseBlocks();
-    });
-    row.appendChild(chip);
-  });
+export async function removeFromTodayPlan(name) {
+  if (!state.todayPlan.includes(name)) return;
+  state.todayPlan = state.todayPlan.filter(n => n !== name);
+  await saveTodayPlan();
+  rebuildCurrentPicker();
+  if (!$("#logMainStage").hidden) { buildExerciseBlocks(); render(); }
 }
 
 // ---------- Muscle-select stage (the gate in front of the Log page) ----------
@@ -62,18 +60,22 @@ export function buildMuscleFilterRow() {
 // with the model — hovering a button highlights the matching 3D part, and
 // vice versa (the "musclehover" listener in enterMuscleGate()). See
 // legacy/muscle-wheel-2d-backup.md for the old spinning-dial-as-picker
-// version this replaced.
+// version this replaced. --muscle-color is read by style.css's
+// .muscle-pick-btn hover rule so the button's hover color matches the 3D
+// model's own per-muscle emissive glow (wheel3d.js) instead of one flat
+// brand color for every muscle.
 export function buildMusclePickRow() {
   const row = $("#musclePickRow");
   if (!row) return;
   row.innerHTML = "";
-  const { muscles, muscleLabels } = activeProfile();
+  const { muscles, muscleLabels, muscleColors } = activeProfile();
   muscles.forEach(m => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "muscle-pick-btn";
     btn.textContent = muscleLabels[m];
     btn.dataset.muscle = m;
+    btn.style.setProperty("--muscle-color", muscleColors[m]);
     btn.addEventListener("mouseenter", () => { if (window.IronLogWheel3D) window.IronLogWheel3D.hoverMuscle(m); });
     btn.addEventListener("mouseleave", () => { if (window.IronLogWheel3D) window.IronLogWheel3D.hoverMuscle(null); });
     btn.addEventListener("click", () => {
@@ -85,11 +87,11 @@ export function buildMusclePickRow() {
 }
 
 // Three stages share #viewLog, only one visible at a time: the wheel
-// (#muscleSelectStage) → picking a muscle lands on a single-group
-// quick-log page (#quickLogStage) → its back icon (goToGeneralLog) or the
-// wheel's own house/knives icon (skipToLogPage) reach the full,
-// unfiltered log (#logMainStage). This helper shows the full log's
-// header/nav chrome, shared by both of those exits.
+// (#muscleSelectStage) → picking a muscle (or "Create Plan") lands on an
+// exercise picker (#quickLogStage, add-only, no inputs) → its back icon
+// (showTodayWorkoutPage) reaches the full Today's Workout page
+// (#logMainStage). This helper shows that page's header/nav chrome,
+// shared by every way of reaching it.
 function showFullLogChrome() {
   $("#muscleSelectStage").hidden = true;
   $("#quickLogStage").hidden = true;
@@ -106,11 +108,63 @@ export function leaveMuscleGate() {
   if (window.IronLogWheel3D) window.IronLogWheel3D.hide();
 }
 
-// Shown after picking a muscle (wheel tap or button click) — just that
-// group's exercise blocks, no stats/tables/toolbar. Same minimal-chrome
-// treatment as the wheel stage; the only way out is goToGeneralLog().
-export function enterQuickLog(m) {
-  state.logMuscleFilter = new Set([m]);
+// ---------- Exercise picker (Create Plan / wheel taps) ----------
+// Which exercises the picker currently showing is scoped to — null while
+// no picker is showing, "all" for Create Plan, or a muscle key for a
+// wheel tap. Re-derived from state.EXERCISES on every render rather than
+// snapshotting a list, so it can't go stale if exercises change.
+let currentPickerFilter = null;
+
+function pickerExercises() {
+  if (currentPickerFilter === "all") return state.EXERCISES;
+  return state.EXERCISES.filter(ex => ex.muscle === currentPickerFilter);
+}
+
+function rebuildCurrentPicker() {
+  if (currentPickerFilter === null) return;
+  buildPickerList(pickerExercises());
+}
+
+// Plain add/remove buttons, no weight/reps inputs — actual logging
+// happens later, on the Today's Workout main page. Each button toggles
+// membership in state.todayPlan directly.
+function buildPickerList(exercises) {
+  const container = $("#quickLogPickerList");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (exercises.length === 0) {
+    container.innerHTML = `<p class="empty-note">No exercises here yet.</p>`;
+    return;
+  }
+
+  exercises.forEach(ex => {
+    const item = document.createElement("div");
+    item.className = "plan-pick-item";
+    item.style.setProperty("--ex-muscle-color", activeProfile().muscleColors[ex.muscle]);
+
+    const name = document.createElement("span");
+    name.className = "plan-pick-name";
+    name.textContent = ex.name;
+    item.appendChild(name);
+
+    const added = state.todayPlan.includes(ex.name);
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "plan-pick-toggle" + (added ? " added" : "");
+    toggle.textContent = added ? "Added ✓" : "Add to Today's Workout";
+    toggle.addEventListener("click", () => {
+      triggerHaptic();
+      if (state.todayPlan.includes(ex.name)) removeFromTodayPlan(ex.name);
+      else addToTodayPlan(ex.name);
+    });
+    item.appendChild(toggle);
+
+    container.appendChild(item);
+  });
+}
+
+function showPickerStage() {
   $("#muscleSelectStage").hidden = true;
   $("#logMainStage").hidden = true;
   $("#quickLogStage").hidden = false;
@@ -119,34 +173,39 @@ export function enterQuickLog(m) {
   document.body.classList.remove("muscle-gate-active");
   document.body.classList.add("quick-log-active");
   if (window.IronLogWheel3D) window.IronLogWheel3D.hide();
-  $("#quickLogTitle").textContent = activeProfile().muscleLabels[m];
-  buildExerciseBlocks("#quickLogExerciseBlocks");
 }
 
-// The quick-log page's small back icon — jumps straight to the full,
-// unfiltered log (same destination skipToLogPage() reaches from the
-// wheel).
-export function goToGeneralLog() {
-  state.logMuscleFilter = new Set(activeProfile().muscles);
-  showFullLogChrome();
-  buildMuscleFilterRow();
-  buildExerciseBlocks();
-  render();
-}
-
+// Tapping a muscle on the wheel (or clicking its button-row fallback)
+// opens that one muscle's exercise picker.
 export function confirmMuscleSelection(m) {
-  enterQuickLog(m);
+  currentPickerFilter = m;
+  $("#quickLogTitle").textContent = activeProfile().muscleLabels[m];
+  showPickerStage();
+  buildPickerList(pickerExercises());
 }
 
-export function skipToLogPage() {
-  state.logMuscleFilter = new Set(activeProfile().muscles);
+// "Create Plan" (the wheel page's house/knives button) — every exercise,
+// unfiltered by muscle.
+export function enterAllExercisePicker() {
+  currentPickerFilter = "all";
+  $("#quickLogTitle").textContent = "All Exercises";
+  showPickerStage();
+  buildPickerList(pickerExercises());
+}
+
+// The picker's back icon, and jumpToExercise() (suggested-tab.js) — shows
+// the Today's Workout main page: stats/tables plus one exercise block per
+// exercise currently in the plan, ready for weight/reps input.
+export function showTodayWorkoutPage() {
+  currentPickerFilter = null;
   leaveMuscleGate();
-  buildMuscleFilterRow();
+  setHeaderTitle(true);
   buildExerciseBlocks();
   render();
 }
 
 export function enterMuscleGate() {
+  currentPickerFilter = null;
   $("#muscleSelectStage").hidden = false;
   $("#logMainStage").hidden = true;
   $("#quickLogStage").hidden = true;
@@ -171,19 +230,19 @@ export function enterMuscleGate() {
 }
 
 // ---------- Exercise blocks / logging ----------
-// `containerSel` lets both the quick-log stage (#quickLogExerciseBlocks)
-// and the full log stage (#exerciseBlocks) build/read their own blocks
-// without colliding — only one of the two is ever populated for a given
-// pick, but scoping every query to the container keeps it correct even
-// if that changes.
-export function buildExerciseBlocks(containerSel = "#exerciseBlocks") {
-  const container = $(containerSel);
+// One block per exercise currently in state.todayPlan — the only place
+// exercise blocks with weight/reps inputs render now (the pickers above
+// only add/remove plan membership). Stays populated after a set is
+// logged (filtering is plan-membership, not log-status), so you can keep
+// adding sets to the same exercise later in the day.
+export function buildExerciseBlocks() {
+  const container = $("#exerciseBlocks");
   if (!container) return;
   container.innerHTML = "";
-  const visible = state.EXERCISES.filter(ex => state.logMuscleFilter.has(ex.muscle));
+  const visible = state.EXERCISES.filter(ex => state.todayPlan.includes(ex.name));
 
   if (visible.length === 0) {
-    container.innerHTML = `<p class="empty-note">No exercises selected — enable a muscle group above.</p>`;
+    container.innerHTML = `<p class="empty-note">No exercises in today's plan yet — head back to the wheel and add some.</p>`;
     return;
   }
 
@@ -209,6 +268,14 @@ export function buildExerciseBlocks(containerSel = "#exerciseBlocks") {
     addBtn.textContent = "+ Add set";
     addBtn.addEventListener("click", () => addSetRow(rows, ex));
     head.appendChild(addBtn);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "icon-btn";
+    removeBtn.title = "Remove from today's workout";
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => removeFromTodayPlan(ex.name));
+    head.appendChild(removeBtn);
 
     container.appendChild(block);
   });
@@ -263,21 +330,21 @@ export function addSetRow(rowsContainer, ex) {
   rowsContainer.appendChild(row);
 }
 
-export async function logWorkout(containerSel = "#exerciseBlocks") {
+export async function logWorkout() {
   const date = $("#workoutDate").value;
   if (!date) {
     alert("Pick a date first.");
     return;
   }
 
-  const container = $(containerSel);
+  const container = $("#exerciseBlocks");
   const newEntries = [];
   let offset = 0;
   const baseTime = Date.now();
 
   state.EXERCISES.forEach((ex) => {
     const block = container && $(`.exercise-block[data-exercise="${cssEscape(ex.name)}"]`, container);
-    if (!block) return; // hidden by the muscle filter — nothing to read
+    if (!block) return; // not in today's plan — nothing to read
     const rows = $all(".set-row", block);
     rows.forEach((row) => {
       const repsEl = $(".reps-input", row);
@@ -309,7 +376,7 @@ export async function logWorkout(containerSel = "#exerciseBlocks") {
 
   state.entries = state.entries.concat(newEntries);
   await saveEntries(newEntries);
-  buildExerciseBlocks(containerSel);
+  buildExerciseBlocks();
   $("#workoutDate").value = date;
   render();
 }

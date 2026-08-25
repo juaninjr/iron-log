@@ -20,9 +20,9 @@
 
 import {
   state, useSupabase, supabaseClient, STORAGE_KEY, EXERCISES_STORAGE_KEY,
-  EXERCISE_BACKUPS_STORAGE_KEY, activeProfile,
+  EXERCISE_BACKUPS_STORAGE_KEY, TODAY_PLAN_STORAGE_KEY, activeProfile,
 } from "./state.js";
-import { exerciseSort } from "./dom-utils.js";
+import { exerciseSort, todayISO } from "./dom-utils.js";
 
 export function currentUserId() {
   return state.currentSession ? state.currentSession.user.id : activeProfile().sentinelId;
@@ -330,6 +330,87 @@ export async function deleteExercise(ex) {
   } catch (e) {
     console.error("Storage error", e);
     alert("Could not delete the exercise.");
+    return false;
+  }
+}
+
+// Loads the Today's Workout plan (state.todayPlan/todayPlanDate) — one
+// row/key per profile (per user_id, or profileScopedKey() in the
+// localStorage fallback). If the stored plan belongs to an earlier date
+// than today, it's treated as empty in memory without writing anything
+// back yet — the plan only needs to persist once something is actually
+// added today (see addToTodayPlan(), log-tab.js), so an idle reload on a
+// new day doesn't cost a write.
+export async function loadTodayPlan() {
+  const today = todayISO();
+  if (useSupabase) {
+    try {
+      const { data, error } = await supabaseClient
+        .from("today_plans")
+        .select("plan_date, exercises")
+        .eq("user_id", currentUserId())
+        .maybeSingle();
+      if (error) throw error;
+      if (data && data.plan_date === today) {
+        state.todayPlan = data.exercises || [];
+        state.todayPlanDate = today;
+      } else {
+        state.todayPlan = [];
+        state.todayPlanDate = null;
+      }
+    } catch (e) {
+      console.error("Supabase today-plan load error", e);
+      state.todayPlan = [];
+      state.todayPlanDate = null;
+    }
+    return;
+  }
+  try {
+    const raw = localStorage.getItem(profileScopedKey(TODAY_PLAN_STORAGE_KEY));
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && parsed.planDate === today) {
+      state.todayPlan = parsed.exercises || [];
+      state.todayPlanDate = today;
+    } else {
+      state.todayPlan = [];
+      state.todayPlanDate = null;
+    }
+  } catch (e) {
+    state.todayPlan = [];
+    state.todayPlanDate = null;
+  }
+}
+
+// Upserts the current Today's Workout plan. Callers (addToTodayPlan()/
+// removeFromTodayPlan(), log-tab.js) set state.todayPlanDate = todayISO()
+// before calling this, same "mutate state first, then await persistence"
+// pattern every other function here follows.
+export async function saveTodayPlan() {
+  if (useSupabase) {
+    try {
+      const { error } = await supabaseClient
+        .from("today_plans")
+        .upsert(
+          { user_id: currentUserId(), plan_date: state.todayPlanDate, exercises: state.todayPlan },
+          { onConflict: "user_id" }
+        );
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Supabase today-plan save error", e);
+      alert("Could not save today's plan to the database.");
+      return false;
+    }
+  }
+  try {
+    localStorage.setItem(
+      profileScopedKey(TODAY_PLAN_STORAGE_KEY),
+      JSON.stringify({ planDate: state.todayPlanDate, exercises: state.todayPlan })
+    );
+    return true;
+  } catch (e) {
+    console.error("Storage error", e);
+    alert("Could not save today's plan.");
     return false;
   }
 }

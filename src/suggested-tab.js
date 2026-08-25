@@ -1,6 +1,6 @@
 import { state, activeProfile } from "./state.js";
 import { $, fmtDate, cssEscape } from "./dom-utils.js";
-import { leaveMuscleGate, buildMuscleFilterRow, buildExerciseBlocks } from "./log-tab.js";
+import { addToTodayPlan, showTodayWorkoutPage } from "./log-tab.js";
 import { setView } from "./nav.js";
 
 // Most recent date any exercise in each muscle group was logged.
@@ -23,14 +23,13 @@ function lastTrainedForExercise(name) {
   return last;
 }
 
-export function jumpToExercise(name) {
+export async function jumpToExercise(name) {
+  // Guarantee the target is visible on the Today's Workout page regardless
+  // of whether it was already in the plan.
+  if (!state.todayPlan.includes(name)) await addToTodayPlan(name);
   setView("log");
   // Jumping straight to an exercise skips the muscle-select gate.
-  leaveMuscleGate();
-  // Guarantee the target is visible regardless of the current muscle filter.
-  state.logMuscleFilter = new Set(activeProfile().muscles);
-  buildMuscleFilterRow();
-  buildExerciseBlocks();
+  showTodayWorkoutPage();
   requestAnimationFrame(() => {
     const block = document.querySelector(`.exercise-block[data-exercise="${cssEscape(name)}"]`);
     if (!block) return;

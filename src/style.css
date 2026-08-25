@@ -91,6 +91,11 @@
   }
   .knife-logo--brand{font-size:clamp(2.2rem,6vw,3.2rem);font-weight:800;color:var(--ink);}
   .knife-desc{font-weight:600;font-size:0.82rem;color:var(--plate);margin:4px 0 0;}
+  /* Today's Workout main-page header title (setHeaderTitle(), log-tab.js)
+     — swaps in for the "Knife" wordmark, same size/weight, no
+     ghost-vibrate (that's the brand mark's own animation, not a generic
+     page-title treatment). */
+  .page-title--brand{font-size:clamp(2.2rem,6vw,3.2rem);font-weight:800;color:var(--ink);display:block;}
   /* The header/gate wordmark + its description, stacked. */
   .brand-block{display:flex;flex-direction:column;}
 
@@ -207,6 +212,19 @@
      replaced. Header/nav are hidden while this shows (see JS); the only
      way back to them without picking is #skipToLogBtn. */
   body.muscle-gate-active{padding-top:16px;}
+  /* The house/knives icon (below) now opens the unfiltered "Create Plan"
+     exercise picker instead of jumping straight to the old full log page
+     — its behavior changed enough that it needs a visible label, not just
+     the icon on its own. */
+  .create-plan-wrap{display:flex;flex-direction:column;align-items:center;margin:0 0 4px;}
+  .create-plan-label{
+    font-weight:700;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--ink);
+    margin-top:-2px;
+  }
   /* House ↔ crossed knives: both icons sit stacked in the same slot;
      hover/focus crossfades + rotates between them so it reads as one
      morphing into the other rather than a plain icon swap. */
@@ -215,7 +233,7 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    margin:0 0 10px;
+    margin:0 0 4px;
     width:44px;height:44px;
     padding:0;
     border:none;
@@ -270,8 +288,12 @@
   }
   /* .hovered is toggled by log-tab.js when the matching 3D model part is
      hovered (model → button direction) — same look as native :hover, so
-     the highlight reads identically from either direction. */
-  .muscle-pick-btn:hover, .muscle-pick-btn.hovered{background:var(--plate);}
+     the highlight reads identically from either direction. --muscle-color
+     is set per-button in buildMusclePickRow() from the active profile's
+     own muscleColors, so this matches the 3D model's own per-muscle
+     emissive hover glow (wheel3d.js's applyHighlight()) instead of one
+     flat brand color for every muscle. */
+  .muscle-pick-btn:hover, .muscle-pick-btn.hovered{background:var(--muscle-color, var(--plate));}
   .muscle-pick-btn:active{transform:scale(0.96);}
 
   /* Quick-log stage: shown after picking a muscle group from the wheel —
@@ -395,6 +417,48 @@
     flex:none;
   }
   .add-set-btn:hover{background:var(--steel);color:#fff;border-style:solid;}
+
+  /* Exercise picker (buildPickerList(), log-tab.js) — used for both a
+     single muscle's exercises (wheel tap) and every exercise ("Create
+     Plan") — plain add/remove buttons, no weight/reps inputs; actual
+     logging happens later on the Today's Workout main page. Reuses
+     .exercise-block's colored-left-border language via the same
+     --ex-muscle-color custom property. */
+  .plan-pick-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    border:1px solid var(--line);
+    border-left:4px solid var(--ex-muscle-color, var(--line));
+    border-radius:8px;
+    padding:10px 10px 10px 12px;
+    margin-bottom:6px;
+    background:var(--paper);
+  }
+  .plan-pick-name{font-weight:700;font-size:0.95rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .plan-pick-toggle{
+    background:transparent;
+    border:1px solid var(--steel-light);
+    color:var(--steel);
+    border-radius:20px;
+    padding:6px 14px;
+    font-weight:700;
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    cursor:pointer;
+    white-space:nowrap;
+    flex:none;
+  }
+  .plan-pick-toggle:hover{background:var(--steel);color:#fff;}
+  .plan-pick-toggle.added{background:var(--steel);color:#fff;border-style:solid;}
+  .plan-pick-toggle.added:hover{background:var(--plate);border-color:var(--plate);}
+
+  .picker-actions{display:flex;gap:8px;margin-top:10px;}
+  .picker-actions .tool-btn{flex:1;text-align:center;}
+
+  .train-more-row{margin-bottom:12px;}
 
   .primary-btn{
     background:var(--plate);

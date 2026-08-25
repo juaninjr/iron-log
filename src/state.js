@@ -66,6 +66,11 @@ export const DIANA_DEFAULT_EXERCISES = [
 
 export const STORAGE_KEY = "ironlog:entries";
 export const EXERCISES_STORAGE_KEY = "ironlog:exercises";
+// localStorage-fallback home for the Today's Workout plan (see the
+// `state.todayPlan` comment below and persistence.js's
+// loadTodayPlan()/saveTodayPlan()) — only used when useSupabase is false;
+// the real path is the today_plans table (supabase/today_plan_schema.sql).
+export const TODAY_PLAN_STORAGE_KEY = "ironlog:todayPlan";
 // localStorage-fallback home for deleteExerciseFlow()'s pre-delete safety
 // backups (exercises-tab.js) — only used when useSupabase is false; the
 // real path is the deleted_exercise_backups table (see
@@ -220,8 +225,6 @@ export const state = {
   // after a non-owner profile is chosen, before anything renders.
   weightFilterSelected: new Set(OWNER_MUSCLES),
   repsFilterSelected: new Set(OWNER_MUSCLES),
-  // Log-tab filter: which muscle groups show their exercise blocks.
-  logMuscleFilter: new Set(OWNER_MUSCLES),
   // The signed-in stranger's session, if any — null for the owner/Diana
   // (who never go through Supabase Auth) and for localStorage-only mode.
   currentSession: null,
@@ -232,6 +235,16 @@ export const state = {
   // loadDianaGateSetting()) — used by the owner-only toggle in the
   // Exercises tab.
   dianaGateEnabled: true,
+  // "Today's Workout": exercise names picked via the Create Plan / wheel
+  // pickers, before any sets are actually logged for them — see
+  // persistence.js's loadTodayPlan()/saveTodayPlan() and log-tab.js's
+  // addToTodayPlan()/removeFromTodayPlan(). Same name-as-identity
+  // convention entries.exercise already uses, so no separate id scheme is
+  // needed. todayPlanDate is the ISO date (todayISO(), dom-utils.js) the
+  // plan belongs to — loadTodayPlan() resets the in-memory plan to empty
+  // if this doesn't match today, without a write until the next add.
+  todayPlan: [],
+  todayPlanDate: null,
 };
 
 // The active profile's full config (muscles, colors, seed exercises,

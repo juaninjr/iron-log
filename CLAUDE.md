@@ -349,57 +349,87 @@ entry in the owner's category list even before that; `glutes` now is one
 of Diana's own categories (see "Profiles" above), just not backed by this
 PNG.
 
-**Logging a workout goes through three stages, not two**, all siblings
-inside `#viewLog` (`log-tab.js`), only one visible at a time via `hidden`:
+**Logging a workout is a plan-then-log flow, not one page**: pick
+exercises first (no inputs), then log sets for just what you picked. All
+three stages below are siblings inside `#viewLog` (`log-tab.js`), only
+one visible at a time via `hidden`.
+
 `#muscleSelectStage` (the wheel — shown by default and every time you
-navigate back to the Log tab, see `setView()`) → `#quickLogStage` (a
-single picked muscle group's exercise blocks only — no stats/tables/
-toolbar) → `#logMainStage` (the full, unfiltered logging page with
-stats/tables/toolbar). The muscle-select stage has a 3D model
+navigate back to the Log tab, see `setView()`) has a 3D model
 (`#wheel3dContainer`, driven by `wheel3d.js`) that spins for feel when
 dragged and highlights individual parts on hover/tap — see "The
 muscle-select stage's 3D model" below — plus a row of plain buttons
 underneath (`#musclePickRow`, built by `buildMusclePickRow()`) that also
 pick the muscle group as a fallback, and hover each other two-way with
-the 3D model (see below): clicking one (or tapping a recognized 3D part)
-calls `confirmMuscleSelection(m)`, which now calls `enterQuickLog(m)` —
-commits `m` to `state.logMuscleFilter` and reveals `#quickLogStage`,
-still with header/nav hidden (same minimal-page treatment as the wheel
-stage). A 2D spinning-dial picker (drag-to-rotate through 6 muscle
-images, tap the centered one to confirm, no 3D model at all) filled the
-wheel's role before the 3D model existed; its code (written for the
-pre-Vite single-`index.html` layout, so the paste-back instructions are
-stale, but the logic itself is still valid) is preserved in
-`legacy/muscle-wheel-2d-backup.md` in case it's ever needed again.
-`#quickLogStage`'s small back icon (`#quickLogBackBtn` → `goToGeneralLog()`)
-is the only way from there to `#logMainStage`; the wheel stage's own
-house/knives-hover icon (`#skipToLogBtn` → `skipToLogPage()`) reaches
-`#logMainStage` directly, bypassing quick-log entirely — both land on the
-same shared "show full chrome" helper (`showFullLogChrome()`).
+the 3D model (see below). A 2D spinning-dial picker (drag-to-rotate
+through 6 muscle images, tap the centered one to confirm, no 3D model at
+all) filled the wheel's role before the 3D model existed; its code
+(written for the pre-Vite single-`index.html` layout, so the paste-back
+instructions are stale, but the logic itself is still valid) is preserved
+in `legacy/muscle-wheel-2d-backup.md` in case it's ever needed again. The
+house/knives-hover icon above the model, now labeled "Create Plan"
+(`#skipToLogBtn` → `enterAllExercisePicker()`), opens the exercise picker
+unfiltered — every exercise, not scoped to one muscle.
 
-Both `#quickLogStage` and `#logMainStage` render exercise blocks the same
-way, just into different containers: `buildExerciseBlocks(containerSel =
-"#exerciseBlocks")` and `logWorkout(containerSel = "#exerciseBlocks")`
-both take an optional container selector (quick-log passes
-`"#quickLogExerciseBlocks"`) so the two stages' blocks never collide —
-scope any new query the same way if you touch this code. Each container
-gets one `.exercise-block` per visible exercise (name + muscle-colored
-left border, no images or icons), each with one or more `.set-row`s
-(weight/reps inputs, "+ Add set" next to the exercise name via
-`addSetRow()`), and a "Log workout" button (`logWorkout()`) batches every
-filled row across every visible block in its container into one save —
-nothing is saved per-keystroke or per-row. Both stages share the same
-`#workoutDate` input (only present in `#logMainStage`'s markup) — there's
-no separate date picker on the quick-log page. `jumpToExercise()`
-(`suggested-tab.js`) explicitly skips both `#muscleSelectStage` and
-`#quickLogStage`, broadens `state.logMuscleFilter` to show every
-exercise, then scrolls to and flashes the target block in
-`#logMainStage`. The muscle filter chips above the `#logMainStage` block
-list (`buildMuscleFilterRow()`) follow an isolate/add/toggle-off pattern:
-from "All", clicking a muscle isolates it; clicking a different muscle
-adds it to the selection; re-clicking an already-active muscle removes
-it; the "All" chip is the only way to jump straight back to showing
-everything.
+Clicking a muscle (button row, or tapping a recognized 3D part) instead
+calls `confirmMuscleSelection(m)`, which opens the same picker
+(`#quickLogStage`) scoped to just that muscle's exercises. Either way the
+picker (`buildPickerList()`) renders one plain add/remove button per
+exercise — no weight/reps inputs here — that toggles the exercise's
+membership in `state.todayPlan` (see "Today's Workout plan" below) via
+`addToTodayPlan()`/`removeFromTodayPlan()`; an already-added exercise
+reads "Added ✓" and re-clicking it removes it. `#quickLogStage`'s "Train
+more" button (`#trainMorePickerBtn`) returns to the wheel to add
+exercises from another muscle group; its small back icon
+(`#quickLogBackBtn` → `showTodayWorkoutPage()`) reaches `#logMainStage`.
+
+`#logMainStage` — now titled "Today's Workout" (see "Header title" below,
+not "Log a workout") — is where sets actually get logged: stats/tables/
+toolbar, plus one `.exercise-block` (weight/reps inputs, same as before)
+per exercise currently in `state.todayPlan`, via `buildExerciseBlocks()`.
+It no longer has a muscle filter chip row — the block list is already a
+small, curated plan, not the full roster, so filtering it further doesn't
+make sense — but it does have its own "Train more" button
+(`#trainMoreMainBtn`) alongside the picker's, since Q2's answer said
+"Train more" should be reachable from everywhere. `logWorkout()` batches
+every filled row in `#exerciseBlocks` into one save, same as before
+(nothing saved per-keystroke or per-row) — it and `buildExerciseBlocks()`
+both dropped the old `containerSel` parameter, since the picker no longer
+renders exercise blocks at all (only `#logMainStage` ever does now).
+Logging a set does **not** remove that exercise from the plan or the
+page — filtering is plan-*membership*, not log-*status*, so you can keep
+adding sets to the same exercise later in the day; each block also has a
+small "×" remove button that does take it out of the plan (and off the
+page), independent of whatever's already logged for it.
+`jumpToExercise()` (`suggested-tab.js`) now adds its target to the plan
+first (`addToTodayPlan()`, if not already there) before jumping to
+`#logMainStage` and flashing the block, since that page only ever shows
+plan exercises.
+
+**The Today's Workout plan** (`state.todayPlan`, an array of exercise
+names — same name-as-identity convention `entries.exercise` already
+uses — plus `state.todayPlanDate`) is what the pickers write to and
+`#logMainStage` reads from. `persistence.js`'s `loadTodayPlan()`/
+`saveTodayPlan()` persist it per profile (`today_plans` table,
+`supabase/today_plan_schema.sql` — a new migration the user needs to run,
+same as every other schema file; the localStorage fallback uses
+`profileScopedKey(TODAY_PLAN_STORAGE_KEY)`, same per-profile scoping as
+entries/exercises). It resets daily by content, not by a cron job:
+`loadTodayPlan()` compares the stored `plan_date`/`planDate` against
+`todayISO()` and treats a non-matching (i.e. stale) plan as empty in
+memory, without writing anything back until the next actual add — so an
+idle reload on a new day costs zero writes. `addToTodayPlan()`/
+`removeFromTodayPlan()` follow the same "mutate state, await persistence,
+re-render" pattern as everything else in `log-tab.js`.
+
+**Header title**: `setHeaderTitle(showTodayWorkout)` (`log-tab.js`) swaps
+`#headerLogoSlot` between the "Knife" wordmark (`renderKnifeTitle()`,
+`brand.js`) and a plain "Today's Workout" heading (`.page-title--brand`,
+same size/weight, no ghost-vibrate — that animation belongs to the brand
+mark specifically). Since the header is hidden entirely during
+`#muscleSelectStage`/`#quickLogStage`, this only ever needs calling from
+the two places that un-hide it: `showTodayWorkoutPage()` (→ "Today's
+Workout") and `setView()` (`nav.js`, → "Knife", for the other four tabs).
 
 **The muscle-select stage's 3D model** (`wheel3d.js`) tries
 `/models/muscle-select.glb` first via `GLTFLoader` — the fast path, small
@@ -530,8 +560,10 @@ positioned 30%-opacity "ghost" `<span>` that jitters via the
 site, ffoorrkk.com's own "fork" title animation (fast ±1px diagonal
 jitter per ~30ms step, not a rotation-based wobble). Two call sites, both
 via the `--brand` `.knife-logo--<modifier>` size class: the gate screen
-and the main header (injected by `gate.js`'s `bootstrap()` and
-`main.js`'s `init()` respectively), each paired with a static
+(injected by `gate.js`'s `bootstrap()`) and the main header (injected by
+`log-tab.js`'s `setHeaderTitle()` — see "Header title" above, called from
+`main.js`'s `init()` and `showTodayWorkoutPage()`/`nav.js`'s `setView()`
+thereafter), each paired with a static
 `.knife-desc` tagline — "A training log platform." — replacing what used
 to be the dynamic fun-fact subtitle, see below. There used to be a third
 site, a huge low-opacity copy sitting behind the 3D model on the wheel
@@ -809,3 +841,36 @@ cross-contamination between the two profiles' data.
 - The next Vercel deploy after the reorg hasn't been confirmed live yet —
   it should auto-detect the new Vite setup via `package.json`, but check
   the deploy log if the user reports something looks off post-deploy.
+- **The Create Plan / Today's Workout plan-then-log flow** (see "Logging a
+  workout is a plan-then-log flow" above) is implemented and verified
+  end-to-end against the localStorage fallback in a throwaway copy:
+  hover-color match (button row now agrees with the 3D model's own
+  per-muscle glow instead of one flat brand red), the wheel → picker →
+  Today's Workout round trip across two muscle groups plus "Create Plan"'s
+  unfiltered picker, logging a set and confirming the block stays on the
+  page afterward, plan persistence across a reload, and the header title
+  swap (both directions, across tab switches). `jumpToExercise()`
+  (Suggested tab) was re-verified too. Still outstanding: run
+  `supabase/today_plan_schema.sql` against the real database (the
+  `today_plans` table doesn't exist until then, so `saveTodayPlan()` will
+  fail closed with an alert and the plan just won't persist server-side —
+  same fail-safe direction as the exercise-backups table).
+- **The mobile first-load zoom bug** (page/model/text reading zoomed in
+  right after a fresh reload on mobile) could **not** be conclusively
+  reproduced or fixed with certainty in this environment — the browser
+  automation available here doesn't accurately emulate a real mobile
+  device (no true CDP device-metrics override, and critically, the
+  behavior described sounds like a mobile Safari–specific scroll/zoom
+  restore-on-reload quirk, which doesn't exist in Chrome at all, so it
+  can't be reproduced or verified there regardless of viewport size).
+  What's actually in place (`main.js`'s `init()`): `IronLogWheel3D.resize()`/
+  `renderCharts()` now also re-run on `window`'s `"load"` and `"pageshow"`
+  events and on `visualViewport`'s `"resize"` event, not just the plain
+  `"resize"` event — covering the case where the 3D canvas's one-time
+  initial sizing (`doResize()`, `wheel3d.js`) ran before the browser
+  chrome (address bar) finished settling into its final size. `onLoadSettle()`
+  also calls `window.scrollTo(0, 0)`, the standard mitigation for mobile
+  Safari's own scroll/zoom-restore-on-reload behavior. Both are cheap and
+  harmless even if they turn out not to be the actual cause — but this
+  needs a real iPhone (or a teammate who has one) to actually confirm
+  fixed, not just "no console errors in a resized desktop Chrome window."

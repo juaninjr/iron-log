@@ -86,13 +86,16 @@
   <div class="view" id="viewLog">
 
     <div id="muscleSelectStage">
-      <button type="button" class="skip-to-log-btn" id="skipToLogBtn" title="Go to exercise logging" aria-label="Go to exercise logging">
-        <svg class="house-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
-        <span class="knives-icon" aria-hidden="true">
-          <img class="knife-a" src="/images/knife-logo.png" alt="">
-          <img class="knife-b" src="/images/knife-logo.png" alt="">
-        </span>
-      </button>
+      <div class="create-plan-wrap">
+        <button type="button" class="skip-to-log-btn" id="skipToLogBtn" title="Create today's workout plan" aria-label="Create plan">
+          <svg class="house-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
+          <span class="knives-icon" aria-hidden="true">
+            <img class="knife-a" src="/images/knife-logo.png" alt="">
+            <img class="knife-b" src="/images/knife-logo.png" alt="">
+          </span>
+        </button>
+        <span class="create-plan-label">Create Plan</span>
+      </div>
       <div class="wheel3d-wrap" id="wheel3dContainer" aria-hidden="true"></div>
       <div class="muscle-pick-row" id="musclePickRow" role="group" aria-label="Muscle group picker"></div>
     </div>
@@ -100,12 +103,14 @@
     <div id="quickLogStage" hidden>
       <div class="quick-log-head">
         <h2 id="quickLogTitle"></h2>
-        <button type="button" class="icon-btn" id="quickLogBackBtn" title="Back to full log" aria-label="Back to full log">
+        <button type="button" class="icon-btn" id="quickLogBackBtn" title="Go to Today's Workout" aria-label="Go to Today's Workout">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M11 4 4 12l7 8 1.4-1.4L7.8 13H20v-2H7.8l4.6-5.6z"/></svg>
         </button>
       </div>
-      <div id="quickLogExerciseBlocks"></div>
-      <button class="primary-btn" id="quickLogWorkoutBtn">Log workout</button>
+      <div id="quickLogPickerList"></div>
+      <div class="picker-actions">
+        <button type="button" class="tool-btn" id="trainMorePickerBtn">Train more</button>
+      </div>
     </div>
 
     <div id="logMainStage" hidden>
@@ -118,8 +123,8 @@
       </div>
 
       <section>
-        <h2>Log a workout<input type="date" id="workoutDate" class="date-inline" aria-label="Date"></h2>
-        <div class="muscle-filter-row" id="muscleFilterRow"></div>
+        <h2>Today's Workout<input type="date" id="workoutDate" class="date-inline" aria-label="Date"></h2>
+        <div class="train-more-row"><button type="button" class="tool-btn" id="trainMoreMainBtn">Train more</button></div>
         <div id="exerciseBlocks"></div>
         <button class="primary-btn" id="logWorkoutBtn">Log workout</button>
       </section>

@@ -3,10 +3,10 @@ import "./wheel3d.js"; // side-effect only: registers window.IronLogWheel3D
 
 import { state, GATE_ENABLED } from "./state.js";
 import { $, $all, todayISO, triggerHaptic } from "./dom-utils.js";
-import { loadEntries, loadExercises } from "./persistence.js";
+import { loadEntries, loadExercises, loadTodayPlan } from "./persistence.js";
 import {
-  buildMuscleFilterRow, buildExerciseBlocks, logWorkout, enterMuscleGate,
-  skipToLogPage, confirmMuscleSelection, goToGeneralLog, render,
+  logWorkout, enterMuscleGate, enterAllExercisePicker, confirmMuscleSelection,
+  showTodayWorkoutPage, setHeaderTitle, buildExerciseBlocks, render,
 } from "./log-tab.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
@@ -14,13 +14,12 @@ import { addExercise } from "./exercises-tab.js";
 import { downloadPDF, exportBackup, importBackup, clearAllData } from "./export.js";
 import { toggleNavMenu, setView } from "./nav.js";
 import { logOut, bootstrap, wireDianaGateToggle } from "./gate.js";
-import { renderKnifeTitle } from "./brand.js";
 
 // ---------- Wire up ----------
 export async function init() {
   $("#workoutDate").value = todayISO();
 
-  $("#headerLogoSlot").innerHTML = renderKnifeTitle("brand") + `<p class="knife-desc">A training log platform.</p>`;
+  setHeaderTitle(false);
   wireDianaGateToggle();
 
   $("#pdfBtn").addEventListener("click", downloadPDF);
@@ -56,9 +55,13 @@ export async function init() {
   });
   $("#addExerciseBtn").addEventListener("click", addExercise);
   $("#logWorkoutBtn").addEventListener("click", () => logWorkout());
-  $("#skipToLogBtn").addEventListener("click", skipToLogPage);
-  $("#quickLogBackBtn").addEventListener("click", goToGeneralLog);
-  $("#quickLogWorkoutBtn").addEventListener("click", () => logWorkout("#quickLogExerciseBlocks"));
+  // "Create Plan" — every exercise, unfiltered by muscle.
+  $("#skipToLogBtn").addEventListener("click", enterAllExercisePicker);
+  // The picker's back icon and both "Train more" buttons — the latter
+  // always returns to the wheel to add exercises from another muscle.
+  $("#quickLogBackBtn").addEventListener("click", showTodayWorkoutPage);
+  $("#trainMorePickerBtn").addEventListener("click", enterMuscleGate);
+  $("#trainMoreMainBtn").addEventListener("click", enterMuscleGate);
   // Tapping a recognized (hoverable/highlighted) part of the 3D model
   // picks that muscle directly — wheel3d.js dispatches this once per
   // tap-that-hits-a-part. The button row stays as a fallback.
@@ -68,8 +71,9 @@ export async function init() {
   });
   $("#logOutBtn").addEventListener("click", logOut);
   if (GATE_ENABLED) $("#logOutBtn").hidden = false;
+
   let resizeRaf = null;
-  window.addEventListener("resize", () => {
+  function runResize() {
     if (state.currentView === "progress") {
       if (resizeRaf) cancelAnimationFrame(resizeRaf);
       resizeRaf = requestAnimationFrame(renderCharts);
@@ -77,13 +81,32 @@ export async function init() {
       if (resizeRaf) cancelAnimationFrame(resizeRaf);
       resizeRaf = requestAnimationFrame(() => { if (window.IronLogWheel3D) window.IronLogWheel3D.resize(); });
     }
-  });
+  }
+  window.addEventListener("resize", runResize);
+  // Mobile browsers can settle into their final viewport (address-bar
+  // collapse, etc.) after the "resize" listener above was wired and the
+  // wheel's one-time initial sizing already ran — re-running on "load"
+  // (full page + assets settled) and on a visualViewport resize (the
+  // actual signal for that browser-chrome-driven size change) keeps the
+  // 3D canvas from staying sized for a stale viewport. "pageshow" covers
+  // the bfcache-restore case (e.g. swiping back). window.scrollTo(0,0) is
+  // a standard mitigation for mobile Safari's own quirk of restoring the
+  // previous scroll/pinch-zoom level on reload instead of resetting it —
+  // both are cheap, harmless on desktop, and target the reported
+  // first-load-looks-zoomed-in symptom from two different angles.
+  function onLoadSettle() {
+    window.scrollTo(0, 0);
+    runResize();
+  }
+  window.addEventListener("load", onLoadSettle);
+  window.addEventListener("pageshow", onLoadSettle);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", runResize);
 
   // Initial load starts on the muscle-select gate (currentView is "log").
   enterMuscleGate();
 
   await loadExercises();
-  buildMuscleFilterRow();
+  await loadTodayPlan();
   buildExerciseBlocks();
 
   await loadEntries();
