@@ -1,6 +1,6 @@
-import { state, activeProfile } from "./state.js";
+import { state, activeProfile, EXERCISE_DELETE_PIN } from "./state.js";
 import { $, $all, exerciseSort } from "./dom-utils.js";
-import { saveExercise, renameExercise } from "./persistence.js";
+import { saveExercise, renameExercise, backupExerciseDeletion, deleteExercise, deleteEntries } from "./persistence.js";
 import { buildExerciseBlocks, render } from "./log-tab.js";
 import { renderSuggested } from "./suggested-tab.js";
 
@@ -42,6 +42,7 @@ export function renderExerciseManage() {
         <span class="ex-manage-name-wrap">
           <span class="ex-manage-name">${ex.name}</span>${ex.perHand ? ' <span class="ex-tag">Per hand</span>' : ''}${ex.repsOnly ? ' <span class="ex-tag">Reps only</span>' : ''}
           <button type="button" class="icon-btn ex-rename-btn" title="Rename">✎</button>
+          <button type="button" class="icon-btn ex-delete-btn" title="Delete">🗑</button>
         </span>
         <label class="ex-backbone-toggle">
           <input type="checkbox" ${ex.backbone ? "checked" : ""}>
@@ -50,6 +51,7 @@ export function renderExerciseManage() {
       `;
       $("input[type=checkbox]", row).addEventListener("change", (evt) => toggleBackbone(ex.name, evt.target.checked));
       $(".ex-rename-btn", row).addEventListener("click", () => startRenameExercise(ex, row));
+      $(".ex-delete-btn", row).addEventListener("click", () => deleteExerciseFlow(ex));
       container.appendChild(row);
     });
   });
@@ -97,6 +99,45 @@ async function toggleBackbone(name, value) {
   if (!ex) return;
   ex.backbone = value;
   await saveExercise(ex);
+  if (state.currentView === "suggested") renderSuggested();
+}
+
+// Deleting an exercise with logged sets also deletes those sets (there's
+// no orphaned-entries state — an entry referencing a nonexistent exercise
+// would just be dead weight everywhere it's read), which is real,
+// permanent workout history — hence the extra 6-digit-code gate on top of
+// the plain confirm() a no-history exercise gets, and why a safety backup
+// is always written first and the delete only proceeds if that succeeds.
+async function deleteExerciseFlow(ex) {
+  const logs = state.entries.filter(e => e.exercise === ex.name);
+
+  if (logs.length > 0) {
+    const code = prompt(
+      `"${ex.name}" has ${logs.length} logged set${logs.length === 1 ? "" : "s"} — deleting it removes ` +
+      `those permanently (a backup is saved first). Enter the 6-digit code to confirm:`
+    );
+    if (code === null) return;
+    if (code.trim() !== EXERCISE_DELETE_PIN) {
+      alert("Incorrect code — nothing was deleted.");
+      return;
+    }
+  } else {
+    if (!confirm(`Delete "${ex.name}"? It has no logged sets.`)) return;
+  }
+
+  const backedUp = await backupExerciseDeletion(ex, logs);
+  if (!backedUp) return; // already alerted — nothing touched
+
+  const logIds = logs.map(e => e.id);
+  state.entries = state.entries.filter(e => e.exercise !== ex.name);
+  state.EXERCISES = state.EXERCISES.filter(x => x.name !== ex.name);
+
+  if (logIds.length > 0) await deleteEntries(logIds);
+  await deleteExercise(ex);
+
+  buildExerciseBlocks();
+  renderExerciseManage();
+  render();
   if (state.currentView === "suggested") renderSuggested();
 }
 

@@ -66,6 +66,19 @@ export const DIANA_DEFAULT_EXERCISES = [
 
 export const STORAGE_KEY = "ironlog:entries";
 export const EXERCISES_STORAGE_KEY = "ironlog:exercises";
+// localStorage-fallback home for deleteExerciseFlow()'s pre-delete safety
+// backups (exercises-tab.js) — only used when useSupabase is false; the
+// real path is the deleted_exercise_backups table (see
+// supabase/exercise_backups_schema.sql).
+export const EXERCISE_BACKUPS_STORAGE_KEY = "ironlog:deletedExerciseBackups";
+
+// Typed-confirmation gate for deleting an exercise that still has logged
+// sets — same category as export.js's clearAllData() "type DELETE to
+// confirm" prompt, not a real access-control boundary (whoever's at this
+// screen already got past the app's own gate). Change this directly in
+// code for a different code; deleting an exercise with zero logged sets
+// skips this entirely (see deleteExerciseFlow(), exercises-tab.js).
+export const EXERCISE_DELETE_PIN = "482913";
 
 // ---------- Database config (Supabase) ----------
 // Fill these in after creating a Supabase project and running supabase/schema.sql.

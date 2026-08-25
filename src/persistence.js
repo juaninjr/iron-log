@@ -4,7 +4,7 @@
 
 import {
   state, useSupabase, supabaseClient, STORAGE_KEY, EXERCISES_STORAGE_KEY,
-  activeProfile,
+  EXERCISE_BACKUPS_STORAGE_KEY, activeProfile,
 } from "./state.js";
 import { exerciseSort } from "./dom-utils.js";
 
@@ -245,4 +245,74 @@ export async function renameExercise(ex, newName) {
     }
   }
   return true;
+}
+
+// Snapshots an exercise (and, if it has any, every logged set referencing
+// it) before deleteExerciseFlow() (exercises-tab.js) permanently removes
+// them — called first, and the delete only proceeds if this succeeds, so
+// a failed backup never lets data disappear with no copy of it anywhere.
+// Write-only from the app's side; there's no restore UI, just a durable
+// copy of what was deleted (the deleted_exercise_backups table, or its
+// localStorage-fallback array) to recover from by hand if a deletion ever
+// turns out to have been a mistake.
+export async function backupExerciseDeletion(ex, entries) {
+  if (useSupabase) {
+    try {
+      const { error } = await supabaseClient.from("deleted_exercise_backups").insert({
+        user_id: currentUserId(),
+        exercise_name: ex.name,
+        exercise: ex,
+        entries,
+      });
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Exercise backup error", e);
+      alert("Could not create a safety backup — nothing was deleted.");
+      return false;
+    }
+  }
+  try {
+    const key = profileScopedKey(EXERCISE_BACKUPS_STORAGE_KEY);
+    const existing = JSON.parse(localStorage.getItem(key) || "[]");
+    existing.push({ exercise_name: ex.name, exercise: ex, entries, deleted_at: new Date().toISOString() });
+    localStorage.setItem(key, JSON.stringify(existing));
+    return true;
+  } catch (e) {
+    console.error("Exercise backup error", e);
+    alert("Could not create a safety backup — nothing was deleted.");
+    return false;
+  }
+}
+
+// Deletes the exercise's own row/entry from the roster. Callers remove it
+// from state.EXERCISES first (the localStorage branch persists whatever
+// state.EXERCISES currently holds) — same "mutate state first" pattern
+// every other persistence function here follows. Does not touch logged
+// entries; deleteExerciseFlow() calls deleteEntries() separately for
+// those, and only calls this after that succeeds.
+export async function deleteExercise(ex) {
+  if (useSupabase) {
+    try {
+      const { error } = await supabaseClient
+        .from("exercises")
+        .delete()
+        .eq("user_id", currentUserId())
+        .eq("name", ex.name);
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Supabase delete exercise error", e);
+      alert("Could not delete the exercise from the database.");
+      return false;
+    }
+  }
+  try {
+    localStorage.setItem(profileScopedKey(EXERCISES_STORAGE_KEY), JSON.stringify(state.EXERCISES));
+    return true;
+  } catch (e) {
+    console.error("Storage error", e);
+    alert("Could not delete the exercise.");
+    return false;
+  }
 }

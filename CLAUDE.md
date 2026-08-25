@@ -67,7 +67,8 @@ src/
   progress-tab.js        the hand-rolled SVG charts
   calendar-tab.js         the calendar grid
   suggested-tab.js        Suggested-tab ranking + jumpToExercise
-  exercises-tab.js        add/rename/toggle-backbone exercise management
+  exercises-tab.js        add/rename/delete/toggle-backbone exercise
+                        management
   export.js              PDF export, JSON backup export/import, clear-all
   gate.js                 figurine grid (now the real knife logo PNG, not
                         the old alien-blob art) + Diana's Q&A gate step +
@@ -214,6 +215,31 @@ added later via the Exercises tab default to `backbone: false`.
 "Backbone" exercises are the pool the Suggested tab draws recommendations
 from — this lets users add one-off exercises without polluting the
 suggestion algorithm.
+
+**Deleting an exercise (any profile) is a backup-then-cascade-delete, and
+gated by whether it has any history.** Each row in the Exercises tab's
+"All exercises" list has a 🗑 button (`exercises-tab.js`) wired to
+`deleteExerciseFlow(ex)`. If the exercise has zero logged sets, it's a
+plain `confirm()` and an immediate delete. If it has any, deleting it also
+deletes every one of those logged sets — there's no "orphaned entries"
+state, an entry referencing an exercise that no longer exists would just
+be dead weight everywhere entries are read — so the flow first asks for
+the 6-digit code in `EXERCISE_DELETE_PIN` (`state.js`) via `prompt()`,
+same category as `export.js`'s `clearAllData()` "type DELETE to confirm"
+— a typed-confirmation friction gate, not a real access-control boundary,
+since whoever's on this screen already got past the app's own gate.
+Change the constant directly in code for a different code.
+
+Either way, **the exercise and its entries are backed up before either is
+touched** — `backupExerciseDeletion(ex, entries)` (`persistence.js`)
+writes one row to `deleted_exercise_backups` (`supabase/
+exercise_backups_schema.sql`, or its localStorage-fallback array,
+`EXERCISE_BACKUPS_STORAGE_KEY`) containing the full exercise definition
+and every one of its entries as JSON, and the delete only proceeds if
+that write succeeds — a failed backup always means nothing was deleted,
+never the reverse. There's no restore UI; recovering from a backup means
+reading it out of that table (or localStorage array) by hand and
+re-inserting into `exercises`/`workout_entries`.
 
 **Views are tabs, not pages.** Five top-level views (Log, Progress,
 Calendar, Suggested, Exercises) are sibling `<div class="view"
@@ -623,6 +649,19 @@ cross-contamination between the two profiles' data.
 
 ## Status notes (for Claude's reference — trim once stale)
 
+- Exercise deletion (any profile, backup-then-cascade-delete, 6-digit
+  code gated when there's logged history) is implemented and verified
+  end-to-end against the localStorage fallback: no-log delete (plain
+  confirm), wrong-code rejection, correct-code delete, and the backup row
+  existing (with the right entries JSON) before the delete completed —
+  all confirmed via a throwaway copy with `window.prompt`/`confirm`/
+  `alert` stubbed out (never trigger real ones through browser
+  automation — they block all further events). Still outstanding: run
+  `supabase/exercise_backups_schema.sql` for this to work against the
+  real database (the table doesn't exist until then, so
+  `backupExerciseDeletion()` will fail closed and refuse to delete
+  anything — the safe direction to fail in, but worth knowing before
+  wondering why a delete silently does nothing).
 - Diana's profile (second fixed profile, her own muscle categories/
   exercises/charts, the figurine-grid → optional Q&A gate, the owner's
   toggle) is implemented and passes local verification (forced
