@@ -1,7 +1,7 @@
 import { state, activeProfile, EXERCISE_DELETE_PIN } from "./state.js";
 import { $, $all, exerciseSort } from "./dom-utils.js";
 import { saveExercise, renameExercise, backupExerciseDeletion, deleteExercise, deleteEntries } from "./persistence.js";
-import { buildExerciseBlocks, render } from "./log-tab.js";
+import { buildExerciseBlocks, buildLogNavBrowser, render } from "./log-tab.js";
 import { renderSuggested } from "./suggested-tab.js";
 
 // The "Add exercise" muscle-group <select> can't be hardcoded in
@@ -13,10 +13,6 @@ function populateMuscleSelect() {
   const { muscles, muscleLabels } = activeProfile();
   select.innerHTML = muscles.map(m => `<option value="${m}">${muscleLabels[m]}</option>`).join("");
 }
-
-// Diana's gate on/off toggle lives in the header now (wireDianaGateToggle(),
-// gate.js) — visible on every page for the owner's own session, not just
-// here — see that function for why.
 
 export function renderExerciseManage() {
   populateMuscleSelect();
@@ -88,6 +84,7 @@ function startRenameExercise(ex, row) {
     if (!ok) return;
     state.EXERCISES.sort(exerciseSort);
     buildExerciseBlocks();
+    buildLogNavBrowser();
     renderExerciseManage();
     render();
   });
@@ -136,9 +133,21 @@ async function deleteExerciseFlow(ex) {
   await deleteExercise(ex);
 
   buildExerciseBlocks();
+  buildLogNavBrowser();
   renderExerciseManage();
   render();
   if (state.currentView === "suggested") renderSuggested();
+}
+
+// The Cardio checkbox is mutually exclusive with Per hand/Track weight —
+// a cardio exercise logs distance+time instead, so those two don't apply.
+export function wireCardioCheckbox() {
+  const cardio = $("#newExCardio");
+  if (!cardio) return;
+  cardio.addEventListener("change", () => {
+    $("#newExPerHand").disabled = cardio.checked;
+    $("#newExWeighted").disabled = cardio.checked;
+  });
 }
 
 export async function addExercise() {
@@ -153,17 +162,12 @@ export async function addExercise() {
     return;
   }
 
+  const cardio = $("#newExCardio").checked;
   const weighted = $("#newExWeighted").checked;
-  const newEx = {
-    name,
-    muscle: $("#newExMuscle").value,
-    perHand: $("#newExPerHand").checked,
-    repsOnly: !weighted,
-    min: weighted ? 0 : null,
-    max: null,
-    step: weighted ? 1 : null,
-    backbone: false,
-  };
+  const newEx = cardio
+    ? { name, muscle: $("#newExMuscle").value, cardio: true, perHand: false, repsOnly: false, min: null, max: null, step: null, backbone: false }
+    : { name, muscle: $("#newExMuscle").value, perHand: $("#newExPerHand").checked, repsOnly: !weighted,
+        min: weighted ? 0 : null, max: null, step: weighted ? 1 : null, backbone: false };
 
   const ok = await saveExercise(newEx);
   if (!ok) return;
@@ -174,8 +178,12 @@ export async function addExercise() {
   nameInput.value = "";
   $("#newExPerHand").checked = false;
   $("#newExWeighted").checked = true;
+  $("#newExCardio").checked = false;
+  $("#newExPerHand").disabled = false;
+  $("#newExWeighted").disabled = false;
 
   buildExerciseBlocks();
+  buildLogNavBrowser();
   renderExerciseManage();
   if (state.currentView === "suggested") renderSuggested();
 }

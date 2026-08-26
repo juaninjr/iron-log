@@ -54,25 +54,36 @@ src/
   dom-utils.js           $, $all, clamp, todayISO, fmtDate, fmtDateShort,
                         cssEscape, exerciseSort, triggerHaptic
   persistence.js        Supabase ⇄ localStorage load/save/delete for
-                        entries + exercises (see "Data layer" below)
-  nav.js                 toggleNavMenu, setView — the hamburger dropdown
-                        and cross-tab view switching
+                        entries + exercises + the Today's Workout plan
+                        (see "Data layer" below), plus currentUserId()/
+                        currentUserLabel()
+  nav.js                 toggleNavMenu, toggleStatsDropdown, setView — the
+                        hamburger dropdown, the header's stats dropdown,
+                        and cross-tab view switching (including each
+                        view's header title, see "Header title" below)
   brand.js               the "Knife" wordmark (ghost-vibrate title) and
                         an SVG knife-glyph fallback — see "Brand: Knife"
-                        below. Imported by gate.js, main.js.
-  log-tab.js             the muscle-select stage, the quick-log stage,
-                        exercise blocks, logWorkout, grouped-row editing,
-                        and render() (the central re-render dispatcher —
-                        see below)
+                        below. Only used by gate.js now (the gate/login
+                        screen) — no subpage shows it, see "Header title".
+  log-tab.js             the muscle-select stage, the exercise pickers
+                        (wheel-scoped and the main page's own unfiltered
+                        list), the Today's Workout page's exercise blocks,
+                        logWorkout, grouped-row editing, the nav dropdown's
+                        exercise browser (buildLogNavBrowser), and
+                        render() (the central re-render dispatcher — see
+                        below)
   progress-tab.js        the hand-rolled SVG charts
   calendar-tab.js         the calendar grid
   suggested-tab.js        Suggested-tab ranking + jumpToExercise
   exercises-tab.js        add/rename/delete/toggle-backbone exercise
                         management
+  feedback-tab.js         the Feedback tab — one write-only insert into
+                        the `feedback` table, no read path at all
   export.js              PDF export, JSON backup export/import, clear-all
-  gate.js                 figurine grid (now the real knife logo PNG, not
-                        the old alien-blob art) + Diana's Q&A gate step +
-                        her header toggle + stranger auth + bootstrap()
+  gate.js                 figurine grid (the real knife logo PNG) +
+                        Diana's Q&A gate step + stranger auth +
+                        bootstrap() + the Developer Tools page's Diana-gate
+                        toggle (renderDevToolsView())
   wheel3d.js              the 3D muscle-select model (Three.js) — see
                         "The muscle-select stage's 3D model" below
 public/                 static assets served as-is at the site root —
@@ -97,22 +108,27 @@ observe another module's `let` reassignment — ES modules only give you a
 *live read* of another module's exported bindings, not permission to
 reassign them from outside. Rather than invent getter/setter functions
 for a dozen pieces of state, every mutable piece of app data (entries,
-EXERCISES, currentView, logMuscleFilter, editingGroupKey, …) lives as a
+EXERCISES, currentView, todayPlan, editingGroupKey, …) lives as a
 property on one exported object, `state`, from `state.js`. Any module
 does `state.entries.push(x)` or `state.currentView = "log"` directly — no
 setters needed, since you're mutating the object's properties, never
 reassigning the `state` binding itself. When adding new mutable app data,
 put it on `state`, not as a bare module-level `let`.
 
-**Circular imports are intentional in a few places** (e.g. `log-tab.js`
+**Circular imports are intentional in several places** (e.g. `log-tab.js`
 imports render functions from `progress-tab.js`/`calendar-tab.js`/
 `suggested-tab.js` for `render()`'s cross-tab dispatch, while
-`suggested-tab.js` imports back from `log-tab.js` for `jumpToExercise()`).
-This is safe here because every circular reference is only ever *used*
-inside a function body (called later, after both modules have finished
-loading), never read at module-evaluation time — if you introduce a new
-cross-module call, keep it inside a function, not at the top level of the
-file, or the circular import will break.
+`suggested-tab.js` imports back from `log-tab.js` for `addToTodayPlan()`/
+`showTodayWorkoutPage()`; `log-tab.js` also imports `toggleNavMenu` from
+`nav.js` for the dropdown's exercise browser, while `nav.js` imports back
+from `log-tab.js` for `setHeaderTitle()`/`enterMuscleGate()` and from
+`gate.js` for `renderDevToolsView()`, while `gate.js` imports back from
+`log-tab.js` for `resetProfileFilters()`). This is safe here because
+every circular reference is only ever *used* inside a function body
+(called later, after both modules have finished loading), never read at
+module-evaluation time — if you introduce a new cross-module call, keep
+it inside a function, not at the top level of the file, or the circular
+import will break.
 
 ## Profiles: the owner and Diana
 
@@ -233,13 +249,10 @@ this step runs at all is a single boolean the owner controls from their
 own session — `diana_gate_settings.gate_enabled`, read/written directly
 by the anon-key client (`loadDianaGateSetting()`/`setDianaGateSetting()`,
 `gate.js`) since the owner has no real Supabase Auth account to gate a
-write behind — surfaced as a button in the header, next to the hamburger
-(`#dianaGateToggle`, wired once by `wireDianaGateToggle()` in `gate.js`,
-called from `main.js`'s `init()`), visible on every page for the rest of
-that session rather than being tab-scoped, since `activeProfile()` never
-changes mid-session. Solid/outlined mirrors its on/off state; it only
-renders at all when `activeProfile().key === "owner"`, so Diana can't see
-or flip her own gate.
+write behind — surfaced on the **Developer Tools page** (`renderDevToolsView()`,
+`gate.js`, re-rendered fresh every visit like `renderExerciseManage()`,
+not wired once), not a header button anymore — see "Developer Tools"
+below.
 
 ## Architecture
 
@@ -282,6 +295,32 @@ added later via the Exercises tab default to `backbone: false`.
 "Backbone" exercises are the pool the Suggested tab draws recommendations
 from — this lets users add one-off exercises without polluting the
 suggestion algorithm.
+
+**Exercises are one of three types, not two**: weighted (has `min`/`max`/
+`step`), reps-only (`repsOnly: true`), or — the owner's only, a new
+"Cardio" muscle category — `cardio: true`, logging distance (km) + time
+(minutes) instead of weight/reps, added via a `Cardio (distance + time)`
+checkbox in the Exercises tab's add form (`exercises-tab.js`, mutually
+exclusive with "Per hand"/"Track weight" — `wireCardioCheckbox()` disables
+those two while it's checked). Every place that already branched on
+`ex.repsOnly` (`addSetRow()`/`buildGroupEditRow()`'s inputs,
+`logWorkout()`/`saveEditedGroup()`'s per-row read logic,
+`renderSetsCell()`/`formatSetsText()`'s display) gained a third `ex.cardio`
+branch alongside it — entries carry two new nullable fields, `distance`/
+`duration`, parallel to `weight`/`reps` (`supabase/cardio_schema.sql`, a
+migration the user needs to run — it also widens `exercises.muscle`'s
+check constraint the same way `diana_schema.sql` did for Diana's
+categories, and adds the `cardio` column to `exercises`). Deliberately
+**not** added to `progress-tab.js`'s charts (cardio entries have
+`weight === null` and `repsOnly === false`, so both existing weight/reps
+charts already exclude them automatically — no crash, just not
+graphed; a distance/time chart type wasn't asked for) or to
+`calendar-tab.js`/`suggested-tab.js` (both already exercise-shape-agnostic —
+Cardio's own backbone exercises get ranked/suggested exactly like any
+other muscle group with no code change needed). Diana doesn't have a
+Cardio category — this was scoped to the owner only, and her category set
+is its own curated thing per profile, not something Cardio needed to be
+added to automatically.
 
 **Deleting an exercise (any profile) is a backup-then-cascade-delete, and
 gated by whether it has any history.** Each row in the Exercises tab's
@@ -422,9 +461,10 @@ different muscle, tedious when the full list was one tap away on the main
 page anyway).
 
 `#logMainStage` — now titled "Today's Workout" (see "Header title" below,
-not "Log a workout") — has three parts, top to bottom:
+not "Log a workout") — has two parts, top to bottom:
 1. **The gray "Today's Workout" box** (`#todayWorkoutBox`, `.today-workout-box`
-   in `style.css`) — sits where stats used to, one `.exercise-block`
+   in `style.css`) — sits where stats used to before they moved to the
+   header (see "Header stats dropdown" below), one `.exercise-block`
    (real weight/reps inputs, same as always) per exercise currently in
    `state.todayPlan`, via `buildExerciseBlocks()`, plus the date input and
    `#logWorkoutBtn`. Adding an exercise here needs no reps/weight up
@@ -439,10 +479,7 @@ not "Log a workout") — has three parts, top to bottom:
    later in the day; each block also has a small "×" remove button that
    does take it out of the plan (and off the page), independent of
    whatever's already logged for it.
-2. **Stats**, collapsed by default in a plain `<details>`/`<summary>`
-   (`.stats-dropdown`) — no longer prime real estate now that the gray box
-   sits above it, but still one click away, not gone.
-3. **"All exercises"** (`#allExercisesList`, `buildAllExercisesList()`) —
+2. **"All exercises"** (`#allExercisesList`, `buildAllExercisesList()`) —
    every exercise, same `buildPickerList()` renderer and Add/Added ✓
    toggle buttons as the wheel's scoped picker (just called with
    `state.EXERCISES` unfiltered instead of one muscle's subset) — this is
@@ -454,7 +491,8 @@ not "Log a workout") — has three parts, top to bottom:
 (`addToTodayPlan()`, if not already there) before calling
 `showTodayWorkoutPage()` and flashing the block, since the gray box only
 ever shows plan exercises (the "All exercises" list further down would
-still have the target too, just not scrolled-to/flashed).
+still have the target too, just not scrolled-to/flashed). The nav
+dropdown's exercise browser (below) calls the same function.
 
 **The Today's Workout plan** (`state.todayPlan`, an array of exercise
 names — same name-as-identity convention `entries.exercise` already
@@ -472,14 +510,53 @@ idle reload on a new day costs zero writes. `addToTodayPlan()`/
 `removeFromTodayPlan()` follow the same "mutate state, await persistence,
 re-render" pattern as everything else in `log-tab.js`.
 
-**Header title**: `setHeaderTitle(showTodayWorkout)` (`log-tab.js`) swaps
-`#headerLogoSlot` between the "Knife" wordmark (`renderKnifeTitle()`,
-`brand.js`) and a plain "Today's Workout" heading (`.page-title--brand`,
-same size/weight, no ghost-vibrate — that animation belongs to the brand
-mark specifically). Since the header is hidden entirely during
-`#muscleSelectStage`/`#quickLogStage`, this only ever needs calling from
-the two places that un-hide it: `showTodayWorkoutPage()` (→ "Today's
-Workout") and `setView()` (`nav.js`, → "Knife", for the other four tabs).
+**Header title**: `setHeaderTitle(title)` (`log-tab.js`) fills
+`#headerLogoSlot` with a plain `.page-title--brand` span reading `title`,
+or clears it entirely when `title` is `null` — no subpage shows the
+"Knife" wordmark or its "A training log platform" tagline anymore; that's
+the gate/login screen's own brand moment (`gate.js`'s `bootstrap()`,
+via `renderKnifeTitle()`, `brand.js` — the only remaining caller), not
+something repeated on every page. `null` is used whenever a page's own
+content already carries an equivalent heading right below the header, so
+a title there would just repeat it — Today's Workout (the gray box's own
+`<h2>`), Calendar ("Training calendar"), and Suggested ("Suggested for
+you") all pass `null`; Progress, Exercises, Feedback, and Developer Tools
+show their own plain name since nothing on those pages already says it.
+`nav.js`'s `VIEW_TITLES` map is the single place this is decided per
+view, read by `setView()`; `showTodayWorkoutPage()` (`log-tab.js`) is the
+Log tab's own special case, since reaching it doesn't go through
+`setView()`.
+
+**The nav dropdown** (`#mainTabs`, `nav.js`'s `toggleNavMenu()`) holds,
+top to bottom: **Log** (a small hand-rolled person-icon glyph + a native
+`<details><summary>Browse exercises</summary>…</details>` right
+underneath it — tap-to-expand, no custom open/close JS, works
+identically on touch and desktop), **Progress**, **Calendar**,
+**Suggested**, **Exercises**, **Feedback**, **Developer Tools**
+(owner-only, see below), and **Log out** — the last of these used to sit
+in the header next to the hamburger as its own button; it's just another
+dropdown row now. The "Browse exercises" disclosure is filled by
+`buildLogNavBrowser()` (`log-tab.js`): one nested `<details>` per
+`activeProfile().muscles` entry (skipped if that muscle has zero
+exercises, same as `exercises-tab.js`'s `renderExerciseManage()` already
+did), muscle label colored via `muscleColors`, one button per exercise
+inside — clicking it calls `jumpToExercise()` (`suggested-tab.js`) and
+closes the dropdown, reusing the exact same add-to-plan-and-scroll-to-it
+behavior the Suggested tab's chips already use rather than inventing a
+separate read-only preview. Rebuilt wherever `state.EXERCISES` already
+gets rebuilt (`main.js`'s `init()`, and `addExercise()`/rename/delete in
+`exercises-tab.js`), not on every dropdown open.
+
+**Header stats dropdown** (`#statsToggle`/`#statsDropdown`, wired in
+`main.js`'s `init()`, opened/closed via `nav.js`'s `toggleStatsDropdown()` —
+the same open/close pattern `toggleNavMenu()` already uses for
+`#mainTabs`, just a second independent panel) shows the same four
+`.stat` cards the Today's Workout page used to keep inline — total
+weight lifted, days trained, last session, total pushups — but now from
+a bar-chart icon next to the hamburger, available on every page instead
+of just the Log tab. The two dropdowns close independently on an outside
+click; opening one also force-closes the other (see `main.js`'s document
+click listener).
 
 **The muscle-select stage's 3D model** (`wheel3d.js`) tries
 `/models/muscle-select.glb` first via `GLTFLoader` — the fast path, small
@@ -687,6 +764,51 @@ the owner's and Diana's rows are still reachable by anyone holding the
 public anon key, exactly as before; see the README's
 "Optional: figurine-grid login" section before assuming it protects
 anything sensitive.
+
+**Developer Tools** (`#viewDevTools`, `gate.js`'s `renderDevToolsView()`)
+is a new page holding admin-y switches that don't belong on a regular
+tab — currently just Diana's gate toggle, moved here from its old header
+button. `wireDevToolsVisibility()` (`gate.js`, called once from `main.js`'s
+`init()`) hides the `#devToolsTabBtn` dropdown entry entirely unless
+`useSupabase && GATE_ENABLED && activeProfile().key === "owner"` — the
+same condition the old header toggle already checked — so Diana and any
+stranger never see the tab exists, not just a disabled/empty version of
+it. Unlike that old toggle (wired once, kept in sync in place),
+`renderDevToolsView()` is rebuilt fresh every time the tab is opened,
+same "re-render per visit" pattern `renderExerciseManage()` already
+uses. The UI is deliberately explicit about a toggle that's otherwise
+easy to misread: a status pill reading **"Locked"** or **"Unlocked"**
+plus one line spelling out what each actually means ("Locked: Diana must
+answer a security question…" / "Unlocked: her page opens right after the
+correct cell…"), and a button whose own label names the action it's
+about to perform — **"Turn on"** when currently unlocked, **"Turn off"**
+when currently locked — rather than a static label plus a separate
+active/inactive visual state you have to already know how to read. If a
+second toggle is ever needed here (the user mentioned a hypothetical,
+not-yet-real "email verification" switch as a future possibility), give
+it its own `<section>` on this page rather than overloading the existing
+one.
+
+**The Feedback tab** (`#viewFeedback`, `src/feedback-tab.js`) is a
+one-way note to the developer — a textarea and a Send button that insert
+into a new `feedback` table (`supabase/feedback_schema.sql`, a migration
+the user needs to run) and nothing else; `renderFeedbackView()` is called
+fresh every time the tab opens (`setView()`, `nav.js`) so a prior send's
+"Thanks…" state never lingers into a new visit. **This table has no
+`select` policy for either `anon` or `authenticated`** — deliberately;
+the point is that feedback is readable only from the Supabase
+dashboard/service role, never from the client, matching "received in
+backend, not visible from html" literally, not just by convention.
+`submitFeedback()` inserts `{user_id: currentUserId(), sender_name:
+currentUserLabel(), message}` — `currentUserLabel()` (new, next to
+`currentUserId()` in `persistence.js`) is `"Owner"`/`"Diana"` from
+`activeProfile().key`, or the stranger's own email if
+`state.currentSession` is set; used only for the `Thanks for your
+message, ${name}!` confirmation copy, not an identity/security concept.
+If `!useSupabase`, submitting just alerts that feedback needs a network
+connection — there's no localStorage fallback here, unlike everywhere
+else in this app, since "the developer receives this" has no meaning
+without a real backend to receive it.
 
 ## Conventions specific to this codebase
 
@@ -943,3 +1065,31 @@ cross-contamination between the two profiles' data.
   harmless even if they turn out not to be the actual cause — but this
   needs a real iPhone (or a teammate who has one) to actually confirm
   fixed, not just "no console errors in a resized desktop Chrome window."
+- **A large nav/Dev-Tools/Feedback/Cardio batch** (see "Developer Tools,"
+  "The Feedback tab," "Exercises are one of three types," and "The nav
+  dropdown"/"Header stats dropdown" above) is implemented and verified
+  end-to-end against the localStorage fallback in a throwaway copy: the
+  person-icon nav item's tap-to-expand exercise browser (expand a muscle,
+  click an exercise, lands correctly on the Today's Workout page with it
+  flashed and added); the header stats dropdown opening independently of
+  the hamburger on every tab; header titles per page matching what's
+  documented above, with nothing reading "Knife" outside the gate; the
+  "Add" button text and the add-set/remove button alignment fix (a long
+  per-hand name and a short one both keep their buttons flush together);
+  a full cardio round-trip (adding "Run" from the picker, logging
+  5.2km/28min, confirming it renders correctly in Latest-by-exercise and
+  Full log); the Cardio checkbox's mutual exclusivity with Per hand/Track
+  weight in the Exercises tab, and adding a new cardio exercise through
+  it. **Not** verified against real Supabase (the same "can't safely be
+  exercised by Claude" limitation as Diana's Q&A gate) — the Developer
+  Tools page's owner-only visibility, its actual toggle round-trip against
+  `diana_gate_settings`, and the Feedback tab's real insert all need a
+  manual pass once `supabase/feedback_schema.sql` and
+  `supabase/cardio_schema.sql` are run (both fail closed — an alert, no
+  data loss — until then, same as every other migration here). The
+  comment-cleanup pass (grepped every short in-code comment across
+  `src/*.js`) didn't find much to trim: this codebase's comments already
+  follow a "why, not what" convention from well before this pass, so
+  there wasn't the kind of restates-the-next-line noise that pass was
+  meant to remove — noted here rather than manufacturing deletions just
+  to show activity.

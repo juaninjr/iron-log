@@ -287,32 +287,41 @@ export async function setDianaGateSetting(enabled) {
   }
 }
 
-// The toggle itself lives in the header (#dianaGateToggle, next to the
-// hamburger), not the Exercises tab — it's set once per session, since
-// activeProfile() never changes mid-session, so there's no need to
-// re-render it on every tab switch the way tab-scoped UI does. Called
-// once from main.js's init(); no-ops (stays hidden) for anyone who isn't
-// the owner, or when the gate mechanism doesn't apply at all.
-export async function wireDianaGateToggle() {
-  const btn = $("#dianaGateToggle");
+// The Developer Tools tab-btn itself is only shown for the owner, and
+// only when the gate mechanism applies at all — set once per session
+// (activeProfile() never changes mid-session), called from main.js's
+// init(). Everyone else never sees the tab exists.
+export function wireDevToolsVisibility() {
+  const btn = $("#devToolsTabBtn");
   if (!btn) return;
-  if (!useSupabase || !GATE_ENABLED || activeProfile().key !== "owner") {
-    btn.hidden = true;
-    return;
-  }
-  btn.hidden = false;
-  await loadDianaGateSetting();
-  syncDianaGateToggleVisual(btn);
-  btn.addEventListener("click", async () => {
-    const desired = !state.dianaGateEnabled;
-    const ok = await setDianaGateSetting(desired);
-    if (ok) syncDianaGateToggleVisual(btn);
-  });
+  btn.hidden = !(useSupabase && GATE_ENABLED && activeProfile().key === "owner");
 }
 
-function syncDianaGateToggleVisual(btn) {
-  btn.classList.toggle("active", state.dianaGateEnabled);
-  btn.setAttribute("aria-pressed", String(state.dianaGateEnabled));
+// Rebuilt fresh every time the Developer Tools tab is opened (setView(),
+// nav.js) — same "re-render per visit" pattern as renderExerciseManage()
+// — rather than wired once, so the status/label always reflect whatever
+// the setting actually is right now. The button's own label names the
+// action it performs ("Turn on"/"Turn off"), and the status pill spells
+// out what "locked"/"unlocked" actually mean, since neither is
+// self-explanatory out of context.
+export async function renderDevToolsView() {
+  await loadDianaGateSetting();
+  const statusEl = $("#devGateStatus");
+  const explainEl = $("#devGateExplain");
+  const btn = $("#devGateToggleBtn");
+  const locked = state.dianaGateEnabled;
+
+  statusEl.textContent = locked ? "Locked" : "Unlocked";
+  statusEl.className = "dev-gate-status " + (locked ? "locked" : "unlocked");
+  explainEl.textContent = locked
+    ? "Locked: Diana must answer a security question after her figurine cell before her page opens."
+    : "Unlocked: her page opens right after the correct cell, no extra question.";
+  btn.textContent = locked ? "Turn off" : "Turn on";
+
+  btn.onclick = async () => {
+    const ok = await setDianaGateSetting(!state.dianaGateEnabled);
+    if (ok) renderDevToolsView();
+  };
 }
 
 function wireGateEvents() {

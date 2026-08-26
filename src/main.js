@@ -5,22 +5,22 @@ import { state, GATE_ENABLED } from "./state.js";
 import { $, $all, todayISO, triggerHaptic } from "./dom-utils.js";
 import { loadEntries, loadExercises, loadTodayPlan } from "./persistence.js";
 import {
-  logWorkout, enterMuscleGate, confirmMuscleSelection,
+  logWorkout, enterMuscleGate, confirmMuscleSelection, buildLogNavBrowser,
   showTodayWorkoutPage, setHeaderTitle, buildExerciseBlocks, buildAllExercisesList, render,
 } from "./log-tab.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
-import { addExercise } from "./exercises-tab.js";
+import { addExercise, wireCardioCheckbox } from "./exercises-tab.js";
 import { downloadPDF, exportBackup, importBackup, clearAllData } from "./export.js";
-import { toggleNavMenu, setView } from "./nav.js";
-import { logOut, bootstrap, wireDianaGateToggle } from "./gate.js";
+import { toggleNavMenu, toggleStatsDropdown, setView } from "./nav.js";
+import { logOut, bootstrap, wireDevToolsVisibility } from "./gate.js";
 
 // ---------- Wire up ----------
 export async function init() {
   $("#workoutDate").value = todayISO();
 
-  setHeaderTitle(false);
-  wireDianaGateToggle();
+  setHeaderTitle(null);
+  wireDevToolsVisibility();
 
   $("#pdfBtn").addEventListener("click", downloadPDF);
   $("#exportBtn").addEventListener("click", exportBackup);
@@ -38,12 +38,21 @@ export async function init() {
   });
   $("#navToggle").addEventListener("click", (e) => {
     e.stopPropagation();
+    toggleStatsDropdown(false);
     toggleNavMenu();
   });
-  document.addEventListener("click", (e) => {
-    if (!$("#mainTabs").classList.contains("open")) return;
-    if (e.target.closest("#mainTabs") || e.target.closest("#navToggle")) return;
+  $("#statsToggle").addEventListener("click", (e) => {
+    e.stopPropagation();
     toggleNavMenu(false);
+    toggleStatsDropdown();
+  });
+  document.addEventListener("click", (e) => {
+    if ($("#mainTabs").classList.contains("open") && !e.target.closest("#mainTabs") && !e.target.closest("#navToggle")) {
+      toggleNavMenu(false);
+    }
+    if ($("#statsDropdown").classList.contains("open") && !e.target.closest("#statsDropdown") && !e.target.closest("#statsToggle")) {
+      toggleStatsDropdown(false);
+    }
   });
   $("#calPrev").addEventListener("click", () => {
     state.calMonth.setMonth(state.calMonth.getMonth() - 1);
@@ -54,6 +63,7 @@ export async function init() {
     renderCalendar();
   });
   $("#addExerciseBtn").addEventListener("click", addExercise);
+  wireCardioCheckbox();
   $("#logWorkoutBtn").addEventListener("click", () => logWorkout());
   // "Create Plan" — straight to the Today's Workout main page, which
   // already lists every exercise (see "All exercises", buildAllExercisesList()).
@@ -111,6 +121,7 @@ export async function init() {
   await loadTodayPlan();
   buildExerciseBlocks();
   buildAllExercisesList();
+  buildLogNavBrowser();
 
   await loadEntries();
   render();

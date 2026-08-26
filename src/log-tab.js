@@ -3,8 +3,8 @@ import { $, $all, fmtDate, cssEscape, triggerHaptic, todayISO } from "./dom-util
 import { saveEntries, deleteEntries, saveTodayPlan } from "./persistence.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
-import { renderSuggested } from "./suggested-tab.js";
-import { renderKnifeTitle } from "./brand.js";
+import { renderSuggested, jumpToExercise } from "./suggested-tab.js";
+import { toggleNavMenu } from "./nav.js";
 
 // Rebuilds the two muscle-scoped Set filters (state.js) off the active
 // profile's own muscle list — those Sets are built once at module-load
@@ -17,17 +17,17 @@ export function resetProfileFilters() {
 }
 
 // ---------- Header title ----------
-// Swaps the header's brand slot between the "Knife" wordmark and a plain
-// "Today's Workout" heading (same size/weight, no ghost-vibrate — that
-// animation is the brand mark's own, not a generic page-title treatment).
-// The header is hidden entirely during #muscleSelectStage/#quickLogStage
-// (see below), so this only ever needs calling from the two places that
-// un-hide it: showTodayWorkoutPage() (below) and setView() (nav.js) for
-// every other tab.
-export function setHeaderTitle(showTodayWorkout) {
-  $("#headerLogoSlot").innerHTML = showTodayWorkout
-    ? `<span class="page-title--brand">Today's Workout</span>`
-    : renderKnifeTitle("brand") + `<p class="knife-desc">A training log platform.</p>`;
+// The header's brand slot shows each page's own plain name, not the
+// "Knife" wordmark — that's the gate/login screen's brand moment
+// (gate.js's bootstrap()), not something repeated on every subpage.
+// `title` is the text to show, or null to clear the slot entirely (used
+// when the page's own content already carries an equivalent heading
+// right below it, so a header title would just repeat it — e.g. the
+// Today's Workout page's gray box already has its own "Today's Workout"
+// <h2>). setView() (nav.js) calls this with the right value per view;
+// showTodayWorkoutPage() (below) is the Log tab's own case.
+export function setHeaderTitle(title) {
+  $("#headerLogoSlot").innerHTML = title ? `<span class="page-title--brand">${title}</span>` : "";
 }
 
 // ---------- Today's Workout plan ----------
@@ -83,6 +83,41 @@ export function buildMusclePickRow() {
       confirmMuscleSelection(m);
     });
     row.appendChild(btn);
+  });
+}
+
+// The nav dropdown's "Log" item has a tap-to-expand browser (native
+// <details>, no custom open/close JS) listing every exercise grouped by
+// muscle — nested <details> per muscle, one button per exercise. Only
+// depends on state.EXERCISES, so it's rebuilt wherever that already gets
+// rebuilt (main.js's init(), addExercise()/renameExercise()/
+// deleteExerciseFlow() in exercises-tab.js), not on every dropdown open.
+export function buildLogNavBrowser() {
+  const container = $("#navLogMuscleList");
+  if (!container) return;
+  container.innerHTML = "";
+  const { muscles, muscleLabels, muscleColors } = activeProfile();
+  muscles.forEach(m => {
+    const exercises = state.EXERCISES.filter(ex => ex.muscle === m);
+    if (exercises.length === 0) return;
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.className = "muscle-summary";
+    summary.textContent = muscleLabels[m];
+    summary.style.color = muscleColors[m];
+    details.appendChild(summary);
+    exercises.forEach(ex => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "nav-ex-btn";
+      btn.textContent = ex.name;
+      btn.addEventListener("click", () => {
+        jumpToExercise(ex.name);
+        toggleNavMenu(false);
+      });
+      details.appendChild(btn);
+    });
+    container.appendChild(details);
   });
 }
 
@@ -150,7 +185,7 @@ function buildPickerList(containerSel, exercises) {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "plan-pick-toggle" + (added ? " added" : "");
-    toggle.textContent = added ? "Added ✓" : "Add to Today's Workout";
+    toggle.textContent = added ? "Added ✓" : "Add";
     toggle.addEventListener("click", () => {
       triggerHaptic();
       if (state.todayPlan.includes(ex.name)) removeFromTodayPlan(ex.name);
@@ -200,7 +235,7 @@ export function confirmMuscleSelection(m) {
 export function showTodayWorkoutPage() {
   currentPickerMuscle = null;
   leaveMuscleGate();
-  setHeaderTitle(true);
+  setHeaderTitle(null);
   buildExerciseBlocks();
   buildAllExercisesList();
   render();
@@ -264,12 +299,15 @@ export function buildExerciseBlocks() {
     block.appendChild(rows);
     addSetRow(rows, ex);
 
+    const actions = document.createElement("div");
+    actions.className = "ex-head-actions";
+
     const addBtn = document.createElement("button");
     addBtn.type = "button";
     addBtn.className = "add-set-btn";
     addBtn.textContent = "+ Add set";
     addBtn.addEventListener("click", () => addSetRow(rows, ex));
-    head.appendChild(addBtn);
+    actions.appendChild(addBtn);
 
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
@@ -277,14 +315,42 @@ export function buildExerciseBlocks() {
     removeBtn.title = "Remove from today's workout";
     removeBtn.textContent = "×";
     removeBtn.addEventListener("click", () => removeFromTodayPlan(ex.name));
-    head.appendChild(removeBtn);
+    actions.appendChild(removeBtn);
 
+    head.appendChild(actions);
     container.appendChild(block);
   });
 }
 
 export function addSetRow(rowsContainer, ex) {
   const row = document.createElement("div");
+
+  if (ex.cardio) {
+    row.className = "set-row"; // same 3-column grid (distance/duration/remove) as the default weighted layout
+    row.innerHTML = `
+      <div>
+        <label class="field-label">Distance (km)</label>
+        <input type="number" class="distance-input" min="0" step="0.1" placeholder="km">
+      </div>
+      <div>
+        <label class="field-label">Time (min)</label>
+        <input type="number" class="duration-input" min="0" step="1" placeholder="min">
+      </div>
+    `;
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "icon-btn";
+    removeBtn.title = "Remove set";
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => {
+      if (rowsContainer.children.length > 1) row.remove();
+      else $all("input", row).forEach(el => { el.value = ""; });
+    });
+    row.appendChild(removeBtn);
+    rowsContainer.appendChild(row);
+    return;
+  }
+
   row.className = "set-row" + (ex.repsOnly ? " reps-only" : "");
 
   if (!ex.repsOnly) {
@@ -349,6 +415,28 @@ export async function logWorkout() {
     if (!block) return; // not in today's plan — nothing to read
     const rows = $all(".set-row", block);
     rows.forEach((row) => {
+      if (ex.cardio) {
+        const distEl = $(".distance-input", row);
+        const durEl = $(".duration-input", row);
+        const distance = distEl.value !== "" ? parseFloat(distEl.value) : null;
+        const duration = durEl.value !== "" ? parseFloat(durEl.value) : null;
+        const hasData = (distance !== null && !isNaN(distance)) || (duration !== null && !isNaN(duration));
+        if (!hasData) return;
+
+        newEntries.push({
+          id: `${baseTime + offset}-${Math.random().toString(36).slice(2, 8)}`,
+          date,
+          exercise: ex.name,
+          weight: null,
+          reps: null,
+          distance: (distance !== null && !isNaN(distance)) ? distance : null,
+          duration: (duration !== null && !isNaN(duration)) ? duration : null,
+          loggedAt: baseTime + offset,
+        });
+        offset += 1;
+        return;
+      }
+
       const repsEl = $(".reps-input", row);
       const reps = repsEl.value ? parseFloat(repsEl.value) : null;
       let weight = null;
@@ -365,6 +453,8 @@ export async function logWorkout() {
         exercise: ex.name,
         weight: (!ex.repsOnly && weight !== null && !isNaN(weight)) ? weight : null,
         reps: reps,
+        distance: null,
+        duration: null,
         loggedAt: baseTime + offset,
       });
       offset += 1;
@@ -404,6 +494,9 @@ export function renderSetsCell(sets, ex) {
   if (sets.length === 0) return '<span class="empty-note" style="padding:0;">Not logged yet</span>';
   return `<div class="sets-compact">` + sets.map((s, i) => {
     const sep = i > 0 ? '<span class="set-sep">/</span>' : '';
+    if (ex && ex.cardio) {
+      return `${sep}<span class="set-item"><span class="set-weight">${s.distance !== null ? s.distance + "km" : "—"}</span><span class="set-reps">${s.duration !== null ? s.duration + "min" : "—"}</span></span>`;
+    }
     if (ex && ex.repsOnly) {
       return `${sep}<span class="set-item"><span class="set-weight">${s.reps !== null ? s.reps : "—"}</span></span>`;
     }
@@ -415,6 +508,7 @@ export function renderSetsCell(sets, ex) {
 export function formatSetsText(sets, ex) {
   if (sets.length === 0) return "—";
   return sets.map(s => {
+    if (ex && ex.cardio) return `${s.distance !== null ? s.distance + "km" : "—"} · ${s.duration !== null ? s.duration + "min" : "—"}`;
     if (ex && ex.repsOnly) return `${s.reps !== null ? s.reps : "—"}`;
     return `${s.weight !== null ? s.weight : "—"}×${s.reps !== null ? s.reps : "—"}`;
   }).join(" / ");
@@ -525,11 +619,15 @@ export function render() {
           const snapshot = $all(".set-row", rowsContainer).map(row => ({
             weight: $(".weight-input", row) ? $(".weight-input", row).value : "",
             reps: $(".reps-input", row) ? $(".reps-input", row).value : "",
+            distance: $(".distance-input", row) ? $(".distance-input", row).value : "",
+            duration: $(".duration-input", row) ? $(".duration-input", row).value : "",
           }));
           rowsContainer.innerHTML = "";
           snapshot.forEach(s => buildGroupEditRow(rowsContainer, currentEx, {
             weight: s.weight !== "" ? parseFloat(s.weight) : null,
             reps: s.reps !== "" ? parseFloat(s.reps) : null,
+            distance: s.distance !== "" ? parseFloat(s.distance) : null,
+            duration: s.duration !== "" ? parseFloat(s.duration) : null,
             id: null,
           }));
         });
@@ -560,8 +658,34 @@ export function render() {
 // records which entry it maps to so save can tell edits from inserts.
 function buildGroupEditRow(container, ex, existingSet) {
   const row = document.createElement("div");
-  row.className = "set-row" + (ex.repsOnly ? " reps-only" : "");
   row.dataset.entryId = existingSet && existingSet.id ? existingSet.id : "";
+
+  if (ex.cardio) {
+    row.className = "set-row";
+    const distVal = existingSet && existingSet.distance !== null && existingSet.distance !== undefined ? existingSet.distance : "";
+    const durVal = existingSet && existingSet.duration !== null && existingSet.duration !== undefined ? existingSet.duration : "";
+    row.innerHTML = `
+      <div>
+        <label class="field-label">Distance (km)</label>
+        <input type="number" class="distance-input" min="0" step="0.1" value="${distVal}">
+      </div>
+      <div>
+        <label class="field-label">Time (min)</label>
+        <input type="number" class="duration-input" min="0" step="1" value="${durVal}">
+      </div>
+    `;
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "icon-btn";
+    removeBtn.title = "Remove set";
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => row.remove());
+    row.appendChild(removeBtn);
+    container.appendChild(row);
+    return row;
+  }
+
+  row.className = "set-row" + (ex.repsOnly ? " reps-only" : "");
 
   if (!ex.repsOnly) {
     const min = ex.min ?? 0;
@@ -614,30 +738,41 @@ async function saveEditedGroup(g, tr) {
   let offset = 0;
 
   rows.forEach(row => {
-    const repsEl = $(".reps-input", row);
-    const reps = repsEl.value !== "" ? parseFloat(repsEl.value) : null;
-    let weight = null;
-    if (!ex.repsOnly) {
-      const weightEl = $(".weight-input", row);
-      weight = weightEl.value !== "" ? parseFloat(weightEl.value) : null;
-    }
-    if (reps === null || isNaN(reps)) return;
-
     const existingId = row.dataset.entryId;
+    let fields;
+
+    if (ex.cardio) {
+      const distEl = $(".distance-input", row);
+      const durEl = $(".duration-input", row);
+      const distance = distEl.value !== "" ? parseFloat(distEl.value) : null;
+      const duration = durEl.value !== "" ? parseFloat(durEl.value) : null;
+      if ((distance === null || isNaN(distance)) && (duration === null || isNaN(duration))) return;
+      fields = { weight: null, reps: null, distance: !isNaN(distance) ? distance : null, duration: !isNaN(duration) ? duration : null };
+    } else {
+      const repsEl = $(".reps-input", row);
+      const reps = repsEl.value !== "" ? parseFloat(repsEl.value) : null;
+      let weight = null;
+      if (!ex.repsOnly) {
+        const weightEl = $(".weight-input", row);
+        weight = weightEl.value !== "" ? parseFloat(weightEl.value) : null;
+      }
+      if (reps === null || isNaN(reps)) return;
+      fields = { weight, reps, distance: null, duration: null };
+    }
+
     if (existingId) {
       const entry = state.entries.find(e => e.id === existingId);
       if (entry) {
         entry.date = date;
         entry.exercise = exercise;
-        entry.weight = weight;
-        entry.reps = reps;
+        Object.assign(entry, fields);
         upserts.push(entry);
         keptIds.add(existingId);
       }
     } else {
       const newEntry = {
         id: `${baseTime + offset}-${Math.random().toString(36).slice(2, 8)}`,
-        date, exercise, weight, reps,
+        date, exercise, ...fields,
         loggedAt: baseTime + offset,
       };
       offset += 1;

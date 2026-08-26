@@ -185,23 +185,28 @@
   }
   .today-workout-box .exercise-block{background:var(--paper-raised);}
 
-  /* Stats, collapsed by default now that the gray box above is the main
-     focus of this page — a plain <details>/<summary>, same section-card
-     look as everything else. */
-  .stats-dropdown{
+  /* Header stats dropdown (#statsToggle/#statsDropdown, main.js) — same
+     hierarchy and open/close treatment as #mainTabs below, just docked
+     under its own icon instead of the hamburger. Available on every page. */
+  .stats-dropdown-panel{
+    position:absolute;
+    top:calc(100% + 8px);
+    right:0;
+    z-index:50;
+    width:320px;
+    max-width:calc(100vw - 32px);
     background:var(--paper-raised);
     border:1px solid var(--line);
-    border-radius:var(--radius);
-    padding:14px 20px;
-    margin-bottom:22px;
-    box-shadow:var(--shadow);
+    border-radius:12px;
+    padding:14px;
+    box-shadow:0 10px 28px rgba(0,0,0,0.16);
+    opacity:0;
+    transform:translateY(-6px);
+    pointer-events:none;
+    transition:opacity 0.15s ease, transform 0.15s ease;
   }
-  .stats-dropdown summary{
-    cursor:pointer;
-    font-weight:800;
-    font-size:1.1rem;
-  }
-  .stats-dropdown .stats{margin:14px 0 0;}
+  .stats-dropdown-panel.open{opacity:1;transform:translateY(0);pointer-events:auto;}
+  .stats-dropdown-panel .stats{margin:0;}
 
   label{
     font-weight:600;
@@ -393,6 +398,12 @@
     gap:8px;
     margin-bottom:5px;
   }
+  /* Add-set + remove buttons grouped as one flex child — with three
+     top-level children under justify-content:space-between the middle
+     one (add-set) floats in whatever space is left instead of sitting
+     next to the third, which visibly misaligns it across blocks whose
+     names are different lengths. */
+  .ex-head-actions{display:flex;align-items:center;gap:8px;flex:none;}
   .exercise-block .ex-name{
     font-weight:700;
     font-size:0.98rem;
@@ -534,12 +545,34 @@
   }
   .tool-btn:hover{border-color:var(--steel);color:var(--steel);}
   .tool-btn.danger:hover{border-color:var(--plate);color:var(--plate);}
-  /* Diana's gate toggle (header, next to the hamburger) — solid when the
-     gate is required, outlined when it's off, same on/off convention as
-     .tab-btn.active elsewhere in this file. */
-  .diana-gate-toggle{flex:none;}
-  .diana-gate-toggle.active{background:var(--ink);color:#fff;border-color:var(--ink);}
-  .diana-gate-toggle.active:hover{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  /* Developer Tools — Diana's gate status (renderDevToolsView(), gate.js) */
+  .dev-gate-status{
+    display:inline-block;
+    font-weight:800;
+    font-size:0.9rem;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    padding:4px 12px;
+    border-radius:20px;
+    margin-bottom:10px;
+  }
+  .dev-gate-status.locked{background:var(--ink);color:#fff;}
+  .dev-gate-status.unlocked{background:var(--line);color:var(--muted);}
+
+  /* Feedback tab */
+  #feedbackForm textarea{
+    width:100%;
+    min-height:120px;
+    border:1px solid var(--line-strong);
+    border-radius:8px;
+    padding:10px 12px;
+    font-family:inherit;
+    font-size:0.9rem;
+    resize:vertical;
+    margin-bottom:10px;
+  }
+  .feedback-thanks{font-weight:700;font-size:1.05rem;color:var(--steel);}
 
   table{
     width:100%;
@@ -630,6 +663,46 @@
   .nav-toggle[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg);}
   .nav-toggle[aria-expanded="true"] span:nth-child(2){opacity:0;}
   .nav-toggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+  /* #statsToggle reuses .nav-toggle's button chrome with an svg glyph
+     instead of the hamburger's three spans. */
+  .nav-toggle svg{display:block;fill:var(--ink);}
+
+  /* The Log dropdown item: its own tab-btn (navigates on click) plus a
+     native <details> for tap-to-expand browsing — no custom open/close
+     JS needed, works identically on touch and desktop. */
+  .nav-log-item{display:flex;flex-direction:column;}
+  .nav-person-icon{fill:currentColor;vertical-align:-2px;margin-right:5px;}
+  .nav-log-browse{margin:0 0 4px;}
+  .nav-log-browse summary{
+    cursor:pointer;
+    padding:6px 10px;
+    font-weight:600;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    color:var(--muted);
+  }
+  .nav-log-browse details{margin-left:10px;}
+  .nav-log-browse summary.muscle-summary{
+    font-weight:700;
+    text-transform:none;
+    letter-spacing:0;
+    padding:5px 10px;
+  }
+  .nav-log-browse .nav-ex-btn{
+    display:block;
+    width:calc(100% - 20px);
+    margin:0 0 2px 20px;
+    text-align:left;
+    background:transparent;
+    border:none;
+    padding:5px 8px;
+    font-size:0.8rem;
+    color:var(--ink);
+    cursor:pointer;
+    border-radius:6px;
+  }
+  .nav-log-browse .nav-ex-btn:hover{background:var(--paper);}
 
   #mainTabs.tabs{
     position:absolute;

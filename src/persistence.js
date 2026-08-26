@@ -28,6 +28,13 @@ export function currentUserId() {
   return state.currentSession ? state.currentSession.user.id : activeProfile().sentinelId;
 }
 
+// A human-readable name for whoever's logged in — used by the Feedback
+// tab's thank-you message. Not an identity/security concept, just copy.
+export function currentUserLabel() {
+  if (state.currentSession) return state.currentSession.user.email;
+  return activeProfile().key === "owner" ? "Owner" : "Diana";
+}
+
 // The localStorage fallback keys stay unsuffixed for the owner (backward
 // compatible with data saved before Diana existed); Diana gets her own
 // suffixed key so the two profiles' localStorage-fallback data never mix
@@ -44,6 +51,8 @@ function rowToEntry(row) {
     exercise: row.exercise,
     weight: row.weight,
     reps: row.reps,
+    distance: row.distance ?? null,
+    duration: row.duration ?? null,
     loggedAt: Number(row.logged_at),
   };
 }
@@ -55,6 +64,8 @@ function entryToRow(e) {
     exercise: e.exercise,
     weight: e.weight,
     reps: e.reps,
+    distance: e.distance ?? null,
+    duration: e.duration ?? null,
     logged_at: e.loggedAt,
     user_id: currentUserId(),
   };
@@ -66,6 +77,7 @@ function rowToExercise(row) {
     muscle: row.muscle,
     perHand: row.per_hand,
     repsOnly: row.reps_only,
+    cardio: Boolean(row.cardio),
     min: row.min,
     max: row.max,
     step: row.step,
@@ -79,6 +91,7 @@ function exerciseToRow(ex) {
     muscle: ex.muscle,
     per_hand: Boolean(ex.perHand),
     reps_only: Boolean(ex.repsOnly),
+    cardio: Boolean(ex.cardio),
     min: ex.min ?? null,
     max: ex.max ?? null,
     step: ex.step ?? null,

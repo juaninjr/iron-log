@@ -8,16 +8,30 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-// The owner's muscle categories/colors/seed roster — now folded into
+// ============================================================
+// BRAND / CATEGORY COLORS — edit here, nowhere else.
+// ============================================================
+// The owner's muscle categories/colors/seed roster — folded into
 // PROFILES.owner below rather than exported flat, since every consumer
 // (log-tab.js, progress-tab.js, suggested-tab.js, exercises-tab.js,
 // wheel3d.js) needs to read whichever profile is actually active, not
 // always the owner's. Kept as local consts (not exported) purely so
 // PROFILES.owner's literal below stays readable.
-const OWNER_MUSCLES = ["chest", "back", "shoulders", "arms", "core", "legs"];
-const OWNER_MUSCLE_LABELS = { chest: "Chest", back: "Back", shoulders: "Shoulders", arms: "Arms", core: "Core", legs: "Legs" };
-// Validated categorical palette (first 6 of 8 slots — a prefix of an
-// already-validated ordering stays CVD-safe), one fixed color per muscle.
+//
+// THIS is the one place a muscle category's color is ever defined. Every
+// other spot in the app that shows a category color — the wheel's 3D
+// model glow (wheel3d.js), the muscle-pick buttons' hover color, exercise
+// blocks' left border, chart lines, the Exercises tab's group headings —
+// reads it from here (activeProfile().muscleColors), nothing hardcodes
+// its own copy. Change a hex here and it updates everywhere at once; if
+// you ever find a color duplicated somewhere else in src/, that's a bug,
+// not a second source of truth.
+const OWNER_MUSCLES = ["chest", "back", "shoulders", "arms", "core", "legs", "cardio"];
+const OWNER_MUSCLE_LABELS = { chest: "Chest", back: "Back", shoulders: "Shoulders", arms: "Arms", core: "Core", legs: "Legs", cardio: "Cardio" };
+// First 6 are a validated categorical palette (a prefix of an
+// already-validated ordering stays CVD-safe); "cardio" is a later
+// addition (teal) picked to read distinctly from all six, not part of
+// that original validated set.
 const OWNER_MUSCLE_COLORS = {
   chest: "#2a78d6",
   back: "#1baf7a",
@@ -25,6 +39,7 @@ const OWNER_MUSCLE_COLORS = {
   arms: "#008300",
   core: "#4a3aa7",
   legs: "#e34948",
+  cardio: "#0d9488",
 };
 
 // The original fixed roster — seeded into the database on first run and
@@ -45,6 +60,8 @@ export const DEFAULT_EXERCISES = [
   { name: "Squats Máquina",    perHand: false, min: 0,  max: 200, step: 5, muscle: "legs",      backbone: true },
   { name: "Core Workout",      perHand: false, min: 0,  max: 100, step: 1, muscle: "core",      backbone: true },
   { name: "Pushups",           repsOnly: true, muscle: "chest", backbone: true },
+  { name: "Run",                cardio: true, muscle: "cardio", backbone: true },
+  { name: "Row",                cardio: true, muscle: "cardio", backbone: true },
 ];
 
 // Diana's seed roster — her own 4 categories (upper body general, glutes,
@@ -142,7 +159,10 @@ export const PROFILES = {
     // path only — see wheel3d.js's own comment on this.
     modelGltfRotateXDeg: 90,
     // Identity mapping — these keys ARE the 3D model's own named Rhino
-    // layers (see models/README.md), so each just matches itself.
+    // layers (see models/README.md), so each just matches itself. No
+    // "cardio" entry — no 3D geometry represents it, same as any category
+    // a profile's model doesn't have a dedicated layer for; it's still
+    // fully usable via the button-row fallback, just not hoverable.
     modelLayerAliases: { chest: ["chest"], back: ["back"], shoulders: ["shoulders"], arms: ["arms"], core: ["core"], legs: ["legs"] },
   },
   diana: {
@@ -151,8 +171,10 @@ export const PROFILES = {
     unlockKey: DIANA_UNLOCK_KEY,
     muscles: ["upper", "glutes", "legs", "core"],
     muscleLabels: { upper: "Upper Body", glutes: "Glutes", legs: "Legs", core: "Core" },
-    // Reuses the same validated categorical hue family as the owner's
-    // palette (blue/amber/red/purple), just 4 of them instead of 6.
+    // Her own color set — edit here, same "one place" rule as
+    // OWNER_MUSCLE_COLORS above. Reuses the same validated categorical hue
+    // family as the owner's palette (blue/amber/red/purple), just 4 of
+    // them instead of 6.
     muscleColors: { upper: "#2a78d6", glutes: "#eda100", legs: "#e34948", core: "#4a3aa7" },
     defaultExercises: DIANA_DEFAULT_EXERCISES,
     // Her own model now (was the owner's, temporarily, before this
@@ -187,6 +209,8 @@ export const VIEW_IDS = {
   calendar: "viewCalendar",
   suggested: "viewSuggested",
   exercises: "viewExercises",
+  feedback: "viewFeedback",
+  devtools: "viewDevTools",
 };
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
