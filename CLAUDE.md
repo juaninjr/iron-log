@@ -52,7 +52,7 @@ src/
                         object" and "Profiles: the owner and Diana"
                         below before touching any mutable app data
   dom-utils.js           $, $all, clamp, todayISO, fmtDate, fmtDateShort,
-                        cssEscape, exerciseSort, triggerHaptic
+                        cssEscape, exerciseSort, triggerHaptic, showToast
   persistence.js        Supabase ⇄ localStorage load/save/delete for
                         entries + exercises + the Today's Workout plan
                         (see "Data layer" below), plus currentUserId()/
@@ -144,6 +144,20 @@ gate-unlock time (`gate.js`'s `enterApp(profile)` and the two return-visit
 branches in `bootstrap()`), before `init()` ever renders anything — a
 browser session is gated into one profile for its duration, so nothing
 needs to react to `state.activeProfile` changing mid-session.
+
+**Functional changes default to every profile.** Anything that changes
+how the app *works* — a new exercise type (Cardio), a new tab, a new
+picker, a new interaction pattern — ships for both the owner and Diana by
+default; profile-specific content (her own muscle categories, her own
+seed exercises, her own colors, her own 3D model) is the exception that
+already existed for a reason, not the template for new features. The only
+things that stay owner-only are genuinely **admin/dev-tool** surfaces —
+Diana's own gate toggle (Developer Tools, below) and anything like it —
+because the owner is the one operating the app on Diana's behalf for
+those, not because a feature "belongs" to one profile more than the
+other. When in doubt, extend `PROFILES.diana` (or wherever the owner-only
+version lives) rather than leaving Diana without something the owner
+just got.
 
 Every module that used to read the owner's flat `MUSCLES`/`MUSCLE_LABELS`/
 `MUSCLE_COLORS` constants (`log-tab.js`, `progress-tab.js`,
@@ -297,30 +311,47 @@ from — this lets users add one-off exercises without polluting the
 suggestion algorithm.
 
 **Exercises are one of three types, not two**: weighted (has `min`/`max`/
-`step`), reps-only (`repsOnly: true`), or — the owner's only, a new
-"Cardio" muscle category — `cardio: true`, logging distance (km) + time
-(minutes) instead of weight/reps, added via a `Cardio (distance + time)`
-checkbox in the Exercises tab's add form (`exercises-tab.js`, mutually
-exclusive with "Per hand"/"Track weight" — `wireCardioCheckbox()` disables
-those two while it's checked). Every place that already branched on
-`ex.repsOnly` (`addSetRow()`/`buildGroupEditRow()`'s inputs,
-`logWorkout()`/`saveEditedGroup()`'s per-row read logic,
-`renderSetsCell()`/`formatSetsText()`'s display) gained a third `ex.cardio`
-branch alongside it — entries carry two new nullable fields, `distance`/
-`duration`, parallel to `weight`/`reps` (`supabase/cardio_schema.sql`, a
-migration the user needs to run — it also widens `exercises.muscle`'s
-check constraint the same way `diana_schema.sql` did for Diana's
-categories, and adds the `cardio` column to `exercises`). Deliberately
-**not** added to `progress-tab.js`'s charts (cardio entries have
-`weight === null` and `repsOnly === false`, so both existing weight/reps
-charts already exclude them automatically — no crash, just not
-graphed; a distance/time chart type wasn't asked for) or to
-`calendar-tab.js`/`suggested-tab.js` (both already exercise-shape-agnostic —
-Cardio's own backbone exercises get ranked/suggested exactly like any
-other muscle group with no code change needed). Diana doesn't have a
-Cardio category — this was scoped to the owner only, and her category set
-is its own curated thing per profile, not something Cardio needed to be
-added to automatically.
+`step`), reps-only (`repsOnly: true`), or — a "Cardio" muscle category, on
+**every** profile (see "Functional changes default to every profile"
+below) — `cardio: true`, logging distance (km) + time (minutes) instead of
+weight/reps, added via a `Cardio (distance + time)` checkbox in the
+Exercises tab's add form (`exercises-tab.js`, mutually exclusive with "Per
+hand"/"Track weight" — `wireCardioCheckbox()` disables those two while
+it's checked; `populateMuscleSelect()`'s muscle-group `<select>` was
+already profile-generic, so Diana getting her own "Cardio" option needed
+no change there). Every place that already branched on `ex.repsOnly`
+(`addSetRow()`/`buildGroupEditRow()`'s inputs, `logWorkout()`/
+`saveEditedGroup()`'s per-row read logic, `renderSetsCell()`/
+`formatSetsText()`'s display) gained a third `ex.cardio` branch alongside
+it — entries carry two new nullable fields, `distance`/`duration`,
+parallel to `weight`/`reps` (`supabase/cardio_schema.sql`, a migration the
+user needs to run — it also widens `exercises.muscle`'s check constraint
+the same way `diana_schema.sql` did for Diana's categories, and adds the
+`cardio` column to `exercises`). Deliberately **not** added to
+`progress-tab.js`'s charts (cardio entries have `weight === null` and
+`repsOnly === false`, so both existing weight/reps charts already exclude
+them automatically — no crash, just not graphed; a distance/time chart
+type wasn't asked for) or to `calendar-tab.js`/`suggested-tab.js` (both
+already exercise-shape-agnostic — Cardio's own backbone exercises get
+ranked/suggested exactly like any other muscle group with no code change
+needed).
+
+**Cardio gets its own row on the wheel, and its own picker.** It isn't a
+body region the 3D model has geometry for, so lumping it into the
+muscle-group button row (`#musclePickRow`) implied a hover it could never
+deliver — `buildMusclePickRow()` (`log-tab.js`) now routes the "cardio"
+entry of `activeProfile().muscles` into a second, separate container
+(`#cardioPickRow`) instead, same button markup, just visually its own row
+underneath. Tapping it opens the same `#quickLogStage` as any other
+muscle, but `confirmMuscleSelection()`/`rebuildCurrentPicker()` branch on
+`m === "cardio"` to render `buildCardioPicker()` there instead of
+`buildPickerList()`'s one-button-per-exercise list — a single "what type"
+`<select>` (Run, Row, Swim, any others added later) plus one Add/Added ✓ toggle
+that tracks whichever option is currently selected. Metrics themselves
+are unchanged: still entered later as distance (km) + time (min) on the
+Today's Workout page, same as before this existed — the dropdown only
+changes *which cardio exercise* gets added to the plan, not how it's
+logged.
 
 **Deleting an exercise (any profile) is a backup-then-cascade-delete, and
 gated by whether it has any history.** Each row in the Exercises tab's
@@ -473,12 +504,18 @@ not "Log a workout") — has two parts, top to bottom:
    before — it and `buildExerciseBlocks()` dropped the old `containerSel`
    parameter, since exercise blocks only ever render into `#exerciseBlocks`
    now (the picker renders `.plan-pick-item`s instead, a different, input-
-   less markup — see above). Logging a set does **not** remove that
-   exercise from the plan or the page — filtering is plan-*membership*,
-   not log-*status*, so you can keep adding sets to the same exercise
-   later in the day; each block also has a small "×" remove button that
-   does take it out of the plan (and off the page), independent of
-   whatever's already logged for it.
+   less markup — see above). **Logging a set removes that exercise from
+   the plan** (and so from the page) — once `logWorkout()` has actually
+   saved at least one set for it this round, its block has done its job;
+   an exercise whose block was left empty (skipped this round) stays put
+   for later, since only names that actually appear in the batch of new
+   entries (`newEntries`, keyed by `ex.name`) get filtered out of
+   `state.todayPlan`. There's deliberately no scroll/snap afterward — the
+   page just re-renders in place with whatever's left, plus a `.toast`
+   bubble (`#logToast`, `showToast()`, `dom-utils.js`) reading "Logged N
+   sets correctly!" that fades on its own; each block still also has a
+   small "×" remove button for taking an exercise out of the plan
+   pre-emptively, independent of logging it.
 2. **"All exercises"** (`#allExercisesList`, `buildAllExercisesList()`) —
    every exercise, same `buildPickerList()` renderer and Add/Added ✓
    toggle buttons as the wheel's scoped picker (just called with
@@ -532,16 +569,26 @@ top to bottom: **Log** (a small hand-rolled person-icon glyph + a native
 `<details><summary>Browse exercises</summary>…</details>` right
 underneath it — tap-to-expand, no custom open/close JS, works
 identically on touch and desktop), **Progress**, **Calendar**,
-**Suggested**, **Exercises**, **Feedback**, **Developer Tools**
-(owner-only, see below), and **Log out** — the last of these used to sit
-in the header next to the hamburger as its own button; it's just another
-dropdown row now. The "Browse exercises" disclosure is filled by
-`buildLogNavBrowser()` (`log-tab.js`): one nested `<details>` per
-`activeProfile().muscles` entry (skipped if that muscle has zero
-exercises, same as `exercises-tab.js`'s `renderExerciseManage()` already
-did), muscle label colored via `muscleColors`, one button per exercise
-inside — clicking it calls `jumpToExercise()` (`suggested-tab.js`) and
-closes the dropdown, reusing the exact same add-to-plan-and-scroll-to-it
+**Suggested**, **Feedback**, **Developer Tools** (owner-only, see below),
+and **Log out** — the last of these used to sit in the header next to the
+hamburger as its own button; it's just another dropdown row now. There's
+no standalone **Exercises** row anymore — managing exercises (add/rename/
+delete/backbone toggle) is really an extension of browsing the roster,
+not a fifth peer of Progress/Calendar/etc., so it's reachable via a small
+"+" button (`.nav-add-ex-btn`, `#mainTabs .nav-log-browse-row` in
+`style.css`) sitting next to "Browse exercises" instead — same
+`data-view="exercises"`/`.tab-btn` wiring as every other dropdown row
+(the generic `$all(".tab-btn", ...)` click-delegation in `main.js`
+already picks it up, no new JS needed), just styled as a small square
+instead of a full-width row, and excluded from `#mainTabs .tab-btn`'s
+default `width:100%` via a matching-specificity override (see the CSS
+comment) rather than relying on source order. The "Browse exercises"
+disclosure is filled by `buildLogNavBrowser()` (`log-tab.js`): one nested
+`<details>` per `activeProfile().muscles` entry (skipped if that muscle
+has zero exercises, same as `exercises-tab.js`'s `renderExerciseManage()`
+already did), muscle label colored via `muscleColors`, one button per
+exercise inside — clicking it calls `jumpToExercise()` (`suggested-tab.js`)
+and closes the dropdown, reusing the exact same add-to-plan-and-scroll-to-it
 behavior the Suggested tab's chips already use rather than inventing a
 separate read-only preview. Rebuilt wherever `state.EXERCISES` already
 gets rebuilt (`main.js`'s `init()`, and `addExercise()`/rename/delete in
@@ -736,11 +783,33 @@ Clicking a cell posts to the `verify-figurine` Edge Function
 `profile_secrets` (`profile text primary key, correct_cell int`, no
 anon/authenticated RLS policies — the only thing that ever sees which
 cell is correct, and for which profile) and responds `{granted, profile}`
-— `onFigurineClick()` (`gate.js`) branches on `profile`: `"owner"` unlocks
-immediately (unchanged from before Diana existed); `"diana"` first checks
-`diana_gate_settings.gate_enabled` (`loadDianaGateSetting()`) and, if
-still on, shows the Q&A challenge (`#dianaQaView`) before unlocking — see
-"Profiles: the owner and Diana" above for that whole flow.
+— `onFigurineClick()` (`gate.js`) branches on `profile`: `"diana"` first
+checks `diana_gate_settings.gate_enabled` (`loadDianaGateSetting()`) and,
+if still on, shows the Q&A challenge (`#dianaQaView`) before unlocking —
+see "Profiles: the owner and Diana" above for that whole flow. `"owner"`
+is the mirror-image, simpler case: `handleOwnerGranted()` checks
+`owner_gate_settings.gate_enabled` (`loadOwnerGateSetting()`/
+`setOwnerGateSetting()`, `supabase/owner_gate_schema.sql`, off by
+default — unlike Diana's, which defaults on) and, if on, shows
+`#ownerPasswordView` — a single password field checked client-side
+against `OWNER_LOGIN_PASSWORD` (`state.js`, `"1111"`), same
+typed-confirmation-friction category as `EXERCISE_DELETE_PIN`, not a
+real second factor (no Edge Function, no server-side rate limiting —
+this is a much weaker, deliberately simple gate than Diana's Q&A, by
+design, not an oversight). Toggled from Developer Tools' "My login"
+section, same "Locked"/"Unlocked" pill + "Turn on"/"Turn off" pattern as
+Diana's toggle (see "Developer Tools" below).
+
+**A hidden shortcut past all of this**: clicking the knife wordmark on
+the gate screen itself (`#gateLogoSlot`, `wireKnifeShortcut()`, `gate.js`)
+prompts for a password and, if it matches `OWNER_LOGIN_PASSWORD`, unlocks
+the owner profile and jumps straight to Developer Tools — skipping the
+figurine grid entirely. This exists so the owner can always get in and
+flip a toggle (their own gate's, or Diana's) even without solving the
+grid, and works regardless of whether the owner's own gate toggle above
+is currently on or off — it's a separate, always-available entry point,
+not a bypass of that specific flow's own on/off state. There's no visual
+hint that the wordmark is clickable; that's the point.
 `profile_secrets` itself is a Phase-3 generalization of what used to be a
 strict one-row `owner_secret` table (still present, unused, migrated from
 — see `supabase/diana_schema.sql`) so a second profile could get its own
@@ -767,8 +836,9 @@ anything sensitive.
 
 **Developer Tools** (`#viewDevTools`, `gate.js`'s `renderDevToolsView()`)
 is a new page holding admin-y switches that don't belong on a regular
-tab — currently just Diana's gate toggle, moved here from its old header
-button. `wireDevToolsVisibility()` (`gate.js`, called once from `main.js`'s
+tab — Diana's gate toggle (moved here from its old header button) and
+now the owner's own "My login" toggle, each in its own `<section>` (see
+below for why). `wireDevToolsVisibility()` (`gate.js`, called once from `main.js`'s
 `init()`) hides the `#devToolsTabBtn` dropdown entry entirely unless
 `useSupabase && GATE_ENABLED && activeProfile().key === "owner"` — the
 same condition the old header toggle already checked — so Diana and any
@@ -783,11 +853,16 @@ answer a security question…" / "Unlocked: her page opens right after the
 correct cell…"), and a button whose own label names the action it's
 about to perform — **"Turn on"** when currently unlocked, **"Turn off"**
 when currently locked — rather than a static label plus a separate
-active/inactive visual state you have to already know how to read. If a
-second toggle is ever needed here (the user mentioned a hypothetical,
-not-yet-real "email verification" switch as a future possibility), give
-it its own `<section>` on this page rather than overloading the existing
-one.
+active/inactive visual state you have to already know how to read. The
+**"My login"** section (`#ownerGateStatus`/`#ownerGateExplain`/
+`#ownerGateToggleBtn`) is the owner-equivalent toggle, added as its own
+`<section>` per the rule below rather than folded into Diana's — same
+copy pattern, own explanation text ("Locked: your own cell also asks for
+a password…"), backed by `owner_gate_settings` instead of
+`diana_gate_settings`. If a further toggle is ever needed here (the user
+mentioned a hypothetical, not-yet-real "email verification" switch as a
+future possibility), give it its own `<section>` too rather than
+overloading an existing one.
 
 **The Feedback tab** (`#viewFeedback`, `src/feedback-tab.js`) is a
 one-way note to the developer — a textarea and a Send button that insert
@@ -1093,3 +1168,53 @@ cross-contamination between the two profiles' data.
   there wasn't the kind of restates-the-next-line noise that pass was
   meant to remove — noted here rather than manufacturing deletions just
   to show activity.
+- **A second batch, on top of the one above**: Cardio is now backbone on
+  both profiles (Diana's `muscles`/`muscleLabels`/`muscleColors` gained a
+  `cardio` entry, `DIANA_DEFAULT_EXERCISES` gained her own "Run"/"Row"),
+  per the new "Functional changes default to every profile" rule (see
+  "Profiles: the owner and Diana"); the wheel's Cardio button moved to its
+  own row below the muscle-group row and now opens a "what type" dropdown
+  picker instead of a button list (see "Cardio gets its own row on the
+  wheel" above); logging a workout now removes the exercises it actually
+  logged from `state.todayPlan` and shows a `.toast` confirmation instead
+  of leaving them in place with no feedback (see "Logging a workout is a
+  plan-then-log flow" above); the nav dropdown's standalone "Exercises"
+  row was replaced with a small "+" next to "Browse exercises" (see "The
+  nav dropdown" above); and `showLoginGreeting()`'s one-off toast styling
+  was generalized into a shared `.toast` base class (`dom-utils.js`'s
+  `showToast()`) so the new post-log confirmation didn't need its own
+  copy of the same fade animation. Verified against the localStorage
+  fallback in a throwaway copy: Diana's wheel now shows a Cardio row
+  under her 4-button row and its dropdown adds "Run"/"Row" to her plan
+  correctly; logging a mixed plan (one exercise filled in, one left
+  empty) removes only the filled one and leaves the other for later; the
+  toast appears and fades without a page scroll; the nav dropdown's "+"
+  opens the Exercises tab and the standalone row is gone. Not verified
+  against real Supabase (`today_plans`/`exercises` writes) — same
+  standing limitation as everywhere else in this file.
+- **A third batch**: "Swim" added as a third seed cardio exercise
+  (alongside Run/Row) on both profiles' default rosters; and the owner
+  now has their own optional second factor on the figurine grid, mirrored
+  off Diana's Q&A gate but deliberately simpler — a single hardcoded
+  password (`OWNER_LOGIN_PASSWORD`, `state.js`, `"1111"`) checked
+  client-side, toggled from Developer Tools' new "My login" section
+  (`owner_gate_settings`, `supabase/owner_gate_schema.sql`, off by
+  default), plus a hidden shortcut (click the gate screen's knife
+  wordmark, enter the same password) that skips the grid entirely and
+  drops straight into Developer Tools — see "The gate" and "Developer
+  Tools" above for the full design. Verified: the Swim option shows up in
+  the cardio "what type" dropdown correctly (localStorage fallback,
+  throwaway copy); `npm run build` succeeds; every DOM id the new gate.js
+  code references exists in `index.html` (checked programmatically, not
+  just by eye). **Not verified**: the actual owner-password click-through
+  (grid → password → unlock), the knife-shortcut, and the new Developer
+  Tools toggle's round-trip against `owner_gate_settings` — all need real
+  (or Playwright-mocked) Supabase, the same "can't safely be exercised by
+  Claude" limitation noted elsewhere in this file for Diana's Q&A gate;
+  an attempt to test this live against a fake-but-real-looking Supabase
+  URL hung the browser tab (an unreached fake domain, not a code issue)
+  rather than failing fast, so it wasn't pursued further here. Still
+  outstanding, requiring the user to act: run
+  `supabase/owner_gate_schema.sql` in the SQL editor (fails closed/alerts
+  until then, same as every other migration here), then walk through the
+  real grid → password flow and the knife-shortcut once deployed.

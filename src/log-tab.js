@@ -1,5 +1,5 @@
 import { state, activeProfile } from "./state.js";
-import { $, $all, fmtDate, cssEscape, triggerHaptic, todayISO } from "./dom-utils.js";
+import { $, $all, fmtDate, cssEscape, triggerHaptic, todayISO, showToast } from "./dom-utils.js";
 import { saveEntries, deleteEntries, saveTodayPlan } from "./persistence.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
@@ -66,10 +66,17 @@ export async function removeFromTodayPlan(name) {
 // brand color for every muscle.
 export function buildMusclePickRow() {
   const row = $("#musclePickRow");
+  const cardioRow = $("#cardioPickRow");
   if (!row) return;
   row.innerHTML = "";
+  if (cardioRow) cardioRow.innerHTML = "";
   const { muscles, muscleLabels, muscleColors } = activeProfile();
   muscles.forEach(m => {
+    // Cardio isn't a body region the 3D model has geometry for — it gets
+    // its own row underneath instead of sitting alongside Chest/Back/etc.,
+    // which implied a hover it could never deliver. Same button markup
+    // either way, just a different target container.
+    const target = (m === "cardio" && cardioRow) ? cardioRow : row;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "muscle-pick-btn";
@@ -82,7 +89,7 @@ export function buildMusclePickRow() {
       triggerHaptic();
       confirmMuscleSelection(m);
     });
-    row.appendChild(btn);
+    target.appendChild(btn);
   });
 }
 
@@ -152,7 +159,67 @@ let currentPickerMuscle = null;
 
 function rebuildCurrentPicker() {
   if (currentPickerMuscle === null) return;
-  buildPickerList("#quickLogPickerList", state.EXERCISES.filter(ex => ex.muscle === currentPickerMuscle));
+  if (currentPickerMuscle === "cardio") buildCardioPicker("#quickLogPickerList");
+  else buildPickerList("#quickLogPickerList", state.EXERCISES.filter(ex => ex.muscle === currentPickerMuscle));
+}
+
+// Cardio's own quick-log picker — a "what type" dropdown (Run, Row, …)
+// instead of buildPickerList()'s one-button-per-exercise list, since
+// picking among a handful of cardio exercises reads more naturally as one
+// choice than as a button grid. Metrics (distance/time) are unchanged —
+// still entered later on the Today's Workout page, same as every other
+// exercise; this only adds/removes plan membership, same as
+// buildPickerList()'s Add/Added ✓ toggle.
+let cardioPickerSelected = null;
+
+function buildCardioPicker(containerSel) {
+  const container = $(containerSel);
+  if (!container) return;
+  container.innerHTML = "";
+
+  const exercises = state.EXERCISES.filter(ex => ex.muscle === "cardio");
+  if (exercises.length === 0) {
+    container.innerHTML = `<p class="empty-note">No cardio exercises yet.</p>`;
+    return;
+  }
+  if (!cardioPickerSelected || !exercises.some(ex => ex.name === cardioPickerSelected)) {
+    cardioPickerSelected = exercises[0].name;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "cardio-type-picker";
+  wrap.style.setProperty("--ex-muscle-color", activeProfile().muscleColors.cardio);
+
+  const select = document.createElement("select");
+  select.className = "cardio-type-select edit-input";
+  select.setAttribute("aria-label", "Cardio type");
+  exercises.forEach(ex => {
+    const opt = document.createElement("option");
+    opt.value = ex.name;
+    opt.textContent = ex.name;
+    select.appendChild(opt);
+  });
+  select.value = cardioPickerSelected;
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "plan-pick-toggle";
+  function syncToggle() {
+    const added = state.todayPlan.includes(select.value);
+    toggle.textContent = added ? "Added ✓" : "Add";
+    toggle.classList.toggle("added", added);
+  }
+  select.addEventListener("change", () => { cardioPickerSelected = select.value; syncToggle(); });
+  toggle.addEventListener("click", () => {
+    triggerHaptic();
+    if (state.todayPlan.includes(select.value)) removeFromTodayPlan(select.value);
+    else addToTodayPlan(select.value);
+  });
+  syncToggle();
+
+  wrap.appendChild(select);
+  wrap.appendChild(toggle);
+  container.appendChild(wrap);
 }
 
 // Plain add/remove buttons, no weight/reps inputs — actual logging
@@ -468,9 +535,23 @@ export async function logWorkout() {
 
   state.entries = state.entries.concat(newEntries);
   await saveEntries(newEntries);
+
+  // Logged exercises come off today's plan — plan membership means "still
+  // to log," not "ever logged today," so once a set's actually saved for
+  // one, its block has done its job and clears out; anything left with no
+  // input this round (a block that was skipped) stays put for later. No
+  // scroll/snap to whatever's left — just a toast confirming the save.
+  const loggedNames = new Set(newEntries.map(e => e.exercise));
+  state.todayPlan = state.todayPlan.filter(n => !loggedNames.has(n));
+  await saveTodayPlan();
+
   buildExerciseBlocks();
+  buildAllExercisesList();
   $("#workoutDate").value = date;
   render();
+
+  $("#logToast").textContent = `Logged ${newEntries.length} set${newEntries.length === 1 ? "" : "s"} correctly!`;
+  showToast("logToast", 2200);
 }
 
 // ---------- Derived views ----------

@@ -49,6 +49,22 @@
       <p class="gate-cooldown" id="dianaQaCooldown" hidden></p>
       <button type="button" class="tool-btn" id="dianaQaBackBtn">Back</button>
     </div>
+
+    <!-- The owner's own optional second factor — only shown when
+         owner_gate_settings.gate_enabled is on (Developer Tools' "My
+         login" toggle, gate.js). Checked client-side against
+         OWNER_LOGIN_PASSWORD (state.js), same friction-gate category as
+         EXERCISE_DELETE_PIN, not real access control. -->
+    <div class="stranger-auth" id="ownerPasswordView" hidden>
+      <form id="ownerPasswordForm">
+        <label for="ownerPasswordInput">Password</label>
+        <input type="password" id="ownerPasswordInput" autocomplete="off" required>
+        <button type="submit" class="primary-btn" id="ownerPasswordSubmitBtn">Submit</button>
+      </form>
+      <p class="gate-error" id="ownerPasswordError" hidden></p>
+      <p class="gate-cooldown" id="ownerPasswordCooldown" hidden></p>
+      <button type="button" class="tool-btn" id="ownerPasswordBackBtn">Back</button>
+    </div>
   </div>
 </div>
 
@@ -59,7 +75,10 @@
        actual login moment. Sits outside every stage's markup so it's
        visible no matter which one (#muscleSelectStage is the first
        thing shown after login) is active. -->
-  <div class="login-greeting" id="loginGreeting" hidden>Hola Di!</div>
+  <div class="toast login-greeting" id="loginGreeting" hidden>Hola Di!</div>
+  <!-- Post-log confirmation (showToast(), logWorkout() in log-tab.js) —
+       same shared .toast look, text filled in at log time. -->
+  <div class="toast log-toast" id="logToast" hidden></div>
 
   <header class="top">
     <div class="brand-block" id="headerLogoSlot"></div>
@@ -84,15 +103,21 @@
             <svg class="nav-person-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
             Log
           </button>
-          <details class="nav-log-browse">
-            <summary>Browse exercises</summary>
-            <div id="navLogMuscleList"></div>
-          </details>
+          <div class="nav-log-browse-row">
+            <details class="nav-log-browse">
+              <summary>Browse exercises</summary>
+              <div id="navLogMuscleList"></div>
+            </details>
+            <!-- Manage exercises (add/rename/delete/backbone) — used to be
+                 its own full-width "Exercises" dropdown row; now attached
+                 here instead since it's really an extension of browsing
+                 the same roster, not a fifth peer of Progress/Calendar/etc. -->
+            <button type="button" class="tab-btn nav-add-ex-btn" data-view="exercises" title="Manage exercises" aria-label="Manage exercises">+</button>
+          </div>
         </div>
         <button type="button" class="tab-btn" data-view="progress">Progress</button>
         <button type="button" class="tab-btn" data-view="calendar">Calendar</button>
         <button type="button" class="tab-btn" data-view="suggested">Suggested</button>
-        <button type="button" class="tab-btn" data-view="exercises">Exercises</button>
         <button type="button" class="tab-btn" data-view="feedback">Feedback</button>
         <!-- Owner-only, and only when the gate mechanism applies at all
              (useSupabase && GATE_ENABLED) — hidden for anyone else, wired
@@ -118,6 +143,12 @@
       </div>
       <div class="wheel3d-wrap" id="wheel3dContainer" aria-hidden="true"></div>
       <div class="muscle-pick-row" id="musclePickRow" role="group" aria-label="Muscle group picker"></div>
+      <!-- Cardio isn't a body region the 3D model has a layer for, so it
+           doesn't belong in the model's own button row — a separate row
+           underneath, built by buildMusclePickRow() (log-tab.js) same as
+           the row above, just into this container instead when a
+           profile's muscle list includes "cardio". -->
+      <div class="cardio-pick-row" id="cardioPickRow" role="group" aria-label="Cardio picker"></div>
     </div>
 
     <div id="quickLogStage" hidden>
@@ -293,6 +324,13 @@
       <p class="dev-gate-status" id="devGateStatus"></p>
       <p class="empty-note" id="devGateExplain" style="padding:0 0 14px;"></p>
       <button type="button" class="primary-btn" id="devGateToggleBtn" style="width:auto;"></button>
+    </section>
+
+    <section>
+      <h2>My login</h2>
+      <p class="dev-gate-status" id="ownerGateStatus"></p>
+      <p class="empty-note" id="ownerGateExplain" style="padding:0 0 14px;"></p>
+      <button type="button" class="primary-btn" id="ownerGateToggleBtn" style="width:auto;"></button>
     </section>
 
   </div>

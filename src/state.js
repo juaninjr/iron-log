@@ -62,6 +62,7 @@ export const DEFAULT_EXERCISES = [
   { name: "Pushups",           repsOnly: true, muscle: "chest", backbone: true },
   { name: "Run",                cardio: true, muscle: "cardio", backbone: true },
   { name: "Row",                cardio: true, muscle: "cardio", backbone: true },
+  { name: "Swim",                cardio: true, muscle: "cardio", backbone: true },
 ];
 
 // Diana's seed roster — her own 4 categories (upper body general, glutes,
@@ -79,6 +80,9 @@ export const DIANA_DEFAULT_EXERCISES = [
   { name: "Shoulder Press",  perHand: false, min: 5,  max: 30,  step: 1,  muscle: "upper",  backbone: true },
   { name: "Core Workout",    repsOnly: true, muscle: "core", backbone: true },
   { name: "Plank",           repsOnly: true, muscle: "core", backbone: true },
+  { name: "Run",             cardio: true, muscle: "cardio", backbone: true },
+  { name: "Row",             cardio: true, muscle: "cardio", backbone: true },
+  { name: "Swim",            cardio: true, muscle: "cardio", backbone: true },
 ];
 
 export const STORAGE_KEY = "ironlog:entries";
@@ -101,6 +105,16 @@ export const EXERCISE_BACKUPS_STORAGE_KEY = "ironlog:deletedExerciseBackups";
 // code for a different code; deleting an exercise with zero logged sets
 // skips this entirely (see deleteExerciseFlow(), exercises-tab.js).
 export const EXERCISE_DELETE_PIN = "879651";
+
+// Optional second factor for the owner's own figurine-cell unlock —
+// same category as EXERCISE_DELETE_PIN above: a typed-confirmation
+// friction gate, not a real access-control boundary (checked client-side,
+// same as that PIN). Whether it's asked for at all is
+// owner_gate_settings.gate_enabled (see loadOwnerGateSetting()/
+// setOwnerGateSetting(), gate.js), toggled from the Developer Tools page's
+// "My login" section, off by default. Change this directly in code for a
+// different password.
+export const OWNER_LOGIN_PASSWORD = "1111";
 
 // ---------- Database config (Supabase) ----------
 // Fill these in after creating a Supabase project and running supabase/schema.sql.
@@ -169,13 +183,20 @@ export const PROFILES = {
     key: "diana",
     sentinelId: DIANA_SENTINEL_ID,
     unlockKey: DIANA_UNLOCK_KEY,
-    muscles: ["upper", "glutes", "legs", "core"],
-    muscleLabels: { upper: "Upper Body", glutes: "Glutes", legs: "Legs", core: "Core" },
+    // Cardio is functional, not a body region, so it's not part of the
+    // "4 categories" framing above — it's included here purely so every
+    // profile gets it by default (see the "functional changes apply to
+    // every profile" convention near "Profiles: the owner and Diana"),
+    // same as the owner's.
+    muscles: ["upper", "glutes", "legs", "core", "cardio"],
+    muscleLabels: { upper: "Upper Body", glutes: "Glutes", legs: "Legs", core: "Core", cardio: "Cardio" },
     // Her own color set — edit here, same "one place" rule as
     // OWNER_MUSCLE_COLORS above. Reuses the same validated categorical hue
     // family as the owner's palette (blue/amber/red/purple), just 4 of
-    // them instead of 6.
-    muscleColors: { upper: "#2a78d6", glutes: "#eda100", legs: "#e34948", core: "#4a3aa7" },
+    // them instead of 6; cardio reuses the owner's own teal (#0d9488) —
+    // it's the same semantic category, not a distinct-per-profile
+    // stylistic choice, so no reason to give it a second hex.
+    muscleColors: { upper: "#2a78d6", glutes: "#eda100", legs: "#e34948", core: "#4a3aa7", cardio: "#0d9488" },
     defaultExercises: DIANA_DEFAULT_EXERCISES,
     // Her own model now (was the owner's, temporarily, before this
     // existed) — public/models/diana-muscle-select.glb (the fast path)/
@@ -254,11 +275,16 @@ export const state = {
   currentSession: null,
   gateLocked: false,
   dianaQaLocked: false,
+  ownerPasswordLocked: false,
   strangerMode: "signin",
   // Cached read of diana_gate_settings.gate_enabled (gate.js's
   // loadDianaGateSetting()) — used by the owner-only toggle in the
   // Exercises tab.
   dianaGateEnabled: true,
+  // Cached read of owner_gate_settings.gate_enabled (gate.js's
+  // loadOwnerGateSetting()) — the owner's own optional password step,
+  // off by default (unlike Diana's, which defaults on).
+  ownerGateEnabled: false,
   // "Today's Workout": exercise names picked via the Create Plan / wheel
   // pickers, before any sets are actually logged for them — see
   // persistence.js's loadTodayPlan()/saveTodayPlan() and log-tab.js's

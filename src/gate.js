@@ -2,11 +2,13 @@
 import {
   state, useSupabase, supabaseClient, GATE_ENABLED, OWNER_UNLOCK_KEY,
   DIANA_UNLOCK_KEY, FIGURINE_COLORS, FIGURINE_IMAGES, activeProfile,
+  OWNER_LOGIN_PASSWORD,
 } from "./state.js";
-import { $, $all } from "./dom-utils.js";
+import { $, $all, showToast } from "./dom-utils.js";
 import { init } from "./main.js";
 import { renderKnifeTitle, knifeGlyphSvg } from "./brand.js";
 import { resetProfileFilters } from "./log-tab.js";
+import { setView } from "./nav.js";
 
 // The id of the question currently shown in #dianaQaView — ephemeral UI
 // flow state, private to this module (never read elsewhere), so a plain
@@ -101,8 +103,7 @@ async function onFigurineClick(cell) {
       if (data.profile === "diana") {
         await handleDianaGranted();
       } else {
-        localStorage.setItem(OWNER_UNLOCK_KEY, "true");
-        enterApp("owner");
+        await handleOwnerGranted();
       }
       return;
     }
@@ -124,6 +125,57 @@ async function handleDianaGranted() {
   }
   showDianaQaView();
   await fetchDianaQuestion();
+}
+
+// The owner's cell was correct — whether they still need the password
+// step depends on their own toggle (owner_gate_settings, see
+// loadOwnerGateSetting()/setOwnerGateSetting() below), off by default.
+async function handleOwnerGranted() {
+  const gateEnabled = await loadOwnerGateSetting();
+  if (!gateEnabled) {
+    localStorage.setItem(OWNER_UNLOCK_KEY, "true");
+    enterApp("owner");
+    return;
+  }
+  showOwnerPasswordView();
+}
+
+function showOwnerPasswordView() {
+  $("#gateGridView").hidden = true;
+  $("#strangerAuth").hidden = true;
+  $("#dianaQaView").hidden = true;
+  $("#ownerPasswordView").hidden = false;
+  $("#ownerPasswordError").hidden = true;
+  $("#ownerPasswordInput").value = "";
+  $("#ownerPasswordInput").focus();
+}
+
+function startOwnerPasswordCooldown() {
+  $("#ownerPasswordInput").disabled = true;
+  startCooldown($("#ownerPasswordCooldown"), () => {
+    $("#ownerPasswordSubmitBtn").disabled = false;
+    $("#ownerPasswordInput").disabled = false;
+    state.ownerPasswordLocked = false;
+  });
+}
+
+// Checked client-side, same as EXERCISE_DELETE_PIN (state.js) — not a
+// real access-control boundary, just a typed-confirmation friction step
+// the owner opted into for their own cell.
+function handleOwnerPasswordSubmit(evt) {
+  evt.preventDefault();
+  if (state.ownerPasswordLocked) return;
+  const pw = $("#ownerPasswordInput").value;
+  if (pw === OWNER_LOGIN_PASSWORD) {
+    localStorage.setItem(OWNER_UNLOCK_KEY, "true");
+    enterApp("owner");
+    return;
+  }
+  state.ownerPasswordLocked = true;
+  $("#ownerPasswordSubmitBtn").disabled = true;
+  $("#ownerPasswordError").textContent = "Not quite — try again.";
+  $("#ownerPasswordError").hidden = false;
+  startOwnerPasswordCooldown();
 }
 
 async function fetchDianaQuestion() {
@@ -177,16 +229,19 @@ function setStrangerMode(mode) {
 function showStrangerAuth() {
   $("#gateGridView").hidden = true;
   $("#dianaQaView").hidden = true;
+  $("#ownerPasswordView").hidden = true;
   $("#strangerAuth").hidden = false;
 }
 function showDianaQaView() {
   $("#gateGridView").hidden = true;
   $("#strangerAuth").hidden = true;
+  $("#ownerPasswordView").hidden = true;
   $("#dianaQaView").hidden = false;
 }
 function showFigurineGrid() {
   $("#strangerAuth").hidden = true;
   $("#dianaQaView").hidden = true;
+  $("#ownerPasswordView").hidden = true;
   $("#gateGridView").hidden = false;
 }
 
@@ -240,14 +295,11 @@ function enterApp(profile) {
 // A one-time "Hola Di!" toast right as her gate unlocks — not shown on a
 // plain page reload of an already-unlocked session (bootstrap()'s
 // return-visit branches call init() directly, never this function), just
-// the actual login moment. The fade-out is a pure CSS animation
-// (.login-greeting, style.css); this just re-hides the element once it's
-// done so it doesn't linger in the a11y tree.
+// the actual login moment. 3600ms ≈ the .login-greeting animation's own
+// 3.5s duration (dom-utils.js's showToast(), style.css) plus a hair of
+// slack.
 function showLoginGreeting() {
-  const el = $("#loginGreeting");
-  if (!el) return;
-  el.hidden = false;
-  setTimeout(() => { el.hidden = true; }, 3600);
+  showToast("loginGreeting", 3600);
 }
 
 // ---------- Diana's gate-enabled toggle (diana_gate_settings) ----------
@@ -282,6 +334,44 @@ export async function setDianaGateSetting(enabled) {
     return true;
   } catch (e) {
     console.error("Diana gate setting save error", e);
+    alert("Could not save the setting.");
+    return false;
+  }
+}
+
+// ---------- Owner's gate-enabled toggle (owner_gate_settings) ----------
+// Same shape and access pattern as loadDianaGateSetting()/
+// setDianaGateSetting() above, mirrored for the owner's own password
+// step — off by default (see supabase/owner_gate_schema.sql), unlike
+// Diana's, which defaults on.
+export async function loadOwnerGateSetting() {
+  try {
+    const { data, error } = await supabaseClient
+      .from("owner_gate_settings")
+      .select("gate_enabled")
+      .eq("id", 1)
+      .single();
+    if (error) throw error;
+    state.ownerGateEnabled = Boolean(data.gate_enabled);
+  } catch (e) {
+    console.error("Owner gate setting load error", e);
+    // Fail safe in the opposite direction from Diana's: if we can't
+    // confirm the setting, don't lock the owner out of their own app.
+    state.ownerGateEnabled = false;
+  }
+  return state.ownerGateEnabled;
+}
+
+export async function setOwnerGateSetting(enabled) {
+  try {
+    const { error } = await supabaseClient
+      .from("owner_gate_settings")
+      .upsert({ id: 1, gate_enabled: enabled }, { onConflict: "id" });
+    if (error) throw error;
+    state.ownerGateEnabled = enabled;
+    return true;
+  } catch (e) {
+    console.error("Owner gate setting save error", e);
     alert("Could not save the setting.");
     return false;
   }
@@ -322,6 +412,24 @@ export async function renderDevToolsView() {
     const ok = await setDianaGateSetting(!state.dianaGateEnabled);
     if (ok) renderDevToolsView();
   };
+
+  await loadOwnerGateSetting();
+  const ownerStatusEl = $("#ownerGateStatus");
+  const ownerExplainEl = $("#ownerGateExplain");
+  const ownerBtn = $("#ownerGateToggleBtn");
+  const ownerLocked = state.ownerGateEnabled;
+
+  ownerStatusEl.textContent = ownerLocked ? "Locked" : "Unlocked";
+  ownerStatusEl.className = "dev-gate-status " + (ownerLocked ? "locked" : "unlocked");
+  ownerExplainEl.textContent = ownerLocked
+    ? "Locked: your own cell also asks for a password before your page opens."
+    : "Unlocked: your page opens right after your correct cell, no extra password.";
+  ownerBtn.textContent = ownerLocked ? "Turn off" : "Turn on";
+
+  ownerBtn.onclick = async () => {
+    const ok = await setOwnerGateSetting(!state.ownerGateEnabled);
+    if (ok) renderDevToolsView();
+  };
 }
 
 function wireGateEvents() {
@@ -332,6 +440,31 @@ function wireGateEvents() {
   $("#strangerForm").addEventListener("submit", handleStrangerSubmit);
   $("#dianaQaBackBtn").addEventListener("click", () => { dianaQaId = null; showFigurineGrid(); });
   $("#dianaQaForm").addEventListener("submit", handleDianaQaSubmit);
+  $("#ownerPasswordBackBtn").addEventListener("click", showFigurineGrid);
+  $("#ownerPasswordForm").addEventListener("submit", handleOwnerPasswordSubmit);
+}
+
+// A hidden shortcut, only reachable by clicking the knife wordmark on the
+// gate screen itself: skips the figurine grid entirely and goes straight
+// into the owner's profile, landing on Developer Tools — a fast way to
+// flip a toggle here without solving the grid first. Same password as the
+// owner's optional grid second factor (OWNER_LOGIN_PASSWORD, state.js);
+// works regardless of whether that second factor is currently on, since
+// this is a separate, always-available entry point, not that flow.
+function wireKnifeShortcut() {
+  $("#gateLogoSlot").addEventListener("click", handleKnifeShortcutClick);
+}
+
+function handleKnifeShortcutClick() {
+  const pw = prompt("Owner password:");
+  if (pw === null) return;
+  if (pw !== OWNER_LOGIN_PASSWORD) {
+    alert("Incorrect password.");
+    return;
+  }
+  localStorage.setItem(OWNER_UNLOCK_KEY, "true");
+  enterApp("owner");
+  setView("devtools");
 }
 
 export async function bootstrap() {
@@ -367,4 +500,5 @@ export async function bootstrap() {
   $("#gateLogoSlot").innerHTML = renderKnifeTitle("brand") + `<p class="knife-desc">A training log platform.</p>`;
   buildFigurineGrid();
   wireGateEvents();
+  wireKnifeShortcut();
 }
