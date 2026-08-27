@@ -213,6 +213,23 @@ export async function loadExercises() {
       state.EXERCISES = activeProfile().defaultExercises.map(ex => ({ ...ex }));
     }
   }
+  // Cardio shipped after plenty of rosters already existed, so the
+  // "seed only when the whole roster is empty" branches above never ran
+  // for those — an already-populated roster with zero cardio exercises
+  // still needs Run/Row/Swim added once, same as a brand-new one would
+  // have gotten them from defaultExercises. Only fills in names that
+  // aren't already there, so a manually-added/renamed cardio exercise is
+  // left alone.
+  if (!state.EXERCISES.some(ex => ex.muscle === "cardio")) {
+    const existingNames = new Set(state.EXERCISES.map(ex => ex.name));
+    const missing = activeProfile().defaultExercises
+      .filter(ex => ex.muscle === "cardio" && !existingNames.has(ex.name))
+      .map(ex => ({ ...ex }));
+    for (const ex of missing) {
+      state.EXERCISES.push(ex);
+      await saveExercise(ex);
+    }
+  }
   state.EXERCISES.sort(exerciseSort);
 }
 

@@ -206,7 +206,10 @@
     transition:opacity 0.15s ease, transform 0.15s ease;
   }
   .stats-dropdown-panel.open{opacity:1;transform:translateY(0);pointer-events:auto;}
-  .stats-dropdown-panel .stats{margin:0;}
+  /* The dropdown's own fixed 320px width can't fit 4 columns the way the
+     full-page .stats block can — 2x2 gives "Total pushups" (the longest
+     label) room to sit on one line instead of cramming/wrapping. */
+  .stats-dropdown-panel .stats{margin:0;grid-template-columns:1fr 1fr;}
 
   label{
     font-weight:600;
@@ -550,6 +553,11 @@
     transition:background 0.15s ease;
   }
   .primary-btn:hover{background:var(--plate-dark);}
+  /* Log workout" only ever needs to be as wide as its own label — the
+     shared .primary-btn's full-width default reads fine for a form's one
+     submit button, but stretched across the whole Today's Workout box it
+     looks like an oversized empty bar. */
+  #logWorkoutBtn{width:auto;padding:12px 28px;}
 
   .toolbar{
     display:flex;
@@ -713,8 +721,10 @@
     width:26px;height:26px;
     padding:0;
     display:flex;align-items:center;justify-content:center;
-    font-size:1rem;font-weight:800;
+    font-size:1.1rem;font-weight:800;
+    background:transparent;border:none;box-shadow:none;color:var(--muted);
   }
+  #mainTabs .nav-log-browse-row .nav-add-ex-btn:hover{color:var(--steel);}
   .nav-log-browse{margin:0 0 4px;}
   .nav-log-browse summary{
     cursor:pointer;
@@ -771,6 +781,30 @@
   }
   #mainTabs.tabs.open{opacity:1;transform:translateY(0);pointer-events:auto;}
   #mainTabs .tab-btn{width:100%;text-align:left;box-shadow:none;}
+
+  /* Feedback/Developer Tools/Log out — a lower-hierarchy group under the
+     main view list: no button box (transparent, no border), smaller and
+     not bold/uppercase, set off by a thin top divider. */
+  .nav-minor-group{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    margin-top:6px;
+    padding-top:6px;
+    border-top:1px solid var(--line);
+  }
+  #mainTabs .nav-tab-minor{
+    background:transparent;
+    border:none;
+    font-weight:500;
+    font-size:0.75rem;
+    text-transform:none;
+    letter-spacing:0;
+    color:var(--muted);
+    padding:6px 10px;
+  }
+  #mainTabs .nav-tab-minor:hover{color:var(--steel);}
+  #mainTabs .nav-tab-minor.active{background:transparent;color:var(--ink);font-weight:700;}
 
   .view[hidden]{display:none;}
   header.top[hidden]{display:none;}

@@ -308,7 +308,23 @@ seeding it from that list if empty, into `state.EXERCISES`. Exercises
 added later via the Exercises tab default to `backbone: false`.
 "Backbone" exercises are the pool the Suggested tab draws recommendations
 from — this lets users add one-off exercises without polluting the
-suggestion algorithm.
+suggestion algorithm. **A whole new muscle category added after a roster
+already exists needs its own backfill, not just a `defaultExercises`
+edit** — the "seed if empty" check above only ever fires for a roster
+that's *entirely* empty, so an existing user with existing exercises
+never gets newly-added defaults just by pulling a new build. This bit
+Cardio for real: it was added to `DEFAULT_EXERCISES`/
+`DIANA_DEFAULT_EXERCISES` in an earlier session, but any roster that
+already existed by then still had zero cardio exercises, and clicking
+Cardio on the wheel just read "No cardio exercises yet." `loadExercises()`
+now also checks, after either branch's own load/seed logic, whether
+`state.EXERCISES` has *any* `muscle === "cardio"` entry at all; if not, it
+adds whichever of that profile's default cardio exercises aren't already
+present by name (so a manually-added/renamed cardio exercise is left
+alone) and persists each via `saveExercise()`. This one-time top-up
+pattern is specific to Cardio's own rollout, not a generic mechanism —
+don't assume future muscle-category additions get it automatically
+without adding the same kind of check.
 
 **Exercises are one of three types, not two**: weighted (has `min`/`max`/
 `step`), reps-only (`repsOnly: true`), or — a "Cardio" muscle category, on
@@ -498,7 +514,10 @@ not "Log a workout") — has two parts, top to bottom:
    header (see "Header stats dropdown" below), one `.exercise-block`
    (real weight/reps inputs, same as always) per exercise currently in
    `state.todayPlan`, via `buildExerciseBlocks()`, plus the date input and
-   `#logWorkoutBtn`. Adding an exercise here needs no reps/weight up
+   `#logWorkoutBtn` (sized to its own label via a `width:auto` override in
+   `style.css` — `.primary-btn`'s shared `width:100%` default is right for
+   a lone form submit button elsewhere, but stretched across the whole box
+   it read as an oversized empty bar). Adding an exercise here needs no reps/weight up
    front — it just appears as an empty block, ready to fill in whenever.
    `logWorkout()` batches every filled row into one save, same as
    before — it and `buildExerciseBlocks()` dropped the old `containerSel`
@@ -569,20 +588,27 @@ top to bottom: **Log** (a small hand-rolled person-icon glyph + a native
 `<details><summary>Browse exercises</summary>…</details>` right
 underneath it — tap-to-expand, no custom open/close JS, works
 identically on touch and desktop), **Progress**, **Calendar**,
-**Suggested**, **Feedback**, **Developer Tools** (owner-only, see below),
-and **Log out** — the last of these used to sit in the header next to the
-hamburger as its own button; it's just another dropdown row now. There's
-no standalone **Exercises** row anymore — managing exercises (add/rename/
-delete/backbone toggle) is really an extension of browsing the roster,
-not a fifth peer of Progress/Calendar/etc., so it's reachable via a small
-"+" button (`.nav-add-ex-btn`, `#mainTabs .nav-log-browse-row` in
+**Suggested**, then a visually secondary group below a thin divider
+(`.nav-minor-group` in `index.html`/`style.css`) — **Feedback**,
+**Developer Tools** (owner-only, see below), and **Log out** (this last
+one used to sit in the header next to the hamburger as its own button;
+it's just another dropdown row now). That group's three buttons carry an
+extra `.nav-tab-minor` class on top of `.tab-btn` — same click wiring and
+`data-view` handling as every other row (`$all(".tab-btn", ...)` in
+`main.js` still picks them all up), just styled with no box (transparent,
+no border), smaller, and not bold/uppercase, since they're not peer
+navigation destinations the way Log/Progress/Calendar/Suggested are.
+There's no standalone **Exercises** row anymore — managing exercises
+(add/rename/delete/backbone toggle) is really an extension of browsing
+the roster, not a fifth peer of Progress/Calendar/etc., so it's reachable
+via a small "+" (`.nav-add-ex-btn`, `#mainTabs .nav-log-browse-row` in
 `style.css`) sitting next to "Browse exercises" instead — same
-`data-view="exercises"`/`.tab-btn` wiring as every other dropdown row
-(the generic `$all(".tab-btn", ...)` click-delegation in `main.js`
-already picks it up, no new JS needed), just styled as a small square
-instead of a full-width row, and excluded from `#mainTabs .tab-btn`'s
-default `width:100%` via a matching-specificity override (see the CSS
-comment) rather than relying on source order. The "Browse exercises"
+`data-view="exercises"`/`.tab-btn` wiring as every other dropdown row, no
+box either (transparent/borderless, muted color, just the glyph), styled
+as a small square instead of a full-width row, and excluded from
+`#mainTabs .tab-btn`'s default `width:100%` via a matching-specificity
+override (see the CSS comment) rather than relying on source order. The
+"Browse exercises"
 disclosure is filled by `buildLogNavBrowser()` (`log-tab.js`): one nested
 `<details>` per `activeProfile().muscles` entry (skipped if that muscle
 has zero exercises, same as `exercises-tab.js`'s `renderExerciseManage()`
@@ -603,7 +629,12 @@ weight lifted, days trained, last session, total pushups — but now from
 a bar-chart icon next to the hamburger, available on every page instead
 of just the Log tab. The two dropdowns close independently on an outside
 click; opening one also force-closes the other (see `main.js`'s document
-click listener).
+click listener). The panel itself is a fixed 320px wide (`.stats-dropdown-panel`,
+`style.css`) regardless of the actual page width, so it reuses `.stats`'
+4-column grid but overrides it to 2x2 (`.stats-dropdown-panel .stats`) —
+4 columns in that little space left "Total pushups" (the longest label)
+cramped/wrapping; the main inline `.stats` block elsewhere still gets the
+full 4-column layout since it isn't width-constrained the same way.
 
 **The muscle-select stage's 3D model** (`wheel3d.js`) tries
 `/models/muscle-select.glb` first via `GLTFLoader` — the fast path, small
@@ -1218,3 +1249,27 @@ cross-contamination between the two profiles' data.
   `supabase/owner_gate_schema.sql` in the SQL editor (fails closed/alerts
   until then, same as every other migration here), then walk through the
   real grid → password flow and the knife-shortcut once deployed.
+- **A fourth batch, UI polish plus one real bug fix**: the "seed if
+  empty" gap that left already-populated rosters with zero cardio
+  exercises (see "Exercises are dynamic, not hardcoded" above) is fixed —
+  `loadExercises()` now backfills any missing default cardio exercises
+  onto a roster that has none, regardless of whether the roster was
+  already non-empty; "Swim" also joins Run/Row as a third seed cardio
+  exercise on both profiles. Nav-dropdown box removal: the "+"
+  manage-exercises button and the Feedback/Developer Tools/Log out group
+  are now plain, borderless, lower-hierarchy rows (`.nav-tab-minor`,
+  `.nav-minor-group`) instead of full button boxes — see "The nav
+  dropdown" above. `#logWorkoutBtn` is sized to its label instead of
+  stretching the full Today's Workout box width. The header's stats
+  dropdown now lays its 4 stats out 2x2 instead of 1x4, since the
+  dropdown's own fixed 320px width made "Total pushups" cramped — see
+  "Header stats dropdown" above. Verified in a throwaway localStorage-fallback
+  copy: seeded a roster with zero cardio exercises, reloaded, and
+  confirmed Run/Row/Swim all appeared in the cardio picker without
+  clearing the rest of the roster; added one to the plan and confirmed
+  the distance (km)/time (min) boxes and a content-width "Log workout"
+  button render correctly on Today's Workout; the nav dropdown's "+" and
+  Feedback/Developer Tools/Log out render box-free with the divider; the
+  stats dropdown's 2x2 layout fits all four stats cleanly. No console
+  errors; `npm run build` succeeds. Not committed/pushed yet as of this
+  note — ask before assuming it's live.

@@ -118,12 +118,18 @@
         <button type="button" class="tab-btn" data-view="progress">Progress</button>
         <button type="button" class="tab-btn" data-view="calendar">Calendar</button>
         <button type="button" class="tab-btn" data-view="suggested">Suggested</button>
-        <button type="button" class="tab-btn" data-view="feedback">Feedback</button>
-        <!-- Owner-only, and only when the gate mechanism applies at all
-             (useSupabase && GATE_ENABLED) — hidden for anyone else, wired
-             in main.js's init(). -->
-        <button type="button" class="tab-btn" data-view="devtools" id="devToolsTabBtn" hidden>Developer tools</button>
-        <button type="button" class="tab-btn" id="logOutBtn" hidden>Log out</button>
+        <!-- A visually secondary group, below the main view list — Feedback/
+             Developer Tools/Log out aren't peer navigation destinations the
+             way Log/Progress/Calendar/Suggested are, so they read as plain
+             lower-hierarchy rows (no button box) instead of full tab-btns. -->
+        <div class="nav-minor-group">
+          <button type="button" class="tab-btn nav-tab-minor" data-view="feedback">Feedback</button>
+          <!-- Owner-only, and only when the gate mechanism applies at all
+               (useSupabase && GATE_ENABLED) — hidden for anyone else, wired
+               in main.js's init(). -->
+          <button type="button" class="tab-btn nav-tab-minor" data-view="devtools" id="devToolsTabBtn" hidden>Developer tools</button>
+          <button type="button" class="tab-btn nav-tab-minor" id="logOutBtn" hidden>Log out</button>
+        </div>
       </nav>
     </div>
   </header>
