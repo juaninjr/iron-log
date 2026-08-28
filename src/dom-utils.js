@@ -30,6 +30,17 @@ export function fmtDateShort(d) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// "3 days ago" instead of a raw date — both `iso` and todayISO() are
+// plain YYYY-MM-DD strings parsed as UTC midnight, so the day-count diff
+// is correct regardless of the viewer's own timezone offset.
+export function fmtRelativeDays(iso) {
+  if (!iso) return "Not logged yet";
+  const days = Math.round((new Date(todayISO()) - new Date(iso)) / 86400000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return `${days} days ago`;
+}
+
 export function cssEscape(str) {
   return str.replace(/["\\]/g, "\\$&");
 }

@@ -1,5 +1,5 @@
 import { state, activeProfile } from "./state.js";
-import { $, $all, fmtDate, cssEscape, triggerHaptic, todayISO, showToast } from "./dom-utils.js";
+import { $, $all, fmtDate, fmtRelativeDays, cssEscape, triggerHaptic, todayISO, showToast } from "./dom-utils.js";
 import { saveEntries, deleteEntries, saveTodayPlan } from "./persistence.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
@@ -636,22 +636,17 @@ export function render() {
   $("#statLast").textContent = stats.lastDate ? fmtDate(stats.lastDate) : "—";
   $("#statPushups").textContent = stats.pushups;
 
-  // Latest by exercise
-  const latestBody = $("#latestBody");
-  latestBody.innerHTML = "";
-  latestByExercise().forEach(({ ex, date, sets }) => {
-    const tr = document.createElement("tr");
+  // Latest by exercise — just how long ago each was last trained, not
+  // what was logged (that detail lives in the Full log below instead).
+  const latestList = $("#latestList");
+  latestList.innerHTML = "";
+  latestByExercise().forEach(({ ex, date }) => {
+    const row = document.createElement("div");
+    row.className = "latest-list-item";
+    row.style.setProperty("--ex-muscle-color", activeProfile().muscleColors[ex.muscle]);
     const name = ex.name + (ex.perHand ? ' <span class="per-hand-note">(per hand)</span>' : '');
-    if (date) {
-      tr.innerHTML = `
-        <td>${name}</td>
-        <td>${fmtDate(date)}</td>
-        <td>${renderSetsCell(sets, ex)}</td>
-      `;
-    } else {
-      tr.innerHTML = `<td>${name}</td><td colspan="2" class="empty-note">Not logged yet</td>`;
-    }
-    latestBody.appendChild(tr);
+    row.innerHTML = `<span class="latest-list-name">${name}</span><span class="latest-list-when">${fmtRelativeDays(date)}</span>`;
+    latestList.appendChild(row);
   });
 
   // Full log

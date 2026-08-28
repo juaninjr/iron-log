@@ -252,6 +252,17 @@
     white-space:nowrap;
     border:0;
   }
+  /* Without an explicit position, .visually-hidden's absolutely-positioned
+     box sits at its "static" position — wherever it'd fall in normal flow
+     — which for this element (the last thing in <body>) is the very
+     bottom of the document. triggerHaptic() (dom-utils.js) clicks its
+     <label> on every haptic tap (every "Add" press, among others), which
+     focuses the checkbox, and browsers auto-scroll a newly-focused element
+     into view — landing the page at the bottom, past the Latest-by-
+     exercise/Full log tables, on every single tap. Pinning it to the
+     viewport's own top-left corner instead of a document position means
+     it's always already "in view," so that auto-scroll has nothing to do. */
+  #hapticHiddenWrap{position:fixed;top:0;left:0;}
 
   /* The muscle-select stage: a spinning 3D model (wheel3d.js draws into
      #wheel3dContainer) with a row of muscle-group buttons underneath it —
@@ -636,6 +647,25 @@
   tbody tr.highlight:hover{background:#c8ecd6;}
   .scroll-table{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;}
   .empty-note{color:var(--muted);font-weight:500;padding:14px;font-size:0.85rem;}
+  /* "Latest by exercise" — a plain list of name + relative time-since-last-
+     trained (fmtRelativeDays(), dom-utils.js), not a data table with the
+     actual sets in it; that detail lives in Full log below instead. Same
+     colored-left-border language as .plan-pick-item/.exercise-block. */
+  .latest-list{max-height:420px;overflow-y:auto;}
+  .latest-list-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    border:1px solid var(--line);
+    border-left:4px solid var(--ex-muscle-color, var(--line));
+    border-radius:8px;
+    padding:9px 12px;
+    margin-bottom:6px;
+    background:var(--paper);
+  }
+  .latest-list-name{font-weight:700;font-size:0.95rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .latest-list-when{color:var(--muted);font-size:0.8rem;white-space:nowrap;flex:none;}
   .per-hand-note{color:var(--muted);font-size:0.72rem;}
 
   input[type="file"]{display:none;}
@@ -697,15 +727,14 @@
   .nav-toggle[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg);}
   .nav-toggle[aria-expanded="true"] span:nth-child(2){opacity:0;}
   .nav-toggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
-  /* #statsToggle reuses .nav-toggle's button chrome with an svg glyph
-     instead of the hamburger's three spans. */
+  /* #statsToggle/#wheelToggle reuse .nav-toggle's button chrome with an
+     svg glyph instead of the hamburger's three spans. */
   .nav-toggle svg{display:block;fill:var(--ink);}
 
   /* The Log dropdown item: its own tab-btn (navigates on click) plus a
      native <details> for tap-to-expand browsing — no custom open/close
      JS needed, works identically on touch and desktop. */
   .nav-log-item{display:flex;flex-direction:column;}
-  .nav-person-icon{fill:currentColor;vertical-align:-2px;margin-right:5px;}
   /* Browse exercises + the "manage exercises" shortcut sit side by side —
      the details takes the remaining width, the + button stays a small
      fixed square regardless of #mainTabs .tab-btn's own width:100% rule

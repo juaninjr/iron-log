@@ -12,7 +12,7 @@ import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
 import { addExercise, wireCardioCheckbox } from "./exercises-tab.js";
 import { downloadPDF, exportBackup, importBackup, clearAllData } from "./export.js";
-import { toggleNavMenu, toggleStatsDropdown, setView } from "./nav.js";
+import { toggleNavMenu, toggleStatsDropdown, setView, enterWheelView } from "./nav.js";
 import { logOut, bootstrap, wireDevToolsVisibility } from "./gate.js";
 
 // ---------- Wire up ----------
@@ -40,6 +40,12 @@ export async function init() {
     e.stopPropagation();
     toggleStatsDropdown(false);
     toggleNavMenu();
+  });
+  $("#wheelToggle").addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleNavMenu(false);
+    toggleStatsDropdown(false);
+    enterWheelView();
   });
   $("#statsToggle").addEventListener("click", (e) => {
     e.stopPropagation();

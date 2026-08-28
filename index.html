@@ -94,13 +94,18 @@
           <div class="stat"><div class="label">Total pushups</div><div class="value" id="statPushups">0</div></div>
         </div>
       </div>
+      <!-- The 3D muscle-select wheel, reachable directly from the header now
+           instead of through the "Log" dropdown item (which goes straight to
+           Today's Workout — see enterWheelView(), nav.js). -->
+      <button type="button" class="nav-toggle" id="wheelToggle" aria-label="Open muscle select">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+      </button>
       <button type="button" class="nav-toggle" id="navToggle" aria-haspopup="true" aria-expanded="false" aria-label="Open menu">
         <span></span><span></span><span></span>
       </button>
       <nav class="tabs" id="mainTabs">
         <div class="nav-log-item">
           <button type="button" class="tab-btn active" data-view="log">
-            <svg class="nav-person-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
             Log
           </button>
           <div class="nav-log-browse-row">
@@ -185,14 +190,7 @@
 
       <section>
         <h2>Latest by exercise</h2>
-        <div class="scroll-table">
-          <table>
-            <thead>
-              <tr><th>Exercise</th><th>Last date</th><th>Sets</th></tr>
-            </thead>
-            <tbody id="latestBody"></tbody>
-          </table>
-        </div>
+        <div id="latestList" class="latest-list"></div>
       </section>
 
       <section>
@@ -345,8 +343,10 @@
 
 <!-- Hidden iOS haptic trigger — WebKit fires a system haptic tap only when a
      <label> for a switch-type checkbox is clicked, not on a direct script
-     click on the input. Kept in the a11y tree (not display:none). -->
-<div class="visually-hidden">
+     click on the input. Kept in the a11y tree (not display:none). Pinned to
+     the viewport (not document) corner via #hapticHiddenWrap in style.css —
+     see that rule for why. -->
+<div class="visually-hidden" id="hapticHiddenWrap">
   <input type="checkbox" switch id="hapticSwitch" tabindex="-1" aria-hidden="true">
   <label id="hapticLabel" for="hapticSwitch">haptic trigger</label>
 </div>

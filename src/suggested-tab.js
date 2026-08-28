@@ -1,6 +1,6 @@
 import { state, activeProfile } from "./state.js";
 import { $, fmtDate, cssEscape } from "./dom-utils.js";
-import { addToTodayPlan, showTodayWorkoutPage } from "./log-tab.js";
+import { addToTodayPlan } from "./log-tab.js";
 import { setView } from "./nav.js";
 
 // Most recent date any exercise in each muscle group was logged.
@@ -27,9 +27,9 @@ export async function jumpToExercise(name) {
   // Guarantee the target is visible on the Today's Workout page regardless
   // of whether it was already in the plan.
   if (!state.todayPlan.includes(name)) await addToTodayPlan(name);
+  // setView("log") itself lands on Today's Workout now (nav.js) — no need
+  // to separately skip the muscle-select gate here.
   setView("log");
-  // Jumping straight to an exercise skips the muscle-select gate.
-  showTodayWorkoutPage();
   requestAnimationFrame(() => {
     const block = document.querySelector(`.exercise-block[data-exercise="${cssEscape(name)}"]`);
     if (!block) return;

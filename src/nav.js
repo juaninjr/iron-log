@@ -1,6 +1,6 @@
 import { state, VIEW_IDS } from "./state.js";
 import { $, $all } from "./dom-utils.js";
-import { enterMuscleGate, setHeaderTitle } from "./log-tab.js";
+import { enterMuscleGate, showTodayWorkoutPage, setHeaderTitle } from "./log-tab.js";
 import { renderCharts } from "./progress-tab.js";
 import { renderCalendar } from "./calendar-tab.js";
 import { renderSuggested } from "./suggested-tab.js";
@@ -52,10 +52,10 @@ export function setView(view) {
   $all(".tab-btn", $("#mainTabs")).forEach(btn => {
     btn.classList.toggle("active", btn.dataset.view === view);
   });
-  // Re-entering Log always starts at the muscle-select gate, which hides
-  // the header entirely — its title only matters again once
-  // showTodayWorkoutPage() (log-tab.js) un-hides it, which sets its own.
-  if (view === "log") enterMuscleGate();
+  // The "Log" dropdown item lands on Today's Workout directly — the
+  // muscle-select wheel is reached separately, via #wheelToggle in the
+  // header (enterWheelView(), below), not through this dropdown row.
+  if (view === "log") showTodayWorkoutPage();
   else setHeaderTitle(VIEW_TITLES[view] ?? null);
   if (view === "progress") renderCharts();
   if (view === "calendar") renderCalendar();
@@ -63,4 +63,14 @@ export function setView(view) {
   if (view === "exercises") renderExerciseManage();
   if (view === "feedback") renderFeedbackView();
   if (view === "devtools") renderDevToolsView();
+}
+
+// #wheelToggle's own handler (main.js) — switches to the Log view same as
+// any other dropdown row, then swaps in the muscle-select gate instead of
+// setView("log")'s own default (Today's Workout). Mirrors the pattern
+// jumpToExercise() (suggested-tab.js) already used to land on Today's
+// Workout specifically, just aimed at the wheel instead.
+export function enterWheelView() {
+  setView("log");
+  enterMuscleGate();
 }
